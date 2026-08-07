@@ -1,4 +1,5 @@
 import type {
+  ApplicationRecord,
   BackupData,
   SettingsData,
   SyncMetadata,
@@ -14,6 +15,7 @@ export const STORAGE_KEYS = {
   LLM_CONFIG: 'llmConfig',
   WEBDAV_CONFIG: 'webdavConfig',
   SYNC_METADATA: 'syncMetadata',
+  APPLICATION_RECORDS: 'applicationRecords',
 } as const;
 
 export function normalizeUserProfile(profile: UserProfile): UserProfile {
@@ -213,5 +215,31 @@ export class StorageService {
 
   static async applyRemoteBusinessData(data: BackupData): Promise<void> {
     await this.replaceBusinessData(data);
+  }
+
+  static async getApplicationRecords(): Promise<ApplicationRecord[]> {
+    const result = await chrome.storage.local.get(STORAGE_KEYS.APPLICATION_RECORDS);
+    return (result[STORAGE_KEYS.APPLICATION_RECORDS] as ApplicationRecord[] | undefined) || [];
+  }
+
+  static async saveApplicationRecords(records: ApplicationRecord[]): Promise<void> {
+    await chrome.storage.local.set({ [STORAGE_KEYS.APPLICATION_RECORDS]: records });
+  }
+
+  static async createApplicationRecord(record: ApplicationRecord): Promise<void> {
+    const records = await this.getApplicationRecords();
+    await this.saveApplicationRecords([...records, record]);
+  }
+
+  static async updateApplicationRecord(record: ApplicationRecord): Promise<void> {
+    const records = await this.getApplicationRecords();
+    await this.saveApplicationRecords(records.map(existingRecord => (
+      existingRecord.id === record.id ? record : existingRecord
+    )));
+  }
+
+  static async deleteApplicationRecord(id: string): Promise<void> {
+    const records = await this.getApplicationRecords();
+    await this.saveApplicationRecords(records.filter(record => record.id !== id));
   }
 }

@@ -162,6 +162,37 @@ export interface SyncMetadata {
   conflict?: SyncConflictSummary;
 }
 
+export type ApplicationRecordStatus =
+  | '待投'
+  | '已投递'
+  | '笔试'
+  | '面试'
+  | 'Offer'
+  | '终止';
+
+export interface ApplicationPageMetadata {
+  companyName: string;
+  sourceSite: string;
+  sourceUrl: string;
+  pageTitle?: string;
+}
+
+export interface ApplicationRecord {
+  id: string;
+  companyName: string;
+  jobTitle: string;
+  sourceSite: string;
+  sourceUrl: string;
+  status: ApplicationRecordStatus;
+  notes: string;
+  appliedAt: string;
+  location: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ApplicationRecordDraft = Omit<ApplicationRecord, 'id'>;
+
 export type SyncAction =
   | 'create-remote'
   | 'no-change'
