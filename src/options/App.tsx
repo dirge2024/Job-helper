@@ -10,6 +10,7 @@ import { AISettings } from './AISettings';
 import { EducationSection } from './EducationSection';
 import { ExperienceSection } from './ExperienceSection';
 import { DataSyncSettings } from './DataSyncSettings';
+import { ApplicationRecordsSection } from './ApplicationRecordsSection';
 import { parsePDF } from '../parsers/pdfParser';
 import { parseDOCX } from '../parsers/docxParser';
 
@@ -95,7 +96,7 @@ function App() {
     skills: [],
     certifications: []
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(typeof window !== 'undefined');
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
   const [dataRevision, setDataRevision] = useState(0);
@@ -368,6 +369,12 @@ function App() {
             className={activeTab === 'data-sync' ? 'options-tab active' : 'options-tab'}
           >
             数据与同步
+          </button>
+          <button
+            onClick={() => setActiveTab('application-records')}
+            className={activeTab === 'application-records' ? 'options-tab active' : 'options-tab'}
+          >
+            投递记录
           </button>
         </nav>
 
@@ -692,7 +699,9 @@ function App() {
             <DataSyncSettings onDataChanged={handleExternalDataChange} />
           )}
 
-          {activeTab !== 'ai' && activeTab !== 'data-sync' && (
+          {activeTab === 'application-records' && <ApplicationRecordsSection />}
+
+          {activeTab !== 'ai' && activeTab !== 'data-sync' && activeTab !== 'application-records' && (
             <div className="options-actions">
             <button onClick={handleSave} disabled={saving} className="btn btn-primary">
               {saving ? '保存中...' : '保存设置'}
