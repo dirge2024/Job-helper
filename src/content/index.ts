@@ -2,6 +2,7 @@ import { FormDetector } from './formDetector';
 import { FormFiller, type FillSection } from './formFiller';
 import { OpenQuestionDetector } from './openQuestionDetector';
 import { groupPageScanFields, type PageScanField, type PageScanSection } from './pageScan';
+import { extractApplicationPageMetadata } from './applicationRecordMetadata.ts';
 import { createVisualRegionFillController } from './visualRegionFill.ts';
 import type {
   DetectedField,
@@ -626,6 +627,14 @@ function showSuccessMessage() {
 
 // 监听来自 popup 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'GET_APPLICATION_PAGE_METADATA') {
+    sendResponse({
+      success: true,
+      data: extractApplicationPageMetadata(document, window.location.href),
+    });
+    return true;
+  }
+
   if (message.type === 'DETECT_FIELDS') {
     detectedFields = formDetector.detectFields();
     sendResponse({

@@ -39,6 +39,16 @@ import {
 import type { AIFillSectionPayload } from '../services/llm/prompts.ts';
 import type { LLMConfig } from '../services/llm/types.ts';
 import {
+  handleCreateApplicationRecord,
+  handleCreateApplicationRecordDraft,
+  handleDeleteApplicationRecord,
+  handleExportApplicationRecordsCsv,
+  handleGetApplicationRecordDraft,
+  handleGetApplicationRecords,
+  handleImportApplicationRecordsCsv,
+  handleUpdateApplicationRecord,
+} from './applicationRecords.ts';
+import {
   captureVisibleRegion,
   handleVisualRegionFill,
 } from './visualRegionFill.ts';
@@ -97,6 +107,30 @@ export async function handleMessage(
         message.payload.fileName,
         message.payload.rawText
       );
+
+    case 'CREATE_APPLICATION_RECORD_DRAFT':
+      return await handleCreateApplicationRecordDraft(message.payload.tabId);
+
+    case 'GET_APPLICATION_RECORD_DRAFT':
+      return await handleGetApplicationRecordDraft(message.payload.draftId);
+
+    case 'GET_APPLICATION_RECORDS':
+      return await handleGetApplicationRecords();
+
+    case 'CREATE_APPLICATION_RECORD':
+      return await handleCreateApplicationRecord(message.payload);
+
+    case 'UPDATE_APPLICATION_RECORD':
+      return await handleUpdateApplicationRecord(message.payload);
+
+    case 'DELETE_APPLICATION_RECORD':
+      return await handleDeleteApplicationRecord(message.payload.id);
+
+    case 'EXPORT_APPLICATION_RECORDS_CSV':
+      return await handleExportApplicationRecordsCsv();
+
+    case 'IMPORT_APPLICATION_RECORDS_CSV':
+      return await handleImportApplicationRecordsCsv(message.payload.csv);
 
     case 'GET_RESUME_DATA':
       return await handleGetResumeData();

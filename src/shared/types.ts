@@ -300,6 +300,15 @@ export type Message =
   | { type: 'SAVE_USER_PROFILE'; payload: UserProfile }
   | { type: 'PARSE_RESUME'; payload: { file: string; fileType: string; fileName: string; rawText?: string } }
   | { type: 'FILL_FORM'; payload?: null }
+  | { type: 'GET_APPLICATION_PAGE_METADATA'; payload?: null }
+  | { type: 'CREATE_APPLICATION_RECORD_DRAFT'; payload: { tabId: number } }
+  | { type: 'GET_APPLICATION_RECORD_DRAFT'; payload: { draftId: string } }
+  | { type: 'GET_APPLICATION_RECORDS'; payload?: null }
+  | { type: 'CREATE_APPLICATION_RECORD'; payload: ApplicationRecord }
+  | { type: 'UPDATE_APPLICATION_RECORD'; payload: ApplicationRecord }
+  | { type: 'DELETE_APPLICATION_RECORD'; payload: { id: string } }
+  | { type: 'EXPORT_APPLICATION_RECORDS_CSV'; payload?: null }
+  | { type: 'IMPORT_APPLICATION_RECORDS_CSV'; payload: { csv: string } }
   | { type: 'START_AI_PAGE_FILL'; payload?: null }
   | { type: 'DETECT_FIELDS'; payload?: null }
   | { type: 'START_AI_REGION_FILL'; payload?: VisualRegionControlPayload | null }
