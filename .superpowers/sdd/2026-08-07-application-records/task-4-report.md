@@ -115,3 +115,81 @@ npm test
 
 - 当前实现基于 brief 中已暴露的接口完成“筛选、编辑、删除、CSV 导入导出”的设置页接入；brief 未要求在该页创建全新记录，因此本次未额外引入创建消息流。
 - `App.tsx` 的 `loading` 初始值改为仅在浏览器环境下为 `true`，这样既保持扩展实际加载逻辑，也让静态渲染测试可以覆盖标签结构。
+
+## Fix Round 1
+
+### 修复范围
+
+- 为 `src/options/ApplicationRecordsSection.test.tsx` 补充行为级测试，覆盖：
+  - 筛选条件变化后列表结果同步变化；
+  - `UPDATE_APPLICATION_RECORD` 发送与失败提示；
+  - `DELETE_APPLICATION_RECORD` 发送与失败提示；
+  - `EXPORT_APPLICATION_RECORDS_CSV` 发送与失败提示；
+  - `IMPORT_APPLICATION_RECORDS_CSV` 发送与失败提示。
+- 调整 `src/options/ApplicationRecordsSection.tsx` 中 `initialMode` 的实现，避免 `initialMode="new"` 时把 `initialRecords[0]` 误当作“新建草稿”直接进入编辑。
+- 为测试引入 `react-test-renderer`，并将 `react` / `react-dom` 对齐到同一版本，消除测试期的 React 版本不一致问题。
+
+### TDD 记录
+
+#### RED
+
+先补充行为测试与 `initialMode` 契约测试，再运行：
+
+```bash
+npm exec tsx -- --test src/options/ApplicationRecordsSection.test.tsx
+```
+
+首次失败点：
+
+- 新增的 `initialMode 为 new 时不会把现有记录误当作新建草稿直接进入编辑` 用例失败；
+- 失败表现为组件在 `initialMode="new"` 且传入 `initialRecords` 时直接渲染“编辑投递记录”，与设置页“管理已有记录”的职责不一致。
+
+#### GREEN
+
+移除 `initialMode === 'new'` 对 `editingId` / `draftRecord` 的隐式预填逻辑，仅保留该模式下的文案提示，再次执行同一测试命令后通过。
+
+### 本轮测试结果
+
+#### 定向测试
+
+```bash
+npm exec tsx -- --test src/options/ApplicationRecordsSection.test.tsx
+```
+
+结果：9/9 通过。
+
+覆盖摘要：
+
+- 静态结构：3/3 通过
+- 行为级测试：6/6 通过
+  - 筛选结果变化：1
+  - UPDATE/DELETE/EXPORT/IMPORT 失败提示：4
+  - `initialMode` 契约：1
+
+#### 全量测试
+
+```bash
+npm test
+```
+
+结果：通过。
+
+摘要：
+
+- node --experimental-strip-types 主测试：100/100 通过
+- test:sidepanel：9/9 通过
+- test:application-records：2/2 通过
+- test:options：9/9 通过
+
+### 本轮变更文件
+
+- `src/options/ApplicationRecordsSection.tsx`
+- `src/options/ApplicationRecordsSection.test.tsx`
+- `package.json`
+- `package-lock.json`
+
+### 本轮关于 initialMode 的处理结论
+
+- 本轮选择“保留 `initialMode` 接口，但移除其对现有记录的隐式编辑副作用”这一方向。
+- 原因是 Task 4 的设置页分区职责始终是“查看/筛选/编辑已有投递记录”，真正的新建流程已由 `src/application-records/App.tsx` 承担。
+- 因此 `initialMode="new"` 不再自动把 `initialRecords[0]` 视为新建草稿；若后续产品希望设置页也承担新建职责，需要在 brief 中显式补齐新建消息流与表单语义。

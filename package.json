@@ -20,8 +20,8 @@
     "mammoth": "^1.12.0",
     "marked": "^18.0.6",
     "pdfjs-dist": "^6.1.200",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@emnapi/core": "^1.11.3",
@@ -32,6 +32,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "canvas": "^3.2.3",
     "oxlint": "^1.71.0",
+    "react-test-renderer": "^19.2.8",
     "tsx": "^4.23.10",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"

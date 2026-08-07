@@ -81,12 +81,8 @@ export function ApplicationRecordsSection({
   const [companyKeyword, setCompanyKeyword] = useState('');
   const [jobKeyword, setJobKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(
-    initialMode === 'new' && initialRecords[0] ? initialRecords[0].id : null,
-  );
-  const [draftRecord, setDraftRecord] = useState<ApplicationRecord | null>(
-    initialMode === 'new' && initialRecords[0] ? cloneRecord(initialRecords[0]) : null,
-  );
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftRecord, setDraftRecord] = useState<ApplicationRecord | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadRecords = async () => {
@@ -448,7 +444,9 @@ export function ApplicationRecordsSection({
             <p className="application-record-editor-description">
               {draftRecord
                 ? '支持直接修改岗位名、状态、备注与来源链接，并同步到本地投递记录。'
-                : '从左侧列表选择一条记录开始编辑。'}
+                : initialMode === 'new'
+                  ? '该分区用于管理已有记录；如需新建，请从 popup 的“新建投递记录”入口进入。'
+                  : '从左侧列表选择一条记录开始编辑。'}
             </p>
 
             {draftRecord && (
