@@ -1,16 +1,57 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageService } from '../shared/message';
 import type { Message, MessageResponse, UserProfile } from '../shared/types';
 import type { LLMConfig } from '../services/llm/types';
 import { buildSidepanelUrl } from '../sidepanel/navigation';
 
+const APPLICATION_RECORDS_PAGE = 'src/application-records/index.html';
+
+function getRuntimeUrl(path: string): string {
+  return typeof chrome !== 'undefined' ? chrome.runtime.getURL(path) : path;
+}
+
+export async function openApplicationRecordCreateWindow(): Promise<void> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    throw new Error('没有可用的当前页面');
+  }
+
+  const draftResponse = await MessageService.sendMessage<{ draftId: string }>({
+    type: 'CREATE_APPLICATION_RECORD_DRAFT',
+    payload: { tabId: tab.id },
+  });
+  if (!draftResponse.success || !draftResponse.data?.draftId) {
+    throw new Error(draftResponse.error || '无法创建投递记录草稿');
+  }
+
+  await chrome.windows.create({
+    url: getRuntimeUrl(`${APPLICATION_RECORDS_PAGE}?draftId=${encodeURIComponent(draftResponse.data.draftId)}`),
+    type: 'popup',
+    width: 520,
+    height: 760,
+    focused: true,
+  });
+}
+
+export async function openApplicationRecordOptions(): Promise<void> {
+  await chrome.windows.create({
+    url: getRuntimeUrl(APPLICATION_RECORDS_PAGE),
+    type: 'popup',
+    width: 520,
+    height: 760,
+    focused: true,
+  });
+}
+
 function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(typeof window !== 'undefined');
   const [filling, setFilling] = useState(false);
   const [aiScanning, setAiScanning] = useState(false);
   const [startingAIRegion, setStartingAIRegion] = useState(false);
   const [openingView, setOpeningView] = useState(false);
+  const [openingApplicationCreate, setOpeningApplicationCreate] = useState(false);
+  const [openingApplicationRecords, setOpeningApplicationRecords] = useState(false);
   const [detectedFields, setDetectedFields] = useState(0);
 
   useEffect(() => {
@@ -119,6 +160,28 @@ function App() {
     chrome.runtime.openOptionsPage();
   };
 
+  const handleOpenApplicationRecordCreate = async () => {
+    setOpeningApplicationCreate(true);
+    try {
+      await openApplicationRecordCreateWindow();
+      window.close();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '打开新建投递记录失败');
+      setOpeningApplicationCreate(false);
+    }
+  };
+
+  const handleOpenApplicationRecords = async () => {
+    setOpeningApplicationRecords(true);
+    try {
+      await openApplicationRecordOptions();
+      window.close();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '打开投递记录失败');
+      setOpeningApplicationRecords(false);
+    }
+  };
+
   const handleStartAIRegionFill = async () => {
     if (!profile) {
       alert('请先设置个人信息！');
@@ -220,13 +283,31 @@ function App() {
       <header className="popup-header">
         <img
           className="popup-brand-mark"
-          src={chrome.runtime.getURL('icons/icon128.png')}
+          src={getRuntimeUrl('icons/icon128.png')}
           alt=""
           aria-hidden="true"
         />
         <div>
           <h1>秋招网申助手</h1>
           <p>让每一次投递更高效</p>
+        </div>
+        <div className="popup-header-actions">
+          <button
+            type="button"
+            className="header-action-button"
+            onClick={() => void handleOpenApplicationRecordCreate()}
+            disabled={openingApplicationCreate || openingApplicationRecords}
+          >
+            {openingApplicationCreate ? '打开中...' : '新建投递记录'}
+          </button>
+          <button
+            type="button"
+            className="header-action-button header-action-button-secondary"
+            onClick={() => void handleOpenApplicationRecords()}
+            disabled={openingApplicationCreate || openingApplicationRecords}
+          >
+            {openingApplicationRecords ? '打开中...' : '查看投递记录'}
+          </button>
         </div>
       </header>
 
