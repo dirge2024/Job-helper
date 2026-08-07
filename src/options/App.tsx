@@ -14,6 +14,30 @@ import { ApplicationRecordsSection } from './ApplicationRecordsSection';
 import { parsePDF } from '../parsers/pdfParser';
 import { parseDOCX } from '../parsers/docxParser';
 
+const OPTION_TABS = [
+  'personal',
+  'education',
+  'experience',
+  'custom',
+  'resume',
+  'ai',
+  'data-sync',
+  'application-records',
+] as const;
+
+type OptionTab = typeof OPTION_TABS[number];
+
+function getInitialActiveTab(search: string): OptionTab {
+  const tab = new URLSearchParams(search).get('tab');
+  return OPTION_TABS.includes(tab as OptionTab) ? tab as OptionTab : 'personal';
+}
+
+function hasChromeApis(): boolean {
+  return typeof chrome !== 'undefined'
+    && typeof chrome.storage !== 'undefined'
+    && typeof chrome.runtime !== 'undefined';
+}
+
 /** MIME 类型到扩展名的兜底映射，用于文件名缺少扩展名的情况 */
 const MIME_TO_EXT: Record<string, string> = {
   'application/json': 'json',
@@ -96,9 +120,15 @@ function App() {
     skills: [],
     certifications: []
   });
-  const [loading, setLoading] = useState(typeof window !== 'undefined');
+  const [loading, setLoading] = useState(hasChromeApis());
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('personal');
+  const [activeTab, setActiveTab] = useState<OptionTab>(() => {
+    if (typeof window === 'undefined') {
+      return 'personal';
+    }
+
+    return getInitialActiveTab(window.location.search);
+  });
   const [dataRevision, setDataRevision] = useState(0);
   const [parsingResume, setParsingResume] = useState(false);
   const [resumeNotice, setResumeNotice] = useState<{
@@ -117,6 +147,11 @@ function App() {
   }, [saveNotice]);
 
   useEffect(() => {
+    if (!hasChromeApis()) {
+      setLoading(false);
+      return;
+    }
+
     void loadProfile();
     const handleStorageChange = (
       changes: Record<string, chrome.storage.StorageChange>,
@@ -132,6 +167,11 @@ function App() {
   }, []);
 
   const loadProfile = async () => {
+    if (!hasChromeApis()) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await MessageService.sendMessage<UserProfile>({
         type: 'GET_USER_PROFILE'

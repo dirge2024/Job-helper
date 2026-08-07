@@ -269,7 +269,7 @@ export function ApplicationRecordCreateApp() {
 
           <div className="record-form-actions">
             <button type="submit" className="record-submit-button" disabled={loading || saving}>
-              {loading ? '正在加载草稿...' : saving ? '保存中...' : '保存投递记录'}
+              {loading ? '正在加载草稿...' : saving ? '保存中...' : duplicateId ? '继续保存' : '保存投递记录'}
             </button>
           </div>
         </form>

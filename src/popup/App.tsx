@@ -34,12 +34,8 @@ export async function openApplicationRecordCreateWindow(): Promise<void> {
 }
 
 export async function openApplicationRecordOptions(): Promise<void> {
-  await chrome.windows.create({
-    url: getRuntimeUrl(APPLICATION_RECORDS_PAGE),
-    type: 'popup',
-    width: 520,
-    height: 760,
-    focused: true,
+  await chrome.tabs.create({
+    url: getRuntimeUrl('src/options/index.html?tab=application-records'),
   });
 }
 

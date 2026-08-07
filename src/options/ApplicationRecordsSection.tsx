@@ -72,7 +72,7 @@ function formatUpdatedAt(value: string): string {
 export function ApplicationRecordsSection({
   initialMode = 'list',
   initialRecords = [],
-}: ApplicationRecordsSectionProps): JSX.Element {
+}: ApplicationRecordsSectionProps): React.JSX.Element {
   const [records, setRecords] = useState<ApplicationRecord[]>(() => sortRecords(initialRecords));
   const [loading, setLoading] = useState(initialRecords.length === 0);
   const [busyAction, setBusyAction] = useState<'import' | 'export' | 'save' | 'delete' | null>(null);

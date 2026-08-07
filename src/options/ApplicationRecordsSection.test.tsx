@@ -112,6 +112,27 @@ test('设置页新增投递记录标签，并位于数据与同步后面', async
   assert.ok(html.indexOf('数据与同步') < html.indexOf('投递记录'));
 });
 
+test('query 指定 tab=application-records 时设置页直接打开投递记录标签', async () => {
+  const optionsModule = await import('./App.tsx');
+  const originalWindow = globalThis.window;
+  const mockedWindow = {
+    location: {
+      search: '?tab=application-records',
+    },
+  } as Window & typeof globalThis;
+
+  globalThis.window = mockedWindow;
+
+  try {
+    const html = renderToStaticMarkup(React.createElement(optionsModule.default));
+    assert.match(html, /投递记录/);
+    assert.match(html, /导出 CSV/);
+    assert.doesNotMatch(html, /保存设置/);
+  } finally {
+    globalThis.window = originalWindow;
+  }
+});
+
 test('筛选条件变化时列表结果会同步变化', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
