@@ -136,11 +136,16 @@ export async function handleImportApplicationRecordsCsv(
 ): Promise<MessageResponse<{ imported: number; warnings: string[] }>> {
   const existingRecords = await StorageService.getApplicationRecords();
   const { records, warnings } = parseApplicationRecordsCsv(csv);
-  const importedRecords = records.map((record) => {
+  const importedRecords = records.map((record, index) => {
     const duplicate = findApplicationRecordDuplicate(existingRecords, record);
-    return duplicate ? { ...record, id: duplicate.id } : record;
+    if (duplicate) {
+      warnings.push(
+        `第 ${index + 2} 行与已有记录重复：${record.companyName || '未命名公司'} ${record.sourceUrl || '(缺少链接)'}`,
+      );
+    }
+    return record;
   });
-  await StorageService.saveApplicationRecords(importedRecords);
+  await StorageService.saveApplicationRecords([...existingRecords, ...importedRecords]);
   return {
     success: true,
     data: {

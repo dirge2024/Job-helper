@@ -169,3 +169,103 @@ case 'CREATE_APPLICATION_RECORD':
 
 - `drafts` 当前为 background 进程内存态缓存；在 extension service worker 被回收后，未完成的草稿会丢失。这满足当前 Task 2 的最小实现，但如果后续 UI 存在跨会话草稿恢复需求，需要落盘到 `chrome.storage`。
 - `handleImportApplicationRecordsCsv` 当前在导入时会用“同公司 + 同链接”的已有记录复用 `id`，以便重复导入同一 CSV 时维持记录稳定；若后续需要更复杂的合并策略，仍需明确冲突优先级与字段覆盖规则。
+
+---
+
+## fix round 1
+
+### status
+
+DONE
+
+### scope
+
+- 修改 `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/background/applicationRecords.ts`
+- 修改 `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/background/applicationRecords.test.ts`
+
+### findings fixed
+
+1. CSV 导入改为“追加导入”，不会再用导入结果整体覆盖原有投递记录；未参与本次导入的本地记录会被保留。
+2. 当导入行与已有记录命中“同公司 + 同链接”重复时，保留导入行新生成的 `id`，不再复用已有记录 `id`。
+3. 对命中已有重复的导入行追加 warning，便于 UI 在导入结果摘要中提示“可能存在重复”。
+4. 补充了两条背景层回归测试，分别覆盖“保留未参与导入的现有记录”和“重复导入保留新 id 且返回 warning”。
+
+### fail-first verification
+
+命令：
+
+```bash
+node --experimental-strip-types --test src/background/applicationRecords.test.ts
+```
+
+结果：FAIL
+
+关键信息：
+
+```text
+✖ CSV 导入会追加记录且保留未参与导入的现有记录
+  AssertionError [ERR_ASSERTION]: 1 !== 2
+
+✖ CSV 导入命中已有重复时保留新 id 并返回 warning
+  AssertionError [ERR_ASSERTION]: 0 !== 1
+```
+
+### passing verification
+
+命令：
+
+```bash
+node --experimental-strip-types --test src/content/applicationRecordMetadata.test.ts src/background/applicationRecords.test.ts
+node --experimental-strip-types --test src/background/applicationRecords.test.ts src/shared/applicationRecords.test.ts
+npm test
+```
+
+结果：PASS
+
+摘要：
+
+```text
+定向测试：
+✔ 创建草稿时返回 duplicate 但不阻止后续创建
+✔ 背景层 CRUD 与 CSV handler 可独立运行
+✔ CSV 导入会追加记录且保留未参与导入的现有记录
+✔ CSV 导入命中已有重复时保留新 id 并返回 warning
+✔ 页面元数据提取返回 sourceSite/sourceUrl，并尽量提取公司名
+
+投递记录相关测试：
+ℹ tests 11
+ℹ pass 11
+ℹ fail 0
+
+全量回归：
+ℹ tests 100
+ℹ pass 100
+ℹ fail 0
+
+sidepanel：
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+```
+
+### key code notes
+
+`/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/background/applicationRecords.ts`
+
+```ts
+const importedRecords = records.map((record, index) => {
+  const duplicate = findApplicationRecordDuplicate(existingRecords, record);
+  if (duplicate) {
+    warnings.push(
+      `第 ${index + 2} 行与已有记录重复：${record.companyName || '未命名公司'} ${record.sourceUrl || '(缺少链接)'}`,
+    );
+  }
+  return record;
+});
+await StorageService.saveApplicationRecords([...existingRecords, ...importedRecords]);
+```
+
+### concerns
+
+- 当前重复 warning 仅针对“导入数据与导入前本地已有记录”命中的情况；如果后续还需要提示“同一份 CSV 内部彼此重复”，需要再补一层导入批次内去重检查。
+- 导入策略现在明确偏向“保留历史 + 允许重复 + 给出提示”；若未来产品需要按字段合并、覆盖旧记录或幂等导入，需要先定义更细的冲突解决规则。

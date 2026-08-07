@@ -122,11 +122,80 @@ test('背景层 CRUD 与 CSV handler 可独立运行', async () => {
     const importResponse = await handleImportApplicationRecordsCsv(exportResponse.data!.csv);
     assert.equal(importResponse.success, true);
     assert.equal(importResponse.data?.imported, 1);
-    assert.deepEqual(importResponse.data?.warnings, []);
+    assert.equal(importResponse.data?.warnings.length, 1);
+    assert.match(importResponse.data?.warnings[0] || '', /重复/);
+    assert.equal((await handleGetApplicationRecords()).data?.length, 2);
 
     const deleteResponse = await handleDeleteApplicationRecord('r1');
     assert.equal(deleteResponse.success, true);
-    assert.deepEqual((await handleGetApplicationRecords()).data, []);
+    assert.equal((await handleGetApplicationRecords()).data?.length, 1);
+  } finally {
+    stub.restore();
+  }
+});
+
+test('CSV 导入会追加记录且保留未参与导入的现有记录', async () => {
+  const stub = installChromeStub();
+
+  try {
+    const existingRecord = buildRecord({
+      id: 'existing-record',
+      companyName: '字节跳动',
+      sourceUrl: 'https://jobs.bytedance.com/existing',
+    });
+    await handleCreateApplicationRecord(existingRecord);
+
+    const csv = [
+      'companyName,jobTitle,sourceSite,sourceUrl,status,notes,appliedAt,location,createdAt,updatedAt',
+      '腾讯,后台开发,tencent.com,https://careers.tencent.com/example,已投递,,2026-08-09,深圳,2026-08-09T10:00:00.000Z,2026-08-09T10:00:00.000Z',
+    ].join('\n');
+
+    const importResponse = await handleImportApplicationRecordsCsv(csv);
+    assert.equal(importResponse.success, true);
+    assert.equal(importResponse.data?.imported, 1);
+    assert.deepEqual(importResponse.data?.warnings, []);
+
+    const records = (await handleGetApplicationRecords()).data ?? [];
+    assert.equal(records.length, 2);
+    assert.deepEqual(
+      records.map(record => record.id),
+      ['existing-record', records[1]!.id],
+    );
+    assert.equal(records[0]?.companyName, '字节跳动');
+    assert.equal(records[1]?.companyName, '腾讯');
+  } finally {
+    stub.restore();
+  }
+});
+
+test('CSV 导入命中已有重复时保留新 id 并返回 warning', async () => {
+  const stub = installChromeStub();
+
+  try {
+    const existingRecord = buildRecord({
+      id: 'existing-record',
+      companyName: '字节跳动',
+      sourceUrl: 'https://jobs.bytedance.com/campus',
+    });
+    await handleCreateApplicationRecord(existingRecord);
+
+    const csv = [
+      'companyName,jobTitle,sourceSite,sourceUrl,status,notes,appliedAt,location,createdAt,updatedAt',
+      '字节跳动,,jobs.bytedance.com,https://jobs.bytedance.com/campus,已投递,,2026-08-07,,2026-08-07T11:00:00.000Z,2026-08-07T11:00:00.000Z',
+    ].join('\n');
+
+    const importResponse = await handleImportApplicationRecordsCsv(csv);
+    assert.equal(importResponse.success, true);
+    assert.equal(importResponse.data?.imported, 1);
+    assert.equal(importResponse.data?.warnings.length, 1);
+    assert.match(importResponse.data?.warnings[0] || '', /重复/);
+
+    const records = (await handleGetApplicationRecords()).data ?? [];
+    assert.equal(records.length, 2);
+    assert.equal(records[0]?.id, 'existing-record');
+    assert.notEqual(records[1]?.id, 'existing-record');
+    assert.equal(records[1]?.companyName, '字节跳动');
+    assert.equal(records[1]?.sourceUrl, 'https://jobs.bytedance.com/campus');
   } finally {
     stub.restore();
   }
