@@ -917,6 +917,12 @@ textarea:focus {
   table-layout: fixed;
 }
 
+.application-records-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
 .application-records-table th,
 .application-records-table td {
   padding: 12px 14px;
@@ -940,7 +946,6 @@ textarea:focus {
   gap: 10px;
 }
 
-.application-records-table-head-actions,
 .application-records-row-actions {
   display: flex;
   align-items: center;
@@ -950,9 +955,9 @@ textarea:focus {
 .application-records-table-head-button {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 24px;
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -961,35 +966,48 @@ textarea:focus {
   cursor: pointer;
 }
 
-.application-records-table-head-button:hover {
-  background: #eef2ff;
+.application-records-table-head-button-sort:hover {
   color: var(--color-primary);
 }
 
 .application-records-sort-icon {
-  font-size: 13px;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
   line-height: 1;
 }
 
-.application-records-sort-icon.is-active,
-.application-records-table-head-button svg.is-active {
+.application-records-sort-icon.is-active {
   color: var(--color-primary);
 }
 
-.application-record-filter-popover {
-  position: absolute;
-  top: calc(100% - 2px);
-  right: 12px;
-  z-index: 2;
-  width: 180px;
-  padding: 10px;
+.application-records-filter-panel {
+  margin-bottom: 12px;
+  padding: 14px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  background: #f8f9fb;
 }
 
-.application-record-filter-popover input {
+.application-records-filter-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.application-records-filter-field {
+  display: grid;
+  gap: 6px;
+}
+
+.application-records-filter-field > span {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.application-records-filter-field input,
+.application-records-filter-field select {
   width: 100%;
   min-height: 36px;
   padding: 8px 10px;
@@ -998,6 +1016,12 @@ textarea:focus {
   background: #fff;
   color: var(--color-text);
   font-size: 13px;
+}
+
+.application-records-filter-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 
 .application-records-row:hover {
@@ -1042,8 +1066,8 @@ textarea:focus {
 }
 
 .application-records-cell-link {
-  width: 220px;
-  max-width: 220px;
+  width: 120px;
+  max-width: 120px;
 }
 
 .application-records-link-text,
@@ -1053,6 +1077,15 @@ textarea:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.application-records-link-text {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.application-records-link-text:hover {
+  text-decoration: underline;
 }
 
 .application-records-cell-actions {
@@ -1154,6 +1187,10 @@ textarea:focus {
 
   .application-records-table {
     min-width: 980px;
+  }
+
+  .application-records-filter-panel-grid {
+    grid-template-columns: 1fr;
   }
 }
 
