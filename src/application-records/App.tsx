@@ -136,8 +136,11 @@ export function ApplicationRecordCreateApp() {
 
     setForm(payload);
     setDuplicateId(response.data?.duplicate?.id ?? null);
-    setSuccessText(response.data?.duplicate ? '已存在' : '保存成功');
+    setSuccessText(response.data?.duplicate ? '已存在' : '已保存');
     setSaving(false);
+    if (typeof window !== 'undefined' && typeof window.close === 'function') {
+      window.close();
+    }
   };
 
   return (

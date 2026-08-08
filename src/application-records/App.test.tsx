@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { mock } from 'node:test';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -23,6 +24,12 @@ console.error = (...args: unknown[]) => {
 
   originalConsoleError(...args);
 };
+
+function getText(node: TestRenderer.ReactTestInstance): string {
+  return node.children
+    .map(child => typeof child === 'string' ? child : getText(child))
+    .join('');
+}
 
 test('新建记录页默认显示已投递状态并保留空岗位名输入框', () => {
   const html = renderToStaticMarkup(<App />);
@@ -83,6 +90,69 @@ test('命中同公司同链接时新建页显示已存在提示但保留继续�
       .join('');
     assert.match(text, /已存在/);
     assert.equal(submitButtonText, '继续保存');
+  } finally {
+    MessageService.sendMessage = originalSendMessage;
+    globalThis.window = originalWindow;
+  }
+});
+
+test('保存成功后显示已保存并关闭窗口', async () => {
+  const originalWindow = globalThis.window;
+  const originalSendMessage = MessageService.sendMessage;
+  const closeMock = mock.fn();
+
+  const mockedWindow = {
+    location: {
+      search: '?draftId=new-record',
+    },
+    close: closeMock,
+  } as Window & typeof globalThis;
+
+  let sendCount = 0;
+  globalThis.window = mockedWindow;
+  MessageService.sendMessage = (async () => {
+    sendCount += 1;
+    if (sendCount === 1) {
+      return {
+        success: true,
+        data: {
+          draft: {
+            companyName: '字节跳动',
+            jobTitle: '',
+            sourceSite: 'jobs.bytedance.com',
+            sourceUrl: 'https://jobs.bytedance.com/example',
+            status: '已投递',
+            notes: '',
+            appliedAt: '2026-08-08',
+            location: '',
+          },
+          duplicate: null,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        duplicate: null,
+      },
+    };
+  }) as typeof MessageService.sendMessage;
+
+  try {
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const form = renderer.root.findByType('form');
+    await act(async () => {
+      await form.props.onSubmit({ preventDefault() {} });
+    });
+
+    const text = renderer.root.findAll(node => typeof node.type === 'string').map(getText).join('\n');
+    assert.match(text, /已保存/);
+    assert.equal(closeMock.mock.callCount(), 1);
   } finally {
     MessageService.sendMessage = originalSendMessage;
     globalThis.window = originalWindow;

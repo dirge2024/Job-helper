@@ -54,10 +54,14 @@ const records: ApplicationRecord[] = [
   },
 ];
 
-function getCardTitles(root: TestRenderer.ReactTestInstance): string[] {
+function getRowCompanies(root: TestRenderer.ReactTestInstance): string[] {
   return root
-    .findAll(node => node.type === 'article' && node.props.className === 'application-record-card')
-    .map(card => card.findByType('h3').children.join(''));
+    .findAll(
+      node => node.type === 'div'
+        && typeof node.props.className === 'string'
+        && /^application-record-row(?:\s|$)/.test(node.props.className),
+    )
+    .map(row => row.find(node => typeof node.props.className === 'string' && node.props.className.includes('application-record-row-company')).children.join(''));
 }
 
 function getText(node: TestRenderer.ReactTestInstance): string {
@@ -106,6 +110,15 @@ test('记录页渲染来源链接按钮', () => {
   assert.match(html, /打开来源链接/);
 });
 
+test('投递记录列表以单行结构渲染核心字段', () => {
+  const html = renderToStaticMarkup(<ApplicationRecordsSection initialRecords={records} />);
+  assert.match(html, /字节跳动/);
+  assert.match(html, /前端开发/);
+  assert.match(html, /已投递/);
+  assert.match(html, /jobs\.bytedance\.com/);
+  assert.match(html, /2026-08-07/);
+});
+
 test('设置页新增投递记录标签，并位于数据与同步后面', async () => {
   const optionsModule = await import('./App.tsx');
   const html = renderToStaticMarkup(React.createElement(optionsModule.default));
@@ -139,24 +152,37 @@ test('筛选条件变化时列表结果会同步变化', async () => {
     renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
   });
 
-  assert.deepEqual(getCardTitles(renderer.root), ['字节跳动', '腾讯']);
+  assert.deepEqual(getRowCompanies(renderer.root), ['字节跳动', '腾讯']);
 
   await act(async () => {
     findInputByAriaLabel(renderer.root, '公司名').props.onChange({ target: { value: '腾讯' } });
   });
-  assert.deepEqual(getCardTitles(renderer.root), ['腾讯']);
+  assert.deepEqual(getRowCompanies(renderer.root), ['腾讯']);
 
   await act(async () => {
     findInputByAriaLabel(renderer.root, '公司名').props.onChange({ target: { value: '' } });
     findInputByAriaLabel(renderer.root, '岗位名').props.onChange({ target: { value: '前端' } });
   });
-  assert.deepEqual(getCardTitles(renderer.root), ['字节跳动']);
+  assert.deepEqual(getRowCompanies(renderer.root), ['字节跳动']);
 
   await act(async () => {
     findInputByAriaLabel(renderer.root, '岗位名').props.onChange({ target: { value: '' } });
     findInputByAriaLabel(renderer.root, '状态').props.onChange({ target: { value: '面试' } });
   });
-  assert.deepEqual(getCardTitles(renderer.root), ['腾讯']);
+  assert.deepEqual(getRowCompanies(renderer.root), ['腾讯']);
+});
+
+test('点击单行记录后仍可进入右侧编辑区', async () => {
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
+  });
+
+  await act(async () => {
+    findButton(renderer.root, '编辑').props.onClick();
+  });
+
+  assert.match(getText(renderer.root), /编辑投递记录/);
 });
 
 test('UPDATE_APPLICATION_RECORD 发送失败时展示失败提示', async () => {

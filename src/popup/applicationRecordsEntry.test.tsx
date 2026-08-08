@@ -4,14 +4,14 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { openApplicationRecordOptions } from './App.tsx';
 
-test('popup 右上角渲染新建投递记录和查看投递记录按钮', async () => {
+test('popup 右上角渲染新建投递记录和打开投递记录按钮', async () => {
   const popupModule = await import('./App.tsx');
   const html = renderToStaticMarkup(React.createElement(popupModule.default));
   assert.match(html, /新建投递记录/);
-  assert.match(html, /查看投递记录/);
+  assert.match(html, /打开投递记录/);
 });
 
-test('查看投递记录入口打开带 query 的设置页标签', async () => {
+test('打开投递记录入口打开带 query 的设置页标签', async () => {
   const originalChrome = (globalThis as { chrome?: unknown }).chrome;
   const createdTabs: Array<{ url?: string }> = [];
 

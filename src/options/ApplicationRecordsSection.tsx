@@ -369,39 +369,22 @@ export function ApplicationRecordsSection({
             <div className="application-records-empty">暂无符合条件的投递记录</div>
           ) : (
             filteredRecords.map(record => (
-              <article key={record.id} className="application-record-card">
-                <div className="application-record-card-header">
-                  <div>
-                    <h3>{record.companyName || '未填写公司名'}</h3>
-                    <p>{record.jobTitle || '未填写岗位名'}</p>
-                  </div>
-                  <span className="application-record-status-pill">{record.status}</span>
-                </div>
-
-                <dl className="application-record-meta">
-                  <div>
-                    <dt>来源站点</dt>
-                    <dd>{record.sourceSite || '未填写'}</dd>
-                  </div>
-                  <div>
-                    <dt>投递日期</dt>
-                    <dd>{record.appliedAt || '未填写'}</dd>
-                  </div>
-                  <div>
-                    <dt>工作地点</dt>
-                    <dd>{record.location || '未填写'}</dd>
-                  </div>
-                  <div>
-                    <dt>最后更新</dt>
-                    <dd>{formatUpdatedAt(record.updatedAt)}</dd>
-                  </div>
-                </dl>
-
-                {record.notes && (
-                  <p className="application-record-notes">{record.notes}</p>
-                )}
-
-                <div className="application-record-card-actions">
+              <div
+                key={record.id}
+                className={`application-record-row${editingId === record.id ? ' is-active' : ''}`}
+              >
+                <button
+                  type="button"
+                  className="application-record-row-main"
+                  onClick={() => beginEdit(record)}
+                >
+                  <span className="application-record-row-company">{record.companyName || '未填写公司名'}</span>
+                  <span className="application-record-row-job">{record.jobTitle || '未填写岗位名'}</span>
+                  <span className="application-record-row-status">{record.status}</span>
+                  <span className="application-record-row-site">{record.sourceSite || '未填写'}</span>
+                  <span className="application-record-row-date">{record.appliedAt || '未填写'}</span>
+                </button>
+                <div className="application-record-row-actions">
                   <button
                     type="button"
                     className="btn btn-secondary"
@@ -433,7 +416,7 @@ export function ApplicationRecordsSection({
                     删除
                   </button>
                 </div>
-              </article>
+              </div>
             ))
           )}
         </div>

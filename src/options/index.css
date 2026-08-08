@@ -953,40 +953,74 @@ textarea:focus {
   text-align: center;
 }
 
-.application-record-card {
-  padding: 18px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-panel);
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-.application-record-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.application-record-card-header h3,
 .application-record-editor-card h3 {
   margin: 0;
   color: var(--color-text);
   font-size: 16px;
   font-weight: 700;
 }
+.application-record-row-actions,
+.application-record-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 
-.application-record-card-header p {
-  margin: 6px 0 0;
-  color: var(--color-muted);
+.application-record-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.application-record-row.is-active {
+  border-color: rgba(79, 70, 229, 0.38);
+  background: #f8f9ff;
+  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.08);
+}
+
+.application-record-row-main {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) minmax(140px, 1fr) 88px 140px 110px;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.application-record-row-main > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.application-record-row-company {
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.application-record-row-job,
+.application-record-row-site,
+.application-record-row-date {
+  color: #4b5563;
   font-size: 13px;
 }
 
-.application-record-status-pill {
+.application-record-row-status {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  justify-content: center;
+  padding: 5px 8px;
   border-radius: 999px;
   background: var(--color-primary-soft);
   color: var(--color-primary);
@@ -995,48 +1029,8 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.application-record-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0;
-}
-
-.application-record-meta div {
-  min-width: 0;
-  padding: 11px 12px;
-  border-radius: 10px;
-  background: #f8f9fb;
-}
-
-.application-record-meta dt {
-  margin-bottom: 4px;
-  color: var(--color-muted);
-  font-size: 11px;
-}
-
-.application-record-meta dd {
-  margin: 0;
-  color: #374151;
-  font-size: 13px;
-  font-weight: 650;
-  overflow-wrap: anywhere;
-}
-
-.application-record-notes {
-  margin: 14px 0 0;
-  color: #4b5563;
-  font-size: 13px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.application-record-card-actions,
-.application-record-editor-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
+.application-record-row-actions {
+  margin-left: auto;
 }
 
 .application-record-link-button {
@@ -1162,8 +1156,8 @@ textarea:focus {
   .application-records-actions .btn,
   .data-heading-actions .btn,
   .sync-actions .btn,
-  .application-record-card-actions .btn,
-  .application-record-card-actions .application-record-link-button,
+  .application-record-row-actions .btn,
+  .application-record-row-actions .application-record-link-button,
   .application-record-editor-actions .btn {
     width: 100%;
   }
@@ -1179,6 +1173,18 @@ textarea:focus {
 
   .application-record-editor-card {
     position: static;
+  }
+
+  .application-record-row {
+    grid-template-columns: 1fr;
+  }
+
+  .application-record-row-main {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .application-record-row-actions {
+    margin-left: 0;
   }
 }
 

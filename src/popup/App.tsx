@@ -302,7 +302,7 @@ function App() {
             onClick={() => void handleOpenApplicationRecords()}
             disabled={openingApplicationCreate || openingApplicationRecords}
           >
-            {openingApplicationRecords ? '打开中...' : '查看投递记录'}
+            {openingApplicationRecords ? '打开中...' : '打开投递记录'}
           </button>
         </div>
       </header>
