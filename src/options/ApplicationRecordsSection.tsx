@@ -443,7 +443,7 @@ export function ApplicationRecordsSection({
             <h3>{draftRecord ? '编辑投递记录' : '选择记录后可编辑'}</h3>
             <p className="application-record-editor-description">
               {draftRecord
-                ? '支持直接修改岗位名、状态、备注与来源链接，并同步到本地投递记录。'
+                ? '支持直接修改公司名、岗位名、来源站点、状态、备注与来源链接，并同步到本地投递记录。'
                 : initialMode === 'new'
                   ? '该分区用于管理已有记录；如需新建，请从 popup 的“新建投递记录”入口进入。'
                   : '从左侧列表选择一条记录开始编辑。'}
@@ -466,6 +466,15 @@ export function ApplicationRecordsSection({
                     type="text"
                     value={draftRecord.jobTitle}
                     onChange={event => updateDraftField('jobTitle', event.target.value)}
+                    disabled={busyAction !== null}
+                  />
+                </label>
+                <label>
+                  <span>来源站点</span>
+                  <input
+                    type="text"
+                    value={draftRecord.sourceSite}
+                    onChange={event => updateDraftField('sourceSite', event.target.value)}
                     disabled={busyAction !== null}
                   />
                 </label>

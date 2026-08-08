@@ -134,6 +134,40 @@ test('背景层 CRUD 与 CSV handler 可独立运行', async () => {
   }
 });
 
+test('连续保存同一条新建记录时不会生成重复 id 记录', async () => {
+  const stub = installChromeStub();
+
+  try {
+    const firstPayload = buildRecord({
+      id: 'same-record-id',
+      status: '已投递',
+      notes: '首次保存',
+      updatedAt: '2026-08-08T10:00:00.000Z',
+    });
+    const secondPayload = buildRecord({
+      id: 'same-record-id',
+      status: '面试',
+      notes: '再次保存',
+      updatedAt: '2026-08-08T12:00:00.000Z',
+    });
+
+    const firstResponse = await handleCreateApplicationRecord(firstPayload);
+    assert.equal(firstResponse.success, true);
+
+    const secondResponse = await handleCreateApplicationRecord(secondPayload);
+    assert.equal(secondResponse.success, true);
+
+    const records = (await handleGetApplicationRecords()).data ?? [];
+    assert.equal(records.length, 1);
+    assert.equal(records[0]?.id, 'same-record-id');
+    assert.equal(records[0]?.status, '面试');
+    assert.equal(records[0]?.notes, '再次保存');
+    assert.equal(records[0]?.updatedAt, '2026-08-08T12:00:00.000Z');
+  } finally {
+    stub.restore();
+  }
+});
+
 test('CSV 导入会追加记录且保留未参与导入的现有记录', async () => {
   const stub = installChromeStub();
 
@@ -163,6 +197,24 @@ test('CSV 导入会追加记录且保留未参与导入的现有记录', async (
     );
     assert.equal(records[0]?.companyName, '字节跳动');
     assert.equal(records[1]?.companyName, '腾讯');
+  } finally {
+    stub.restore();
+  }
+});
+
+test('非法 CSV 表头导入返回失败而不是 success + 0', async () => {
+  const stub = installChromeStub();
+
+  try {
+    const invalidCsv = [
+      'companyName,jobTitle,sourceUrl,status',
+      '字节跳动,前端开发,https://jobs.bytedance.com/example,已投递',
+    ].join('\n');
+
+    const response = await handleImportApplicationRecordsCsv(invalidCsv);
+    assert.equal(response.success, false);
+    assert.match(response.error || '', /CSV 表头不合法/);
+    assert.equal((await handleGetApplicationRecords()).data?.length, 0);
   } finally {
     stub.restore();
   }

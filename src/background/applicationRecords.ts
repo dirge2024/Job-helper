@@ -102,8 +102,16 @@ export async function handleCreateApplicationRecord(
   record: ApplicationRecord,
 ): Promise<MessageResponse<{ duplicate: ApplicationRecord | null }>> {
   const records = await StorageService.getApplicationRecords();
-  const duplicate = findApplicationRecordDuplicate(records, record);
-  await StorageService.saveApplicationRecords([...records, record]);
+  const duplicate = findApplicationRecordDuplicate(
+    records.filter(existingRecord => existingRecord.id !== record.id),
+    record,
+  );
+  const hasSameId = records.some(existingRecord => existingRecord.id === record.id);
+  await StorageService.saveApplicationRecords(
+    hasSameId
+      ? records.map(existingRecord => (existingRecord.id === record.id ? record : existingRecord))
+      : [...records, record],
+  );
   return {
     success: true,
     data: { duplicate },
@@ -135,7 +143,13 @@ export async function handleImportApplicationRecordsCsv(
   csv: string,
 ): Promise<MessageResponse<{ imported: number; warnings: string[] }>> {
   const existingRecords = await StorageService.getApplicationRecords();
-  const { records, warnings } = parseApplicationRecordsCsv(csv);
+  const { records, warnings, error } = parseApplicationRecordsCsv(csv);
+  if (error) {
+    return {
+      success: false,
+      error,
+    };
+  }
   const importedRecords = records.map((record, index) => {
     const duplicate = findApplicationRecordDuplicate(existingRecords, record);
     if (duplicate) {

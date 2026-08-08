@@ -187,6 +187,45 @@ test('UPDATE_APPLICATION_RECORD 发送失败时展示失败提示', async () => 
   });
 });
 
+test('设置页编辑时可修改来源站点并随保存请求发出', async () => {
+  const sentMessages: Message[] = [];
+
+  await withMockedSendMessage(async message => {
+    sentMessages.push(message);
+    if (message.type === 'UPDATE_APPLICATION_RECORD') {
+      return { success: true, data: null };
+    }
+    return { success: true, data: null };
+  }, async () => {
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
+    });
+
+    await act(async () => {
+      findButton(renderer.root, '编辑').props.onClick();
+    });
+
+    const sourceSiteInput = renderer.root.findAll(
+      node => node.type === 'input' && node.props.value === 'jobs.bytedance.com',
+    )[0];
+
+    await act(async () => {
+      sourceSiteInput.props.onChange({ target: { value: 'careers.bytedance.com' } });
+    });
+
+    await act(async () => {
+      findButton(renderer.root, '保存修改').props.onClick();
+    });
+
+    assert.equal(sentMessages.at(-1)?.type, 'UPDATE_APPLICATION_RECORD');
+    assert.equal(
+      (sentMessages.at(-1) as Extract<Message, { type: 'UPDATE_APPLICATION_RECORD' }>).payload.sourceSite,
+      'careers.bytedance.com',
+    );
+  });
+});
+
 test('DELETE_APPLICATION_RECORD 发送失败时展示失败提示', async () => {
   const sentMessages: Message[] = [];
 

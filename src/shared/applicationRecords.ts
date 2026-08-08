@@ -151,6 +151,7 @@ export function serializeApplicationRecordsCsv(records: ApplicationRecord[]): st
 export function parseApplicationRecordsCsv(csv: string): {
   records: ApplicationRecord[];
   warnings: string[];
+  error?: string;
 } {
   const rows = parseCsvRows(csv);
   const warnings: string[] = [];
@@ -169,6 +170,7 @@ export function parseApplicationRecordsCsv(csv: string): {
     return {
       records: [],
       warnings: ['CSV 表头不合法，必须与固定列头完全一致'],
+      error: 'CSV 表头不合法，必须与固定列头完全一致',
     };
   }
 

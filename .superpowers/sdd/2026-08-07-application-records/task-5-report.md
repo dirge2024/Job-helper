@@ -142,3 +142,139 @@ npm run build
 
 - 无阻塞项。
 - `src/options/ApplicationRecordsSection.tsx` 的 `JSX.Element` 返回类型原本会导致 `tsc -b` 失败，本次一并修正为 `React.JSX.Element`，否则无法满足 brief 中的最终 build 校验。
+
+---
+
+## 2026-08-08 最终审查修复追加
+
+### 审查结论与根因
+
+本轮按最终审查结果补修 3 个问题，并先做根因定位再落代码：
+
+1. 新建页连续保存会产生重复 id 记录
+   - 根因：`/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/application-records/App.tsx` 首次保存后会复用同一个 `form.id`，但 `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/background/applicationRecords.ts` 的 `handleCreateApplicationRecord()` 一直执行 append，导致同 id 被重复落库。
+2. 设置页编辑缺少 `sourceSite`
+   - 根因：`/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/options/ApplicationRecordsSection.tsx` 的编辑表单少了“来源站点”输入，只在列表摘要里展示，和“可编辑字段”口径不一致。
+3. 非法 CSV 表头返回了 `success + imported=0`
+   - 根因：`/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/shared/applicationRecords.ts` 只把非法表头当 warning 返回；背景层 `handleImportApplicationRecordsCsv()` 未区分致命解析错误，继续回 success。
+
+### TDD 记录
+
+#### Red
+
+先补失败测试并确认确实失败：
+
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/background/applicationRecords.test.ts`
+  - `连续保存同一条新建记录时不会生成重复 id 记录`
+  - `非法 CSV 表头导入返回失败而不是 success + 0`
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/options/ApplicationRecordsSection.test.tsx`
+  - `设置页编辑时可修改来源站点并随保存请求发出`
+
+失败结果：
+
+- 背景层重复创建同 id 时列表长度为 `2`，证明确实发生重复落库。
+- 非法 CSV 表头导入时 `success === true`，证明消息层错误地把致命校验当成普通 warning。
+- 设置页编辑态找不到 `sourceSite` 输入框，证明“可编辑字段”不完整。
+
+#### Green
+
+最小实现如下：
+
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/background/applicationRecords.ts`
+  - `CREATE_APPLICATION_RECORD` 改为“同 id upsert、不同 id append”
+  - duplicate 检测时排除相同 id，避免把当前记录自己判成重复
+  - CSV 导入解析拿到 `error` 时直接返回 `success: false`
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/shared/applicationRecords.ts`
+  - 非法表头除了保留 warning，也额外返回结构化 `error`
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/options/ApplicationRecordsSection.tsx`
+  - 编辑表单新增“来源站点”输入框
+  - 编辑说明文案补齐 `sourceSite`
+
+### 关键代码
+
+#### 1. 同 id 连续保存改为 upsert
+
+```ts
+const duplicate = findApplicationRecordDuplicate(
+  records.filter(existingRecord => existingRecord.id !== record.id),
+  record,
+);
+const hasSameId = records.some(existingRecord => existingRecord.id === record.id);
+await StorageService.saveApplicationRecords(
+  hasSameId
+    ? records.map(existingRecord => (existingRecord.id === record.id ? record : existingRecord))
+    : [...records, record],
+);
+```
+
+#### 2. 非法 CSV 表头升级为失败
+
+```ts
+const { records, warnings, error } = parseApplicationRecordsCsv(csv);
+if (error) {
+  return {
+    success: false,
+    error,
+  };
+}
+```
+
+```ts
+return {
+  records: [],
+  warnings: ['CSV 表头不合法，必须与固定列头完全一致'],
+  error: 'CSV 表头不合法，必须与固定列头完全一致',
+};
+```
+
+#### 3. 设置页编辑补齐 `sourceSite`
+
+```tsx
+<label>
+  <span>来源站点</span>
+  <input
+    type="text"
+    value={draftRecord.sourceSite}
+    onChange={event => updateDraftField('sourceSite', event.target.value)}
+    disabled={busyAction !== null}
+  />
+</label>
+```
+
+### 修改文件
+
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/background/applicationRecords.ts`
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/shared/applicationRecords.ts`
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/options/ApplicationRecordsSection.tsx`
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/background/applicationRecords.test.ts`
+- `/Users/bytedance/Downloads/网申/Job-Application-Helper/.worktrees/application-records/src/options/ApplicationRecordsSection.test.tsx`
+
+### 测试摘要
+
+失败验证：
+
+```bash
+node --experimental-strip-types --test src/background/applicationRecords.test.ts
+npm exec tsx -- --test src/options/ApplicationRecordsSection.test.tsx
+```
+
+其中新增 3 个用例先失败，分别命中“重复 id 连续保存”“非法表头 success+0”“编辑缺少 sourceSite”。
+
+通过验证：
+
+```bash
+npm run test:application-records
+npm run build
+```
+
+结果：
+
+- `test:application-records`：29/29 通过
+  - core 14/14 通过
+  - ui 15/15 通过
+- `build`：通过
+
+### concerns
+
+- 当前“新建页连续保存”采用 background 层 upsert 兜底，能稳定避免重复 id 记录；如果后续想把“第二次点击保存”明确建模成编辑而不是重提交流程，可再单独梳理 create page 的交互语义。
+- 非法 CSV 表头现已直接失败；空文件仍沿用 warning 语义返回 `CSV 内容为空`，因为本次最终审查只要求修正“非法表头”场景。
