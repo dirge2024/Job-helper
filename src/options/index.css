@@ -861,44 +861,6 @@ textarea:focus {
   gap: 10px;
 }
 
-.application-records-toolbar {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.application-records-filter {
-  display: grid;
-  gap: 7px;
-}
-
-.application-records-filter > span {
-  font-size: 13px;
-  font-weight: 650;
-  color: #374151;
-}
-
-.application-records-filter input,
-.application-records-filter select,
-.application-record-editor-fields input,
-.application-record-editor-fields select,
-.application-record-editor-fields textarea {
-  width: 100%;
-  min-height: 42px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: #fff;
-  color: var(--color-text);
-  font-size: 14px;
-}
-
-.application-record-editor-fields textarea {
-  min-height: 120px;
-  line-height: 1.6;
-  resize: vertical;
-}
-
 .application-records-notice,
 .application-records-error {
   padding: 12px 14px;
@@ -925,9 +887,11 @@ textarea:focus {
   color: #b91c1c;
 }
 
-.application-records-list {
-  display: grid;
-  gap: 14px;
+.application-records-table-shell {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: #fff;
 }
 
 .application-records-empty {
@@ -946,99 +910,107 @@ textarea:focus {
   text-align: center;
 }
 
-.application-record-row-actions,
-.application-record-inline-actions {
+.application-records-table {
+  width: 100%;
+  min-width: 1100px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.application-records-table th,
+.application-records-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.application-records-table th {
+  position: relative;
+  background: #f8f9fb;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.application-records-table-head {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
 }
 
-.application-record-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+.application-records-table-head-actions,
+.application-records-row-actions {
+  display: flex;
   align-items: center;
-  padding: 12px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: #fff;
+  gap: 8px;
 }
 
-.application-record-row.is-active {
-  border-color: rgba(79, 70, 229, 0.38);
-  background: #f8f9ff;
-  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.08);
-}
-
-.application-record-row-main {
-  display: grid;
-  grid-template-columns: minmax(160px, 1.2fr) minmax(140px, 1fr) 88px 140px 110px;
-  gap: 12px;
+.application-records-table-head-button {
+  display: inline-flex;
   align-items: center;
-  min-width: 0;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
+  border-radius: 6px;
   background: transparent;
-  text-align: left;
+  color: #6b7280;
   cursor: pointer;
 }
 
-.application-record-row-main > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.application-record-row-company {
-  color: var(--color-text);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.application-record-row-job,
-.application-record-row-site,
-.application-record-row-date {
-  color: #4b5563;
-  font-size: 13px;
-}
-
-.application-record-row-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: var(--color-primary-soft);
+.application-records-table-head-button:hover {
+  background: #eef2ff;
   color: var(--color-primary);
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
-.application-record-row-actions {
-  margin-left: auto;
-  align-items: center;
+.application-records-sort-icon {
+  font-size: 13px;
+  line-height: 1;
 }
 
-.application-record-link-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 32px;
-  padding: 6px 10px;
-  border: 1px solid #d4d8df;
+.application-records-sort-icon.is-active,
+.application-records-table-head-button svg.is-active {
+  color: var(--color-primary);
+}
+
+.application-record-filter-popover {
+  position: absolute;
+  top: calc(100% - 2px);
+  right: 12px;
+  z-index: 2;
+  width: 180px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.application-record-filter-popover input {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: #fff;
-  color: #374151;
+  color: var(--color-text);
   font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
 }
 
-.application-record-link-button:hover {
-  border-color: #b9bfca;
-  background: #f8f9fb;
+.application-records-row:hover {
+  background: #fafbff;
+}
+
+.application-records-row-editing {
+  background: #f8f9ff;
+}
+
+.application-records-row td[data-column='companyName'] {
+  color: var(--color-text);
+  font-weight: 700;
 }
 
 .application-record-icon-button {
@@ -1069,63 +1041,34 @@ textarea:focus {
   color: #b91c1c;
 }
 
-.application-record-inline-editor {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 14px;
-  padding: 14px;
-  border: 1px solid rgba(79, 70, 229, 0.14);
-  border-radius: 10px;
-  background: #f8f9ff;
+.application-records-cell-link {
+  width: 220px;
+  max-width: 220px;
 }
 
-.application-record-inline-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+.application-records-link-text,
+.application-records-notes-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.application-record-inline-grid label {
-  display: grid;
-  gap: 7px;
+.application-records-cell-actions {
+  width: 156px;
 }
 
-.application-record-inline-grid span {
-  color: #374151;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.application-record-inline-wide {
-  grid-column: 1 / -1;
-}
-
-.application-record-inline-grid input,
-.application-record-inline-grid select,
-.application-record-inline-grid textarea {
+.application-records-row input,
+.application-records-row select {
   width: 100%;
-  min-height: 42px;
-  padding: 10px 12px;
+  min-height: 38px;
+  padding: 8px 10px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
+  border-radius: 8px;
   background: #fff;
   color: var(--color-text);
-  font-size: 14px;
-}
-
-.application-record-inline-grid textarea {
-  min-height: 108px;
-  line-height: 1.6;
-  resize: vertical;
-}
-
-.application-record-inline-actions {
-  justify-content: flex-end;
-}
-
-.application-record-link-button[aria-disabled="true"] {
-  pointer-events: auto;
-  opacity: 0.5;
+  font-size: 13px;
 }
 
 @media (max-width: 720px) {
@@ -1181,9 +1124,7 @@ textarea:focus {
 
   .data-section-heading,
   .sync-credentials,
-  .conflict-comparison,
-  .application-records-toolbar,
-  .application-record-inline-grid {
+  .conflict-comparison {
     grid-template-columns: 1fr;
   }
 
@@ -1198,10 +1139,7 @@ textarea:focus {
 
   .application-records-actions .btn,
   .data-heading-actions .btn,
-  .sync-actions .btn,
-  .application-record-row-actions .btn,
-  .application-record-row-actions .application-record-link-button,
-  .application-record-inline-actions .btn {
+  .sync-actions .btn {
     width: 100%;
   }
 
@@ -1214,20 +1152,8 @@ textarea:focus {
     flex-direction: column;
   }
 
-  .application-record-row {
-    grid-template-columns: 1fr;
-  }
-
-  .application-record-row-main {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .application-record-row-actions {
-    margin-left: 0;
-  }
-
-  .application-record-inline-actions {
-    justify-content: stretch;
+  .application-records-table {
+    min-width: 980px;
   }
 }
 

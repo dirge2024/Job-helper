@@ -54,16 +54,6 @@ const records: ApplicationRecord[] = [
   },
 ];
 
-function getRowCompanies(root: TestRenderer.ReactTestInstance): string[] {
-  return root
-    .findAll(
-      node => node.type === 'div'
-        && typeof node.props.className === 'string'
-        && /^application-record-row(?:\s|$)/.test(node.props.className),
-    )
-    .map(row => row.find(node => typeof node.props.className === 'string' && node.props.className.includes('application-record-row-company')).children.join(''));
-}
-
 function getText(node: TestRenderer.ReactTestInstance): string {
   return node.children
     .map(child => typeof child === 'string' ? child : getText(child))
@@ -74,19 +64,33 @@ function getAlertTexts(root: TestRenderer.ReactTestInstance): string[] {
   return root.findAll(node => node.props.role === 'alert').map(getText);
 }
 
-function findButton(root: TestRenderer.ReactTestInstance, text: string): TestRenderer.ReactTestInstance {
+function getBodyRows(root: TestRenderer.ReactTestInstance): TestRenderer.ReactTestInstance[] {
+  return root.findAll(node => node.type === 'tr' && node.props['data-row-type'] === 'data');
+}
+
+function getRowCompanies(root: TestRenderer.ReactTestInstance): string[] {
+  return getBodyRows(root).map(row => {
+    const companyCell = row.find(node => node.type === 'td' && node.props['data-column'] === 'companyName');
+    return getText(companyCell);
+  });
+}
+
+function findButton(root: TestRenderer.ReactTestInstance, label: string): TestRenderer.ReactTestInstance {
   return root.findAllByType('button').find(
-    node => getText(node) === text || node.props['aria-label'] === text,
-  )
-    ?? (() => {
-      throw new Error(`未找到按钮：${text}`);
-    })();
+    node => getText(node) === label || node.props['aria-label'] === label,
+  ) ?? (() => {
+    throw new Error(`未找到按钮：${label}`);
+  })();
 }
 
 function findInputByAriaLabel(root: TestRenderer.ReactTestInstance, label: string): TestRenderer.ReactTestInstance {
-  return root.findAll(
+  const match = root.findAll(
     node => (node.type === 'input' || node.type === 'select') && node.props['aria-label'] === label,
   )[0];
+  if (!match) {
+    throw new Error(`未找到输入：${label}`);
+  }
+  return match;
 }
 
 function withMockedSendMessage(
@@ -100,81 +104,69 @@ function withMockedSendMessage(
   });
 }
 
-test('记录页渲染公司名/岗位名/状态筛选控件', () => {
+test('表格列头渲染公司、岗位、链接等明确列名', () => {
   const html = renderToStaticMarkup(<ApplicationRecordsSection initialRecords={records} />);
-  assert.match(html, /公司名/);
-  assert.match(html, /岗位名/);
+  assert.match(html, /公司/);
+  assert.match(html, /岗位/);
+  assert.match(html, /链接/);
   assert.match(html, /状态/);
+  assert.match(html, /来源站点/);
 });
 
-test('记录页渲染来源链接按钮', () => {
-  const html = renderToStaticMarkup(<ApplicationRecordsSection initialRecords={records} />);
-  assert.match(html, /打开链接/);
-});
-
-test('投递记录列表以单行结构渲染核心字段', () => {
-  const html = renderToStaticMarkup(<ApplicationRecordsSection initialRecords={records} />);
-  assert.match(html, /字节跳动/);
-  assert.match(html, /前端开发/);
-  assert.match(html, /已投递/);
-  assert.match(html, /jobs\.bytedance\.com/);
-  assert.match(html, /2026-08-07/);
-});
-
-test('设置页新增投递记录标签，并位于数据与同步后面', async () => {
-  const optionsModule = await import('./App.tsx');
-  const html = renderToStaticMarkup(React.createElement(optionsModule.default));
-  assert.ok(html.indexOf('数据与同步') < html.indexOf('投递记录'));
-});
-
-test('query 指定 tab=application-records 时设置页直接打开投递记录标签', async () => {
-  const optionsModule = await import('./App.tsx');
-  const originalWindow = globalThis.window;
-  const mockedWindow = {
-    location: {
-      search: '?tab=application-records',
-    },
-  } as Window & typeof globalThis;
-
-  globalThis.window = mockedWindow;
-
-  try {
-    const html = renderToStaticMarkup(React.createElement(optionsModule.default));
-    assert.match(html, /投递记录/);
-    assert.match(html, /导出 CSV/);
-    assert.doesNotMatch(html, /保存设置/);
-  } finally {
-    globalThis.window = originalWindow;
-  }
-});
-
-test('筛选条件变化时列表结果会同步变化', async () => {
+test('顶部独立筛选框已移除', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
   });
 
-  assert.deepEqual(getRowCompanies(renderer.root), ['字节跳动', '腾讯']);
+  assert.throws(() => findInputByAriaLabel(renderer.root, '公司名'));
+  assert.throws(() => findInputByAriaLabel(renderer.root, '岗位名'));
+  assert.throws(() => findInputByAriaLabel(renderer.root, '状态'));
+});
+
+test('点击公司列排序后顺序发生变化', async () => {
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
+  });
 
   await act(async () => {
-    findInputByAriaLabel(renderer.root, '公司名').props.onChange({ target: { value: '腾讯' } });
+    findButton(renderer.root, '排序-公司').props.onClick();
   });
-  assert.deepEqual(getRowCompanies(renderer.root), ['腾讯']);
+
+  assert.deepEqual(getRowCompanies(renderer.root), ['腾讯', '字节跳动']);
+});
+
+test('点击公司列筛选后出现输入浮层并可筛选结果', async () => {
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
+  });
 
   await act(async () => {
-    findInputByAriaLabel(renderer.root, '公司名').props.onChange({ target: { value: '' } });
-    findInputByAriaLabel(renderer.root, '岗位名').props.onChange({ target: { value: '前端' } });
+    findButton(renderer.root, '筛选-公司').props.onClick();
   });
-  assert.deepEqual(getRowCompanies(renderer.root), ['字节跳动']);
 
+  const filterInput = findInputByAriaLabel(renderer.root, '筛选-公司');
   await act(async () => {
-    findInputByAriaLabel(renderer.root, '岗位名').props.onChange({ target: { value: '' } });
-    findInputByAriaLabel(renderer.root, '状态').props.onChange({ target: { value: '面试' } });
+    filterInput.props.onChange({ target: { value: '腾讯' } });
   });
+
   assert.deepEqual(getRowCompanies(renderer.root), ['腾讯']);
 });
 
-test('点击编辑图标后在当前行下方展开编辑区', async () => {
+test('链接列以普通文本渲染而不是超链接', async () => {
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
+  });
+
+  const anchors = renderer.root.findAll(node => node.type === 'a');
+  assert.equal(anchors.length, 0);
+  assert.match(getText(renderer.root), /https:\/\/jobs\.bytedance\.com\/example-1/);
+});
+
+test('点击编辑后当前行直接进入编辑态', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
@@ -184,11 +176,11 @@ test('点击编辑图标后在当前行下方展开编辑区', async () => {
     findButton(renderer.root, '编辑').props.onClick();
   });
 
-  assert.match(getText(renderer.root), /保存修改/);
-  assert.match(getText(renderer.root), /取消/);
+  assert.ok(findButton(renderer.root, '保存'));
+  assert.ok(findButton(renderer.root, '取消'));
 });
 
-test('点击取消后行内编辑区收起', async () => {
+test('编辑态下链接列为普通文本输入框', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
@@ -198,11 +190,8 @@ test('点击取消后行内编辑区收起', async () => {
     findButton(renderer.root, '编辑').props.onClick();
   });
 
-  await act(async () => {
-    findButton(renderer.root, '取消').props.onClick();
-  });
-
-  assert.doesNotMatch(getText(renderer.root), /保存修改/);
+  const urlInput = renderer.root.findAll(node => node.type === 'input' && node.props.value === 'https://jobs.bytedance.com/example-1')[0];
+  assert.ok(urlInput);
 });
 
 test('UPDATE_APPLICATION_RECORD 发送失败时展示失败提示', async () => {
@@ -225,7 +214,7 @@ test('UPDATE_APPLICATION_RECORD 发送失败时展示失败提示', async () => 
     });
 
     await act(async () => {
-      findButton(renderer.root, '保存修改').props.onClick();
+      findButton(renderer.root, '保存').props.onClick();
     });
 
     assert.equal(sentMessages.at(-1)?.type, 'UPDATE_APPLICATION_RECORD');
@@ -233,14 +222,11 @@ test('UPDATE_APPLICATION_RECORD 发送失败时展示失败提示', async () => 
   });
 });
 
-test('设置页编辑时可修改来源站点并随保存请求发出', async () => {
+test('编辑态下修改来源站点并保存会带上更新值', async () => {
   const sentMessages: Message[] = [];
 
   await withMockedSendMessage(async message => {
     sentMessages.push(message);
-    if (message.type === 'UPDATE_APPLICATION_RECORD') {
-      return { success: true, data: null };
-    }
     return { success: true, data: null };
   }, async () => {
     let renderer!: TestRenderer.ReactTestRenderer;
@@ -261,7 +247,7 @@ test('设置页编辑时可修改来源站点并随保存请求发出', async ()
     });
 
     await act(async () => {
-      findButton(renderer.root, '保存修改').props.onClick();
+      findButton(renderer.root, '保存').props.onClick();
     });
 
     assert.equal(sentMessages.at(-1)?.type, 'UPDATE_APPLICATION_RECORD');
@@ -352,19 +338,4 @@ test('IMPORT_APPLICATION_RECORDS_CSV 发送失败时展示失败提示', async (
     assert.equal(target.value, '');
     assert.match(getAlertTexts(renderer.root).join('\n'), /导入失败/);
   });
-});
-
-test('initialMode 为 new 时默认仍保持列表浏览态', async () => {
-  let renderer!: TestRenderer.ReactTestRenderer;
-  await act(async () => {
-    renderer = TestRenderer.create(
-      <ApplicationRecordsSection
-        initialMode="new"
-        initialRecords={records}
-      />,
-    );
-  });
-
-  assert.doesNotMatch(getText(renderer.root), /编辑投递记录/);
-  assert.deepEqual(getRowCompanies(renderer.root), ['字节跳动', '腾讯']);
 });

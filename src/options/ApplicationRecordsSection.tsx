@@ -13,7 +13,41 @@ type NoticeState = {
   text: string;
 } | null;
 
-function sortRecords(records: ApplicationRecord[]): ApplicationRecord[] {
+type ColumnKey =
+  | 'companyName'
+  | 'jobTitle'
+  | 'sourceUrl'
+  | 'status'
+  | 'sourceSite'
+  | 'appliedAt'
+  | 'location'
+  | 'notes';
+
+type SortState = {
+  key: ColumnKey;
+  direction: 'asc' | 'desc';
+} | null;
+
+type ColumnDefinition = {
+  key: ColumnKey;
+  label: string;
+  sortable: boolean;
+  filterable: boolean;
+  cellClassName?: string;
+};
+
+const COLUMN_DEFINITIONS: ColumnDefinition[] = [
+  { key: 'companyName', label: '公司', sortable: true, filterable: true },
+  { key: 'jobTitle', label: '岗位', sortable: true, filterable: true },
+  { key: 'sourceUrl', label: '链接', sortable: true, filterable: true, cellClassName: 'application-records-cell-link' },
+  { key: 'status', label: '状态', sortable: true, filterable: true },
+  { key: 'sourceSite', label: '来源站点', sortable: true, filterable: true },
+  { key: 'appliedAt', label: '投递日期', sortable: true, filterable: true },
+  { key: 'location', label: '工作地点', sortable: true, filterable: true },
+  { key: 'notes', label: '备注', sortable: true, filterable: true },
+];
+
+function defaultSort(records: ApplicationRecord[]): ApplicationRecord[] {
   return [...records].sort((left, right) => {
     const leftValue = left.appliedAt || left.updatedAt || left.createdAt;
     const rightValue = right.appliedAt || right.updatedAt || right.createdAt;
@@ -33,7 +67,6 @@ function matchesKeyword(value: string, keyword: string): boolean {
   if (!keyword) {
     return true;
   }
-
   return value.toLowerCase().includes(keyword);
 }
 
@@ -50,23 +83,22 @@ function trimRecord(record: ApplicationRecord): ApplicationRecord {
   };
 }
 
-function formatUpdatedAt(value: string): string {
-  if (!value) {
-    return '未更新';
+function getColumnValue(record: ApplicationRecord, key: ColumnKey): string {
+  return record[key] ?? '';
+}
+
+function applySort(records: ApplicationRecord[], sortState: SortState): ApplicationRecord[] {
+  if (!sortState) {
+    return defaultSort(records);
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
+  const sorted = [...records].sort((left, right) => {
+    const leftValue = getColumnValue(left, sortState.key);
+    const rightValue = getColumnValue(right, sortState.key);
+    return leftValue.localeCompare(rightValue, 'zh-CN');
   });
+
+  return sortState.direction === 'asc' ? sorted : sorted.reverse();
 }
 
 function EditIcon() {
@@ -91,17 +123,36 @@ function DeleteIcon() {
   );
 }
 
+function SortIcon({ active, direction }: { active: boolean; direction?: 'asc' | 'desc' }) {
+  return (
+    <span className={`application-records-sort-icon${active ? ' is-active' : ''}`} aria-hidden="true">
+      {active ? (direction === 'asc' ? '↑' : '↓') : '↕'}
+    </span>
+  );
+}
+
+function FilterIcon({ active }: { active: boolean }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={active ? 'is-active' : ''}>
+      <path d="M3.75 5.25H16.25" />
+      <path d="M6.5 9.25H13.5" />
+      <path d="M8.75 13.25H11.25" />
+    </svg>
+  );
+}
+
 export function ApplicationRecordsSection({
+  initialMode: _initialMode = 'list',
   initialRecords = [],
 }: ApplicationRecordsSectionProps): React.JSX.Element {
-  const [records, setRecords] = useState<ApplicationRecord[]>(() => sortRecords(initialRecords));
+  const [records, setRecords] = useState<ApplicationRecord[]>(() => defaultSort(initialRecords));
   const [loading, setLoading] = useState(initialRecords.length === 0);
   const [busyAction, setBusyAction] = useState<'import' | 'export' | 'save' | 'delete' | null>(null);
   const [errorText, setErrorText] = useState('');
   const [notice, setNotice] = useState<NoticeState>(null);
-  const [companyKeyword, setCompanyKeyword] = useState('');
-  const [jobKeyword, setJobKeyword] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [sortState, setSortState] = useState<SortState>(null);
+  const [columnFilters, setColumnFilters] = useState<Partial<Record<ColumnKey, string>>>({});
+  const [activeFilterKey, setActiveFilterKey] = useState<ColumnKey | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftRecord, setDraftRecord] = useState<ApplicationRecord | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,7 +170,7 @@ export function ApplicationRecordsSection({
       return;
     }
 
-    setRecords(sortRecords(response.data ?? []));
+    setRecords(defaultSort(response.data ?? []));
     setLoading(false);
   };
 
@@ -127,20 +178,15 @@ export function ApplicationRecordsSection({
     if (initialRecords.length > 0) {
       return;
     }
-
     void loadRecords();
   }, [initialRecords.length]);
 
   const filteredRecords = useMemo(() => {
-    const normalizedCompanyKeyword = normalizeKeyword(companyKeyword);
-    const normalizedJobKeyword = normalizeKeyword(jobKeyword);
-
-    return records.filter(record =>
-      matchesKeyword(record.companyName, normalizedCompanyKeyword)
-      && matchesKeyword(record.jobTitle, normalizedJobKeyword)
-      && (statusFilter ? record.status === statusFilter : true),
+    const nextRecords = records.filter(record =>
+      COLUMN_DEFINITIONS.every(column => matchesKeyword(getColumnValue(record, column.key).toLowerCase(), normalizeKeyword(columnFilters[column.key] || ''))),
     );
-  }, [companyKeyword, jobKeyword, records, statusFilter]);
+    return applySort(nextRecords, sortState);
+  }, [columnFilters, records, sortState]);
 
   const beginEdit = (record: ApplicationRecord) => {
     setEditingId(record.id);
@@ -154,19 +200,16 @@ export function ApplicationRecordsSection({
     setDraftRecord(null);
   };
 
-  const updateDraftField = <K extends keyof ApplicationRecord>(
-    field: K,
-    value: ApplicationRecord[K],
-  ) => {
-    setDraftRecord(current => {
-      if (!current) {
-        return current;
-      }
+  const updateDraftField = <K extends keyof ApplicationRecord>(field: K, value: ApplicationRecord[K]) => {
+    setDraftRecord(current => current ? { ...current, [field]: value } : current);
+  };
 
-      return {
-        ...current,
-        [field]: value,
-      };
+  const handleSort = (key: ColumnKey) => {
+    setSortState(current => {
+      if (!current || current.key !== key) {
+        return { key, direction: 'asc' };
+      }
+      return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
     });
   };
 
@@ -192,7 +235,7 @@ export function ApplicationRecordsSection({
       return;
     }
 
-    setRecords(current => sortRecords(current.map(record => (
+    setRecords(current => defaultSort(current.map(record => (
       record.id === payload.id ? payload : record
     ))));
     setEditingId(null);
@@ -302,7 +345,7 @@ export function ApplicationRecordsSection({
         <div>
           <h2 className="section-title">投递记录</h2>
           <p className="application-records-description">
-            在设置页统一筛选、编辑、删除，并支持 CSV 导入导出已有投递记录。
+            在设置页统一查看、筛选、排序、编辑、删除，并支持 CSV 导入导出已有投递记录。
           </p>
         </div>
         <div className="application-records-actions">
@@ -332,40 +375,6 @@ export function ApplicationRecordsSection({
         </div>
       </div>
 
-      <div className="application-records-toolbar">
-        <label className="application-records-filter">
-          <span>公司名</span>
-          <input
-            aria-label="公司名"
-            value={companyKeyword}
-            onChange={event => setCompanyKeyword(event.target.value)}
-            placeholder="按公司筛选"
-          />
-        </label>
-        <label className="application-records-filter">
-          <span>岗位名</span>
-          <input
-            aria-label="岗位名"
-            value={jobKeyword}
-            onChange={event => setJobKeyword(event.target.value)}
-            placeholder="按岗位筛选"
-          />
-        </label>
-        <label className="application-records-filter">
-          <span>状态</span>
-          <select
-            aria-label="状态"
-            value={statusFilter}
-            onChange={event => setStatusFilter(event.target.value)}
-          >
-            <option value="">全部状态</option>
-            {APPLICATION_RECORD_STATUSES.map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-
       {notice && (
         <div
           className={`application-records-notice application-records-notice-${notice.type}`}
@@ -382,168 +391,131 @@ export function ApplicationRecordsSection({
         </div>
       )}
 
-      <div className="application-records-list" aria-live="polite">
-          {loading ? (
-            <div className="application-records-empty">正在加载投递记录...</div>
-          ) : filteredRecords.length === 0 ? (
-            <div className="application-records-empty">暂无符合条件的投递记录</div>
-          ) : (
-            filteredRecords.map(record => {
-              const isEditing = editingId === record.id && draftRecord;
-              return (
-                <div
-                  key={record.id}
-                  className={`application-record-row${editingId === record.id ? ' is-active' : ''}`}
-                >
-                  <button
-                    type="button"
-                    className="application-record-row-main"
-                    onClick={() => beginEdit(record)}
-                  >
-                    <span className="application-record-row-company">{record.companyName || '未填写公司名'}</span>
-                    <span className="application-record-row-job">{record.jobTitle || '未填写岗位名'}</span>
-                    <span className="application-record-row-status">{record.status}</span>
-                    <span className="application-record-row-site">{record.sourceSite || '未填写'}</span>
-                    <span className="application-record-row-date">{record.appliedAt || '未填写'}</span>
-                  </button>
-                  <div className="application-record-row-actions">
-                    <a
-                      className="application-record-link-button"
-                      href={record.sourceUrl || '#'}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-disabled={!record.sourceUrl}
-                      onClick={event => {
-                        if (!record.sourceUrl) {
-                          event.preventDefault();
-                        }
-                      }}
-                    >
-                      打开链接
-                    </a>
-                    <button
-                      type="button"
-                      className="application-record-icon-button"
-                      aria-label="编辑"
-                      onClick={() => beginEdit(record)}
-                      disabled={busyAction !== null}
-                    >
-                      <EditIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className="application-record-icon-button application-record-icon-button-danger"
-                      aria-label="删除"
-                      onClick={() => void handleDelete(record)}
-                      disabled={busyAction !== null}
-                    >
-                      <DeleteIcon />
-                    </button>
-                  </div>
-
-                  {isEditing && (
-                    <div className="application-record-inline-editor">
-                      <div className="application-record-inline-grid">
-                        <label>
-                          <span>公司名</span>
-                          <input
-                            type="text"
-                            value={draftRecord.companyName}
-                            onChange={event => updateDraftField('companyName', event.target.value)}
-                            disabled={busyAction !== null}
-                          />
-                        </label>
-                        <label>
-                          <span>岗位名</span>
-                          <input
-                            type="text"
-                            value={draftRecord.jobTitle}
-                            onChange={event => updateDraftField('jobTitle', event.target.value)}
-                            disabled={busyAction !== null}
-                          />
-                        </label>
-                        <label>
-                          <span>来源站点</span>
-                          <input
-                            type="text"
-                            value={draftRecord.sourceSite}
-                            onChange={event => updateDraftField('sourceSite', event.target.value)}
-                            disabled={busyAction !== null}
-                          />
-                        </label>
-                        <label>
-                          <span>状态</span>
-                          <select
-                            value={draftRecord.status}
-                            onChange={event => updateDraftField('status', event.target.value as ApplicationRecordStatus)}
-                            disabled={busyAction !== null}
-                          >
-                            {APPLICATION_RECORD_STATUSES.map(status => (
-                              <option key={status} value={status}>{status}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="application-record-inline-wide">
-                          <span>来源链接</span>
-                          <input
-                            type="url"
-                            value={draftRecord.sourceUrl}
-                            onChange={event => updateDraftField('sourceUrl', event.target.value)}
-                            disabled={busyAction !== null}
-                          />
-                        </label>
-                        <label>
-                          <span>投递日期</span>
-                          <input
-                            type="date"
-                            value={draftRecord.appliedAt}
-                            onChange={event => updateDraftField('appliedAt', event.target.value)}
-                            disabled={busyAction !== null}
-                          />
-                        </label>
-                        <label>
-                          <span>工作地点</span>
-                          <input
-                            type="text"
-                            value={draftRecord.location}
-                            onChange={event => updateDraftField('location', event.target.value)}
-                            disabled={busyAction !== null}
-                          />
-                        </label>
-                        <label className="application-record-inline-wide">
-                          <span>备注</span>
-                          <textarea
-                            rows={4}
-                            value={draftRecord.notes}
-                            onChange={event => updateDraftField('notes', event.target.value)}
-                            disabled={busyAction !== null}
-                          />
-                        </label>
-                      </div>
-                      <div className="application-record-inline-actions">
+      <div className="application-records-table-shell" aria-live="polite">
+        {loading ? (
+          <div className="application-records-empty">正在加载投递记录...</div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="application-records-empty">暂无符合条件的投递记录</div>
+        ) : (
+          <table className="application-records-table">
+            <thead>
+              <tr>
+                {COLUMN_DEFINITIONS.map(column => (
+                  <th key={column.key} className={column.cellClassName}>
+                    <div className="application-records-table-head">
+                      <span>{column.label}</span>
+                      <div className="application-records-table-head-actions">
                         <button
                           type="button"
-                          className="btn btn-secondary"
-                          onClick={cancelEdit}
-                          disabled={busyAction !== null}
+                          className="application-records-table-head-button"
+                          aria-label={`排序-${column.label}`}
+                          onClick={() => handleSort(column.key)}
                         >
-                          取消
+                          <SortIcon active={sortState?.key === column.key} direction={sortState?.key === column.key ? sortState.direction : undefined} />
                         </button>
                         <button
                           type="button"
-                          className="btn btn-primary"
-                          onClick={() => void handleSave()}
-                          disabled={busyAction !== null}
+                          className="application-records-table-head-button"
+                          aria-label={`筛选-${column.label}`}
+                          onClick={() => setActiveFilterKey(current => current === column.key ? null : column.key)}
                         >
-                          保存修改
+                          <FilterIcon active={activeFilterKey === column.key || Boolean(columnFilters[column.key])} />
                         </button>
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })
-          )}
+                    {activeFilterKey === column.key && (
+                      <div className="application-record-filter-popover">
+                        <input
+                          aria-label={`筛选-${column.label}`}
+                          value={columnFilters[column.key] || ''}
+                          onChange={event => {
+                            const value = event.target.value;
+                            setColumnFilters(current => ({ ...current, [column.key]: value }));
+                          }}
+                          placeholder={`筛选${column.label}`}
+                        />
+                      </div>
+                    )}
+                  </th>
+                ))}
+                <th className="application-records-cell-actions">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRecords.map(record => {
+                const isEditing = editingId === record.id && draftRecord;
+                if (isEditing) {
+                  return (
+                    <tr key={record.id} className="application-records-row application-records-row-editing" data-row-type="data">
+                      <td data-column="companyName"><input value={draftRecord.companyName} onChange={event => updateDraftField('companyName', event.target.value)} /></td>
+                      <td data-column="jobTitle"><input value={draftRecord.jobTitle} onChange={event => updateDraftField('jobTitle', event.target.value)} /></td>
+                      <td data-column="sourceUrl" className="application-records-cell-link"><input value={draftRecord.sourceUrl} onChange={event => updateDraftField('sourceUrl', event.target.value)} /></td>
+                      <td data-column="status">
+                        <select value={draftRecord.status} onChange={event => updateDraftField('status', event.target.value as ApplicationRecordStatus)}>
+                          {APPLICATION_RECORD_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+                        </select>
+                      </td>
+                      <td data-column="sourceSite"><input value={draftRecord.sourceSite} onChange={event => updateDraftField('sourceSite', event.target.value)} /></td>
+                      <td data-column="appliedAt"><input type="date" value={draftRecord.appliedAt} onChange={event => updateDraftField('appliedAt', event.target.value)} /></td>
+                      <td data-column="location"><input value={draftRecord.location} onChange={event => updateDraftField('location', event.target.value)} /></td>
+                      <td data-column="notes"><input value={draftRecord.notes} onChange={event => updateDraftField('notes', event.target.value)} /></td>
+                      <td className="application-records-cell-actions">
+                        <div className="application-records-row-actions">
+                          <button type="button" className="btn btn-primary" onClick={() => void handleSave()} disabled={busyAction !== null}>保存</button>
+                          <button type="button" className="btn btn-secondary" onClick={cancelEdit} disabled={busyAction !== null}>取消</button>
+                          <button
+                            type="button"
+                            className="application-record-icon-button application-record-icon-button-danger"
+                            aria-label="删除"
+                            onClick={() => void handleDelete(record)}
+                            disabled={busyAction !== null}
+                          >
+                            <DeleteIcon />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return (
+                  <tr key={record.id} className="application-records-row" data-row-type="data">
+                    <td data-column="companyName">{record.companyName || '未填写'}</td>
+                    <td data-column="jobTitle">{record.jobTitle || '未填写'}</td>
+                    <td data-column="sourceUrl" className="application-records-cell-link"><span className="application-records-link-text">{record.sourceUrl || '未填写'}</span></td>
+                    <td data-column="status">{record.status}</td>
+                    <td data-column="sourceSite">{record.sourceSite || '未填写'}</td>
+                    <td data-column="appliedAt">{record.appliedAt || '未填写'}</td>
+                    <td data-column="location">{record.location || '未填写'}</td>
+                    <td data-column="notes"><span className="application-records-notes-text">{record.notes || '未填写'}</span></td>
+                    <td className="application-records-cell-actions">
+                      <div className="application-records-row-actions">
+                        <button
+                          type="button"
+                          className="application-record-icon-button"
+                          aria-label="编辑"
+                          onClick={() => beginEdit(record)}
+                          disabled={busyAction !== null}
+                        >
+                          <EditIcon />
+                        </button>
+                        <button
+                          type="button"
+                          className="application-record-icon-button application-record-icon-button-danger"
+                          aria-label="删除"
+                          onClick={() => void handleDelete(record)}
+                          disabled={busyAction !== null}
+                        >
+                          <DeleteIcon />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </section>
   );
