@@ -75,7 +75,9 @@ function getAlertTexts(root: TestRenderer.ReactTestInstance): string[] {
 }
 
 function findButton(root: TestRenderer.ReactTestInstance, text: string): TestRenderer.ReactTestInstance {
-  return root.findAllByType('button').find(node => getText(node) === text)
+  return root.findAllByType('button').find(
+    node => getText(node) === text || node.props['aria-label'] === text,
+  )
     ?? (() => {
       throw new Error(`未找到按钮：${text}`);
     })();
@@ -107,7 +109,7 @@ test('记录页渲染公司名/岗位名/状态筛选控件', () => {
 
 test('记录页渲染来源链接按钮', () => {
   const html = renderToStaticMarkup(<ApplicationRecordsSection initialRecords={records} />);
-  assert.match(html, /打开来源链接/);
+  assert.match(html, /打开链接/);
 });
 
 test('投递记录列表以单行结构渲染核心字段', () => {
@@ -172,7 +174,7 @@ test('筛选条件变化时列表结果会同步变化', async () => {
   assert.deepEqual(getRowCompanies(renderer.root), ['腾讯']);
 });
 
-test('点击单行记录后仍可进入右侧编辑区', async () => {
+test('点击编辑图标后在当前行下方展开编辑区', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
@@ -182,7 +184,25 @@ test('点击单行记录后仍可进入右侧编辑区', async () => {
     findButton(renderer.root, '编辑').props.onClick();
   });
 
-  assert.match(getText(renderer.root), /编辑投递记录/);
+  assert.match(getText(renderer.root), /保存修改/);
+  assert.match(getText(renderer.root), /取消/);
+});
+
+test('点击取消后行内编辑区收起', async () => {
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
+  });
+
+  await act(async () => {
+    findButton(renderer.root, '编辑').props.onClick();
+  });
+
+  await act(async () => {
+    findButton(renderer.root, '取消').props.onClick();
+  });
+
+  assert.doesNotMatch(getText(renderer.root), /保存修改/);
 });
 
 test('UPDATE_APPLICATION_RECORD 发送失败时展示失败提示', async () => {
@@ -334,7 +354,7 @@ test('IMPORT_APPLICATION_RECORDS_CSV 发送失败时展示失败提示', async (
   });
 });
 
-test('initialMode 为 new 时不会把现有记录误当作新建草稿直接进入编辑', async () => {
+test('initialMode 为 new 时默认仍保持列表浏览态', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = TestRenderer.create(
@@ -345,6 +365,6 @@ test('initialMode 为 new 时不会把现有记录误当作新建草稿直接进
     );
   });
 
-  assert.match(getText(renderer.root), /选择记录后可编辑/);
   assert.doesNotMatch(getText(renderer.root), /编辑投递记录/);
+  assert.deepEqual(getRowCompanies(renderer.root), ['字节跳动', '腾讯']);
 });

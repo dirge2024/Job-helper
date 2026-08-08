@@ -185,7 +185,9 @@ textarea {
 
 .record-form-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
   margin-top: 8px;
 }
 
@@ -211,6 +213,12 @@ textarea {
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.record-submit-status {
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 @media (max-width: 640px) {

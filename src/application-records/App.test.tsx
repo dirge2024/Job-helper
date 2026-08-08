@@ -96,7 +96,7 @@ test('命中同公司同链接时新建页显示已存在提示但保留继续�
   }
 });
 
-test('保存成功后显示已保存并关闭窗口', async () => {
+test('保存成功后显示已保存但不会自动关闭窗口', async () => {
   const originalWindow = globalThis.window;
   const originalSendMessage = MessageService.sendMessage;
   const closeMock = mock.fn();
@@ -152,7 +152,7 @@ test('保存成功后显示已保存并关闭窗口', async () => {
 
     const text = renderer.root.findAll(node => typeof node.type === 'string').map(getText).join('\n');
     assert.match(text, /已保存/);
-    assert.equal(closeMock.mock.callCount(), 1);
+    assert.equal(closeMock.mock.callCount(), 0);
   } finally {
     MessageService.sendMessage = originalSendMessage;
     globalThis.window = originalWindow;

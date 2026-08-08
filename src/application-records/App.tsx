@@ -138,9 +138,6 @@ export function ApplicationRecordCreateApp() {
     setDuplicateId(response.data?.duplicate?.id ?? null);
     setSuccessText(response.data?.duplicate ? '已存在' : '已保存');
     setSaving(false);
-    if (typeof window !== 'undefined' && typeof window.close === 'function') {
-      window.close();
-    }
   };
 
   return (
@@ -161,12 +158,6 @@ export function ApplicationRecordCreateApp() {
           <div className="record-banner" role="status">
             <span className="record-banner-tag">已存在</span>
             <span>检测到相同公司与链接的投递记录，仍可继续保存。</span>
-          </div>
-        )}
-
-        {successText && !duplicateId && (
-          <div className="record-feedback record-feedback-success" role="status">
-            {successText}
           </div>
         )}
 
@@ -274,6 +265,11 @@ export function ApplicationRecordCreateApp() {
             <button type="submit" className="record-submit-button" disabled={loading || saving}>
               {loading ? '正在加载草稿...' : saving ? '保存中...' : duplicateId ? '继续保存' : '保存投递记录'}
             </button>
+            {successText && !duplicateId && (
+              <span className="record-submit-status" role="status">
+                {successText}
+              </span>
+            )}
           </div>
         </form>
       </section>

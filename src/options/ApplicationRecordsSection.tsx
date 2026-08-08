@@ -69,8 +69,29 @@ function formatUpdatedAt(value: string): string {
   });
 }
 
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.75 13.75V16.25H6.25L14.8 7.7L12.3 5.2L3.75 13.75Z" />
+      <path d="M10.95 6.55L13.45 9.05" />
+      <path d="M11.95 4.2L14.45 6.7" />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4.75 6.25H15.25" />
+      <path d="M7.25 6.25V4.75H12.75V6.25" />
+      <path d="M6.5 6.25V14.5C6.5 15.05 6.95 15.5 7.5 15.5H12.5C13.05 15.5 13.5 15.05 13.5 14.5V6.25" />
+      <path d="M8.5 8.75V13" />
+      <path d="M11.5 8.75V13" />
+    </svg>
+  );
+}
+
 export function ApplicationRecordsSection({
-  initialMode = 'list',
   initialRecords = [],
 }: ApplicationRecordsSectionProps): React.JSX.Element {
   const [records, setRecords] = useState<ApplicationRecord[]>(() => sortRecords(initialRecords));
@@ -361,176 +382,168 @@ export function ApplicationRecordsSection({
         </div>
       )}
 
-      <div className="application-records-layout">
-        <div className="application-records-list" aria-live="polite">
+      <div className="application-records-list" aria-live="polite">
           {loading ? (
             <div className="application-records-empty">正在加载投递记录...</div>
           ) : filteredRecords.length === 0 ? (
             <div className="application-records-empty">暂无符合条件的投递记录</div>
           ) : (
-            filteredRecords.map(record => (
-              <div
-                key={record.id}
-                className={`application-record-row${editingId === record.id ? ' is-active' : ''}`}
-              >
-                <button
-                  type="button"
-                  className="application-record-row-main"
-                  onClick={() => beginEdit(record)}
+            filteredRecords.map(record => {
+              const isEditing = editingId === record.id && draftRecord;
+              return (
+                <div
+                  key={record.id}
+                  className={`application-record-row${editingId === record.id ? ' is-active' : ''}`}
                 >
-                  <span className="application-record-row-company">{record.companyName || '未填写公司名'}</span>
-                  <span className="application-record-row-job">{record.jobTitle || '未填写岗位名'}</span>
-                  <span className="application-record-row-status">{record.status}</span>
-                  <span className="application-record-row-site">{record.sourceSite || '未填写'}</span>
-                  <span className="application-record-row-date">{record.appliedAt || '未填写'}</span>
-                </button>
-                <div className="application-record-row-actions">
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="application-record-row-main"
                     onClick={() => beginEdit(record)}
-                    disabled={busyAction !== null}
                   >
-                    编辑
+                    <span className="application-record-row-company">{record.companyName || '未填写公司名'}</span>
+                    <span className="application-record-row-job">{record.jobTitle || '未填写岗位名'}</span>
+                    <span className="application-record-row-status">{record.status}</span>
+                    <span className="application-record-row-site">{record.sourceSite || '未填写'}</span>
+                    <span className="application-record-row-date">{record.appliedAt || '未填写'}</span>
                   </button>
-                  <a
-                    className="btn btn-secondary application-record-link-button"
-                    href={record.sourceUrl || '#'}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-disabled={!record.sourceUrl}
-                    onClick={event => {
-                      if (!record.sourceUrl) {
-                        event.preventDefault();
-                      }
-                    }}
-                  >
-                    打开来源链接
-                  </a>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => void handleDelete(record)}
-                    disabled={busyAction !== null}
-                  >
-                    删除
-                  </button>
+                  <div className="application-record-row-actions">
+                    <a
+                      className="application-record-link-button"
+                      href={record.sourceUrl || '#'}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-disabled={!record.sourceUrl}
+                      onClick={event => {
+                        if (!record.sourceUrl) {
+                          event.preventDefault();
+                        }
+                      }}
+                    >
+                      打开链接
+                    </a>
+                    <button
+                      type="button"
+                      className="application-record-icon-button"
+                      aria-label="编辑"
+                      onClick={() => beginEdit(record)}
+                      disabled={busyAction !== null}
+                    >
+                      <EditIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className="application-record-icon-button application-record-icon-button-danger"
+                      aria-label="删除"
+                      onClick={() => void handleDelete(record)}
+                      disabled={busyAction !== null}
+                    >
+                      <DeleteIcon />
+                    </button>
+                  </div>
+
+                  {isEditing && (
+                    <div className="application-record-inline-editor">
+                      <div className="application-record-inline-grid">
+                        <label>
+                          <span>公司名</span>
+                          <input
+                            type="text"
+                            value={draftRecord.companyName}
+                            onChange={event => updateDraftField('companyName', event.target.value)}
+                            disabled={busyAction !== null}
+                          />
+                        </label>
+                        <label>
+                          <span>岗位名</span>
+                          <input
+                            type="text"
+                            value={draftRecord.jobTitle}
+                            onChange={event => updateDraftField('jobTitle', event.target.value)}
+                            disabled={busyAction !== null}
+                          />
+                        </label>
+                        <label>
+                          <span>来源站点</span>
+                          <input
+                            type="text"
+                            value={draftRecord.sourceSite}
+                            onChange={event => updateDraftField('sourceSite', event.target.value)}
+                            disabled={busyAction !== null}
+                          />
+                        </label>
+                        <label>
+                          <span>状态</span>
+                          <select
+                            value={draftRecord.status}
+                            onChange={event => updateDraftField('status', event.target.value as ApplicationRecordStatus)}
+                            disabled={busyAction !== null}
+                          >
+                            {APPLICATION_RECORD_STATUSES.map(status => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="application-record-inline-wide">
+                          <span>来源链接</span>
+                          <input
+                            type="url"
+                            value={draftRecord.sourceUrl}
+                            onChange={event => updateDraftField('sourceUrl', event.target.value)}
+                            disabled={busyAction !== null}
+                          />
+                        </label>
+                        <label>
+                          <span>投递日期</span>
+                          <input
+                            type="date"
+                            value={draftRecord.appliedAt}
+                            onChange={event => updateDraftField('appliedAt', event.target.value)}
+                            disabled={busyAction !== null}
+                          />
+                        </label>
+                        <label>
+                          <span>工作地点</span>
+                          <input
+                            type="text"
+                            value={draftRecord.location}
+                            onChange={event => updateDraftField('location', event.target.value)}
+                            disabled={busyAction !== null}
+                          />
+                        </label>
+                        <label className="application-record-inline-wide">
+                          <span>备注</span>
+                          <textarea
+                            rows={4}
+                            value={draftRecord.notes}
+                            onChange={event => updateDraftField('notes', event.target.value)}
+                            disabled={busyAction !== null}
+                          />
+                        </label>
+                      </div>
+                      <div className="application-record-inline-actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={cancelEdit}
+                          disabled={busyAction !== null}
+                        >
+                          取消
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => void handleSave()}
+                          disabled={busyAction !== null}
+                        >
+                          保存修改
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
-        </div>
-
-        <aside className="application-record-editor">
-          <div className="application-record-editor-card">
-            <h3>{draftRecord ? '编辑投递记录' : '选择记录后可编辑'}</h3>
-            <p className="application-record-editor-description">
-              {draftRecord
-                ? '支持直接修改公司名、岗位名、来源站点、状态、备注与来源链接，并同步到本地投递记录。'
-                : initialMode === 'new'
-                  ? '该分区用于管理已有记录；如需新建，请从 popup 的“新建投递记录”入口进入。'
-                  : '从左侧列表选择一条记录开始编辑。'}
-            </p>
-
-            {draftRecord && (
-              <div className="application-record-editor-fields">
-                <label>
-                  <span>公司名</span>
-                  <input
-                    type="text"
-                    value={draftRecord.companyName}
-                    onChange={event => updateDraftField('companyName', event.target.value)}
-                    disabled={busyAction !== null}
-                  />
-                </label>
-                <label>
-                  <span>岗位名</span>
-                  <input
-                    type="text"
-                    value={draftRecord.jobTitle}
-                    onChange={event => updateDraftField('jobTitle', event.target.value)}
-                    disabled={busyAction !== null}
-                  />
-                </label>
-                <label>
-                  <span>来源站点</span>
-                  <input
-                    type="text"
-                    value={draftRecord.sourceSite}
-                    onChange={event => updateDraftField('sourceSite', event.target.value)}
-                    disabled={busyAction !== null}
-                  />
-                </label>
-                <label>
-                  <span>状态</span>
-                  <select
-                    value={draftRecord.status}
-                    onChange={event => updateDraftField('status', event.target.value as ApplicationRecordStatus)}
-                    disabled={busyAction !== null}
-                  >
-                    {APPLICATION_RECORD_STATUSES.map(status => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>来源链接</span>
-                  <input
-                    type="url"
-                    value={draftRecord.sourceUrl}
-                    onChange={event => updateDraftField('sourceUrl', event.target.value)}
-                    disabled={busyAction !== null}
-                  />
-                </label>
-                <label>
-                  <span>投递日期</span>
-                  <input
-                    type="date"
-                    value={draftRecord.appliedAt}
-                    onChange={event => updateDraftField('appliedAt', event.target.value)}
-                    disabled={busyAction !== null}
-                  />
-                </label>
-                <label>
-                  <span>工作地点</span>
-                  <input
-                    type="text"
-                    value={draftRecord.location}
-                    onChange={event => updateDraftField('location', event.target.value)}
-                    disabled={busyAction !== null}
-                  />
-                </label>
-                <label className="application-record-editor-full">
-                  <span>备注</span>
-                  <textarea
-                    rows={5}
-                    value={draftRecord.notes}
-                    onChange={event => updateDraftField('notes', event.target.value)}
-                    disabled={busyAction !== null}
-                  />
-                </label>
-                <div className="application-record-editor-actions application-record-editor-full">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={cancelEdit}
-                    disabled={busyAction !== null}
-                  >
-                    取消
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => void handleSave()}
-                    disabled={busyAction !== null}
-                  >
-                    保存修改
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </aside>
       </div>
     </section>
   );
