@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -111,6 +112,18 @@ test('表格列头渲染公司、岗位、链接等明确列名', () => {
   assert.match(html, /链接/);
   assert.match(html, /状态/);
   assert.doesNotMatch(html, /来源站点/);
+});
+
+test('设置页桌面容器宽度已放宽到 1240px', () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(
+    css,
+    /\.options-header-inner\s*\{[\s\S]*?max-width:\s*1240px;/,
+  );
+  assert.match(
+    css,
+    /\.options-content\s*\{[\s\S]*?max-width:\s*1240px;/,
+  );
 });
 
 test('顶部独立筛选框已移除', async () => {

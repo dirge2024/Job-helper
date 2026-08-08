@@ -99,7 +99,7 @@ textarea:focus {
 }
 
 .options-header-inner {
-  max-width: 1040px;
+  max-width: 1240px;
   padding: 30px 28px 28px;
   margin: 0 auto;
 }
@@ -118,7 +118,7 @@ textarea:focus {
 }
 
 .options-content {
-  max-width: 1040px;
+  max-width: 1240px;
   padding: 28px;
   margin: 0 auto;
 }
