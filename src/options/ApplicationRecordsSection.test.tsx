@@ -110,7 +110,7 @@ test('表格列头渲染公司、岗位、链接等明确列名', () => {
   assert.match(html, /岗位/);
   assert.match(html, /链接/);
   assert.match(html, /状态/);
-  assert.match(html, /来源站点/);
+  assert.doesNotMatch(html, /来源站点/);
 });
 
 test('顶部独立筛选框已移除', async () => {
@@ -124,27 +124,27 @@ test('顶部独立筛选框已移除', async () => {
   assert.throws(() => findInputByAriaLabel(renderer.root, '状态'));
 });
 
-test('点击公司列排序后顺序发生变化', async () => {
+test('点击公司列标题即可排序，不依赖单独图标按钮', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
   });
 
   await act(async () => {
-    findButton(renderer.root, '排序-公司').props.onClick();
+    findButton(renderer.root, '列头-公司').props.onClick();
   });
 
   assert.deepEqual(getRowCompanies(renderer.root), ['腾讯', '字节跳动']);
 });
 
-test('点击公司列筛选后出现输入浮层并可筛选结果', async () => {
+test('点击筛选按钮后出现统一筛选面板并可筛选结果', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
   });
 
   await act(async () => {
-    findButton(renderer.root, '筛选-公司').props.onClick();
+    findButton(renderer.root, '筛选').props.onClick();
   });
 
   const filterInput = findInputByAriaLabel(renderer.root, '筛选-公司');
@@ -155,15 +155,14 @@ test('点击公司列筛选后出现输入浮层并可筛选结果', async () =>
   assert.deepEqual(getRowCompanies(renderer.root), ['腾讯']);
 });
 
-test('链接列以普通文本渲染而不是超链接', async () => {
+test('浏览态下链接列渲染为可点击链接文本', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
   });
 
   const anchors = renderer.root.findAll(node => node.type === 'a');
-  assert.equal(anchors.length, 0);
-  assert.match(getText(renderer.root), /https:\/\/jobs\.bytedance\.com\/example-1/);
+  assert.ok(anchors.some(node => node.props.href === 'https://jobs.bytedance.com/example-1'));
 });
 
 test('点击编辑后当前行直接进入编辑态', async () => {
@@ -222,7 +221,7 @@ test('UPDATE_APPLICATION_RECORD 发送失败时展示失败提示', async () => 
   });
 });
 
-test('编辑态下修改来源站点并保存会带上更新值', async () => {
+test('编辑态下修改工作地点并保存会带上更新值', async () => {
   const sentMessages: Message[] = [];
 
   await withMockedSendMessage(async message => {
@@ -238,12 +237,12 @@ test('编辑态下修改来源站点并保存会带上更新值', async () => {
       findButton(renderer.root, '编辑').props.onClick();
     });
 
-    const sourceSiteInput = renderer.root.findAll(
-      node => node.type === 'input' && node.props.value === 'jobs.bytedance.com',
+    const locationInput = renderer.root.findAll(
+      node => node.type === 'input' && node.props.value === '北京',
     )[0];
 
     await act(async () => {
-      sourceSiteInput.props.onChange({ target: { value: 'careers.bytedance.com' } });
+      locationInput.props.onChange({ target: { value: '上海' } });
     });
 
     await act(async () => {
@@ -252,8 +251,8 @@ test('编辑态下修改来源站点并保存会带上更新值', async () => {
 
     assert.equal(sentMessages.at(-1)?.type, 'UPDATE_APPLICATION_RECORD');
     assert.equal(
-      (sentMessages.at(-1) as Extract<Message, { type: 'UPDATE_APPLICATION_RECORD' }>).payload.sourceSite,
-      'careers.bytedance.com',
+      (sentMessages.at(-1) as Extract<Message, { type: 'UPDATE_APPLICATION_RECORD' }>).payload.location,
+      '上海',
     );
   });
 });

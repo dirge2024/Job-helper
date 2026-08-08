@@ -18,7 +18,6 @@ type ColumnKey =
   | 'jobTitle'
   | 'sourceUrl'
   | 'status'
-  | 'sourceSite'
   | 'appliedAt'
   | 'location'
   | 'notes';
@@ -32,19 +31,23 @@ type ColumnDefinition = {
   key: ColumnKey;
   label: string;
   sortable: boolean;
-  filterable: boolean;
   cellClassName?: string;
 };
 
 const COLUMN_DEFINITIONS: ColumnDefinition[] = [
-  { key: 'companyName', label: '公司', sortable: true, filterable: true },
-  { key: 'jobTitle', label: '岗位', sortable: true, filterable: true },
-  { key: 'sourceUrl', label: '链接', sortable: true, filterable: true, cellClassName: 'application-records-cell-link' },
-  { key: 'status', label: '状态', sortable: true, filterable: true },
-  { key: 'sourceSite', label: '来源站点', sortable: true, filterable: true },
-  { key: 'appliedAt', label: '投递日期', sortable: true, filterable: true },
-  { key: 'location', label: '工作地点', sortable: true, filterable: true },
-  { key: 'notes', label: '备注', sortable: true, filterable: true },
+  { key: 'companyName', label: '公司', sortable: true },
+  { key: 'jobTitle', label: '岗位', sortable: true },
+  { key: 'sourceUrl', label: '链接', sortable: true, cellClassName: 'application-records-cell-link' },
+  { key: 'status', label: '状态', sortable: true },
+  { key: 'appliedAt', label: '投递日期', sortable: true },
+  { key: 'location', label: '工作地点', sortable: true },
+  { key: 'notes', label: '备注', sortable: true },
+];
+
+const FILTER_FIELDS: Array<{ key: 'companyName' | 'jobTitle' | 'status'; label: string; type: 'text' | 'status' }> = [
+  { key: 'companyName', label: '公司', type: 'text' },
+  { key: 'jobTitle', label: '岗位', type: 'text' },
+  { key: 'status', label: '状态', type: 'status' },
 ];
 
 function defaultSort(records: ApplicationRecord[]): ApplicationRecord[] {
@@ -131,16 +134,6 @@ function SortIcon({ active, direction }: { active: boolean; direction?: 'asc' | 
   );
 }
 
-function FilterIcon({ active }: { active: boolean }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={active ? 'is-active' : ''}>
-      <path d="M3.75 5.25H16.25" />
-      <path d="M6.5 9.25H13.5" />
-      <path d="M8.75 13.25H11.25" />
-    </svg>
-  );
-}
-
 export function ApplicationRecordsSection({
   initialMode: _initialMode = 'list',
   initialRecords = [],
@@ -152,7 +145,7 @@ export function ApplicationRecordsSection({
   const [notice, setNotice] = useState<NoticeState>(null);
   const [sortState, setSortState] = useState<SortState>(null);
   const [columnFilters, setColumnFilters] = useState<Partial<Record<ColumnKey, string>>>({});
-  const [activeFilterKey, setActiveFilterKey] = useState<ColumnKey | null>(null);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftRecord, setDraftRecord] = useState<ApplicationRecord | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -182,9 +175,14 @@ export function ApplicationRecordsSection({
   }, [initialRecords.length]);
 
   const filteredRecords = useMemo(() => {
-    const nextRecords = records.filter(record =>
-      COLUMN_DEFINITIONS.every(column => matchesKeyword(getColumnValue(record, column.key).toLowerCase(), normalizeKeyword(columnFilters[column.key] || ''))),
-    );
+    const nextRecords = records.filter(record => (
+      Object.entries(columnFilters).every(([key, value]) => (
+        matchesKeyword(
+          getColumnValue(record, key as ColumnKey).toLowerCase(),
+          normalizeKeyword(value || ''),
+        )
+      ))
+    ));
     return applySort(nextRecords, sortState);
   }, [columnFilters, records, sortState]);
 
@@ -392,6 +390,61 @@ export function ApplicationRecordsSection({
       )}
 
       <div className="application-records-table-shell" aria-live="polite">
+        <div className="application-records-table-toolbar">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setIsFilterPanelOpen(current => !current)}
+            disabled={busyAction !== null}
+          >
+            筛选
+          </button>
+        </div>
+        {isFilterPanelOpen && (
+          <div className="application-records-filter-panel">
+            <div className="application-records-filter-panel-grid">
+              {FILTER_FIELDS.map(field => (
+                <label key={field.key} className="application-records-filter-field">
+                  <span>{field.label}</span>
+                  {field.type === 'status' ? (
+                    <select
+                      aria-label={`筛选-${field.label}`}
+                      value={columnFilters[field.key] || ''}
+                      onChange={event => {
+                        const value = event.target.value;
+                        setColumnFilters(current => ({ ...current, [field.key]: value }));
+                      }}
+                    >
+                      <option value="">全部状态</option>
+                      {APPLICATION_RECORD_STATUSES.map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      aria-label={`筛选-${field.label}`}
+                      value={columnFilters[field.key] || ''}
+                      onChange={event => {
+                        const value = event.target.value;
+                        setColumnFilters(current => ({ ...current, [field.key]: value }));
+                      }}
+                      placeholder={`筛选${field.label}`}
+                    />
+                  )}
+                </label>
+              ))}
+            </div>
+            <div className="application-records-filter-panel-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setColumnFilters({})}
+              >
+                清空筛选
+              </button>
+            </div>
+          </div>
+        )}
         {loading ? (
           <div className="application-records-empty">正在加载投递记录...</div>
         ) : filteredRecords.length === 0 ? (
@@ -402,40 +455,15 @@ export function ApplicationRecordsSection({
               <tr>
                 {COLUMN_DEFINITIONS.map(column => (
                   <th key={column.key} className={column.cellClassName}>
-                    <div className="application-records-table-head">
+                    <button
+                      type="button"
+                      className="application-records-table-head-button application-records-table-head-button-sort"
+                      aria-label={`列头-${column.label}`}
+                      onClick={() => handleSort(column.key)}
+                    >
                       <span>{column.label}</span>
-                      <div className="application-records-table-head-actions">
-                        <button
-                          type="button"
-                          className="application-records-table-head-button"
-                          aria-label={`排序-${column.label}`}
-                          onClick={() => handleSort(column.key)}
-                        >
-                          <SortIcon active={sortState?.key === column.key} direction={sortState?.key === column.key ? sortState.direction : undefined} />
-                        </button>
-                        <button
-                          type="button"
-                          className="application-records-table-head-button"
-                          aria-label={`筛选-${column.label}`}
-                          onClick={() => setActiveFilterKey(current => current === column.key ? null : column.key)}
-                        >
-                          <FilterIcon active={activeFilterKey === column.key || Boolean(columnFilters[column.key])} />
-                        </button>
-                      </div>
-                    </div>
-                    {activeFilterKey === column.key && (
-                      <div className="application-record-filter-popover">
-                        <input
-                          aria-label={`筛选-${column.label}`}
-                          value={columnFilters[column.key] || ''}
-                          onChange={event => {
-                            const value = event.target.value;
-                            setColumnFilters(current => ({ ...current, [column.key]: value }));
-                          }}
-                          placeholder={`筛选${column.label}`}
-                        />
-                      </div>
-                    )}
+                      <SortIcon active={sortState?.key === column.key} direction={sortState?.key === column.key ? sortState.direction : undefined} />
+                    </button>
                   </th>
                 ))}
                 <th className="application-records-cell-actions">操作</th>
@@ -455,7 +483,6 @@ export function ApplicationRecordsSection({
                           {APPLICATION_RECORD_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
                         </select>
                       </td>
-                      <td data-column="sourceSite"><input value={draftRecord.sourceSite} onChange={event => updateDraftField('sourceSite', event.target.value)} /></td>
                       <td data-column="appliedAt"><input type="date" value={draftRecord.appliedAt} onChange={event => updateDraftField('appliedAt', event.target.value)} /></td>
                       <td data-column="location"><input value={draftRecord.location} onChange={event => updateDraftField('location', event.target.value)} /></td>
                       <td data-column="notes"><input value={draftRecord.notes} onChange={event => updateDraftField('notes', event.target.value)} /></td>
@@ -482,9 +509,21 @@ export function ApplicationRecordsSection({
                   <tr key={record.id} className="application-records-row" data-row-type="data">
                     <td data-column="companyName">{record.companyName || '未填写'}</td>
                     <td data-column="jobTitle">{record.jobTitle || '未填写'}</td>
-                    <td data-column="sourceUrl" className="application-records-cell-link"><span className="application-records-link-text">{record.sourceUrl || '未填写'}</span></td>
+                    <td data-column="sourceUrl" className="application-records-cell-link">
+                      {record.sourceUrl ? (
+                        <a
+                          className="application-records-link-text"
+                          href={record.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {record.sourceUrl}
+                        </a>
+                      ) : (
+                        <span className="application-records-link-text">未填写</span>
+                      )}
+                    </td>
                     <td data-column="status">{record.status}</td>
-                    <td data-column="sourceSite">{record.sourceSite || '未填写'}</td>
                     <td data-column="appliedAt">{record.appliedAt || '未填写'}</td>
                     <td data-column="location">{record.location || '未填写'}</td>
                     <td data-column="notes"><span className="application-records-notes-text">{record.notes || '未填写'}</span></td>
