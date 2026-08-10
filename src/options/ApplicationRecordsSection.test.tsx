@@ -76,6 +76,13 @@ function getRowCompanies(root: TestRenderer.ReactTestInstance): string[] {
   });
 }
 
+function getRowAppliedDates(root: TestRenderer.ReactTestInstance): string[] {
+  return getBodyRows(root).map(row => {
+    const appliedAtCell = row.find(node => node.type === 'td' && node.props['data-column'] === 'appliedAt');
+    return getText(appliedAtCell);
+  });
+}
+
 function findButton(root: TestRenderer.ReactTestInstance, label: string): TestRenderer.ReactTestInstance {
   return root.findAllByType('button').find(
     node => getText(node) === label || node.props['aria-label'] === label,
@@ -134,6 +141,18 @@ test('列标题排序图标已放大到 15px', () => {
   );
 });
 
+test('未排序列的排序提示默认隐藏，仅在 hover 时显示', () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(
+    css,
+    /\.application-records-sort-icon-hint\s*\{[^}]*opacity:\s*0;/,
+  );
+  assert.match(
+    css,
+    /\.application-records-table-head-button-sort:hover\s+\.application-records-sort-icon-hint[\s\S]*opacity:\s*1;/,
+  );
+});
+
 test('未排序时列标题显示上下双箭头，排序后切换为单个方向箭头', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -156,6 +175,68 @@ test('未排序时列标题显示上下双箭头，排序后切换为单个方�
 
   const descHeader = findButton(renderer.root, '列头-公司');
   assert.equal(getText(descHeader), '公司↓');
+});
+
+test('支持按点击顺序进行多列排序', async () => {
+  const sortRecords: ApplicationRecord[] = [
+    {
+      id: 's1',
+      companyName: '腾讯',
+      jobTitle: '前端开发',
+      sourceSite: 'join.qq.com',
+      sourceUrl: 'https://join.qq.com/a',
+      status: '已投递',
+      notes: '',
+      appliedAt: '2026-08-07',
+      location: '深圳',
+      createdAt: '2026-08-07T10:00:00.000Z',
+      updatedAt: '2026-08-07T10:00:00.000Z',
+    },
+    {
+      id: 's2',
+      companyName: '腾讯',
+      jobTitle: '前端开发',
+      sourceSite: 'join.qq.com',
+      sourceUrl: 'https://join.qq.com/b',
+      status: '已投递',
+      notes: '',
+      appliedAt: '2026-08-06',
+      location: '深圳',
+      createdAt: '2026-08-06T10:00:00.000Z',
+      updatedAt: '2026-08-06T10:00:00.000Z',
+    },
+    {
+      id: 's3',
+      companyName: '字节跳动',
+      jobTitle: '前端开发',
+      sourceSite: 'jobs.bytedance.com',
+      sourceUrl: 'https://jobs.bytedance.com/c',
+      status: '已投递',
+      notes: '',
+      appliedAt: '2026-08-09',
+      location: '北京',
+      createdAt: '2026-08-09T10:00:00.000Z',
+      updatedAt: '2026-08-09T10:00:00.000Z',
+    },
+  ];
+
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={sortRecords} />);
+  });
+
+  await act(async () => {
+    findButton(renderer.root, '列头-公司').props.onClick();
+  });
+  await act(async () => {
+    findButton(renderer.root, '列头-投递日期').props.onClick();
+  });
+  await act(async () => {
+    findButton(renderer.root, '列头-投递日期').props.onClick();
+  });
+
+  assert.deepEqual(getRowCompanies(renderer.root), ['腾讯', '腾讯', '字节跳动']);
+  assert.deepEqual(getRowAppliedDates(renderer.root), ['2026-08-07', '2026-08-06', '2026-08-09']);
 });
 
 test('顶部独立筛选框已移除', async () => {

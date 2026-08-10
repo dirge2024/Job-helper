@@ -22,10 +22,12 @@ type ColumnKey =
   | 'location'
   | 'notes';
 
-type SortState = {
+type SortRule = {
   key: ColumnKey;
   direction: 'asc' | 'desc';
-} | null;
+};
+
+type SortState = SortRule[];
 
 type ColumnDefinition = {
   key: ColumnKey;
@@ -91,17 +93,24 @@ function getColumnValue(record: ApplicationRecord, key: ColumnKey): string {
 }
 
 function applySort(records: ApplicationRecord[], sortState: SortState): ApplicationRecord[] {
-  if (!sortState) {
+  if (sortState.length === 0) {
     return defaultSort(records);
   }
 
   const sorted = [...records].sort((left, right) => {
-    const leftValue = getColumnValue(left, sortState.key);
-    const rightValue = getColumnValue(right, sortState.key);
-    return leftValue.localeCompare(rightValue, 'zh-CN');
-  });
+    for (const rule of sortState) {
+      const leftValue = getColumnValue(left, rule.key);
+      const rightValue = getColumnValue(right, rule.key);
+      const comparison = leftValue.localeCompare(rightValue, 'zh-CN');
 
-  return sortState.direction === 'asc' ? sorted : sorted.reverse();
+      if (comparison !== 0) {
+        return rule.direction === 'asc' ? comparison : -comparison;
+      }
+    }
+
+    return 0;
+  });
+  return sorted;
 }
 
 function EditIcon() {
@@ -126,8 +135,8 @@ function DeleteIcon() {
   );
 }
 
-function SortIcon({ active, direction }: { active: boolean; direction?: 'asc' | 'desc' }) {
-  if (active) {
+function SortIcon({ direction }: { direction?: 'asc' | 'desc' }) {
+  if (direction) {
     return (
       <span className="application-records-sort-icon is-active" aria-hidden="true">
         {direction === 'asc' ? '↑' : '↓'}
@@ -136,7 +145,7 @@ function SortIcon({ active, direction }: { active: boolean; direction?: 'asc' | 
   }
 
   return (
-    <span className="application-records-sort-icon application-records-sort-icon-dual" aria-hidden="true">
+    <span className="application-records-sort-icon application-records-sort-icon-hint application-records-sort-icon-dual" aria-hidden="true">
       <span className="application-records-sort-icon-arrow">↑</span>
       <span className="application-records-sort-icon-arrow">↓</span>
     </span>
@@ -152,7 +161,7 @@ export function ApplicationRecordsSection({
   const [busyAction, setBusyAction] = useState<'import' | 'export' | 'save' | 'delete' | null>(null);
   const [errorText, setErrorText] = useState('');
   const [notice, setNotice] = useState<NoticeState>(null);
-  const [sortState, setSortState] = useState<SortState>(null);
+  const [sortState, setSortState] = useState<SortState>([]);
   const [columnFilters, setColumnFilters] = useState<Partial<Record<ColumnKey, string>>>({});
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -213,12 +222,26 @@ export function ApplicationRecordsSection({
 
   const handleSort = (key: ColumnKey) => {
     setSortState(current => {
-      if (!current || current.key !== key) {
-        return { key, direction: 'asc' };
+      const existingIndex = current.findIndex(rule => rule.key === key);
+
+      if (existingIndex === -1) {
+        return [...current, { key, direction: 'asc' }];
       }
-      return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+
+      const existingRule = current[existingIndex];
+      if (existingRule.direction === 'asc') {
+        return current.map(rule => (
+          rule.key === key ? { ...rule, direction: 'desc' } : rule
+        ));
+      }
+
+      return current.filter(rule => rule.key !== key);
     });
   };
+
+  const getSortDirection = (key: ColumnKey): 'asc' | 'desc' | undefined => (
+    sortState.find(rule => rule.key === key)?.direction
+  );
 
   const handleSave = async () => {
     if (!draftRecord) {
@@ -466,12 +489,12 @@ export function ApplicationRecordsSection({
                   <th key={column.key} className={column.cellClassName}>
                     <button
                       type="button"
-                      className="application-records-table-head-button application-records-table-head-button-sort"
+                      className={`application-records-table-head-button application-records-table-head-button-sort${getSortDirection(column.key) ? ' is-sorted' : ''}`}
                       aria-label={`列头-${column.label}`}
                       onClick={() => handleSort(column.key)}
                     >
                       <span>{column.label}</span>
-                      <SortIcon active={sortState?.key === column.key} direction={sortState?.key === column.key ? sortState.direction : undefined} />
+                      <SortIcon direction={getSortDirection(column.key)} />
                     </button>
                   </th>
                 ))}

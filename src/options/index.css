@@ -966,8 +966,9 @@ textarea:focus {
   cursor: pointer;
 }
 
-.application-records-table-head-button-sort:hover {
-  color: var(--color-primary);
+.application-records-table-head-button-sort:hover,
+.application-records-table-head-button-sort:focus-visible {
+  color: inherit;
 }
 
 .application-records-sort-icon {
@@ -978,6 +979,12 @@ textarea:focus {
   font-size: 15px;
   font-weight: 700;
   line-height: 1;
+}
+
+.application-records-sort-icon-hint {
+  opacity: 0;
+  color: #9ca3af;
+  transition: opacity 160ms ease;
 }
 
 .application-records-sort-icon-dual {
@@ -992,6 +999,11 @@ textarea:focus {
 
 .application-records-sort-icon.is-active {
   color: var(--color-primary);
+}
+
+.application-records-table-head-button-sort:hover .application-records-sort-icon-hint,
+.application-records-table-head-button-sort:focus-visible .application-records-sort-icon-hint {
+  opacity: 1;
 }
 
 .application-records-filter-panel {
