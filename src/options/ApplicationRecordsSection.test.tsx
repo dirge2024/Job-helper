@@ -126,11 +126,11 @@ test('设置页桌面容器宽度已放宽到 1240px', () => {
   );
 });
 
-test('列标题排序图标已放大到 13px', () => {
+test('列标题排序图标已放大到 15px', () => {
   const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
   assert.match(
     css,
-    /\.application-records-sort-icon\s*\{[^}]*font-size:\s*13px;/,
+    /\.application-records-sort-icon\s*\{[^}]*font-size:\s*15px;/,
   );
 });
 
