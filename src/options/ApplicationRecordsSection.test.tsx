@@ -134,6 +134,30 @@ test('列标题排序图标已放大到 15px', () => {
   );
 });
 
+test('未排序时列标题显示上下双箭头，排序后切换为单个方向箭头', async () => {
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(<ApplicationRecordsSection initialRecords={records} />);
+  });
+
+  const initialHeader = findButton(renderer.root, '列头-公司');
+  assert.equal(getText(initialHeader), '公司↑↓');
+
+  await act(async () => {
+    initialHeader.props.onClick();
+  });
+
+  const ascHeader = findButton(renderer.root, '列头-公司');
+  assert.equal(getText(ascHeader), '公司↑');
+
+  await act(async () => {
+    ascHeader.props.onClick();
+  });
+
+  const descHeader = findButton(renderer.root, '列头-公司');
+  assert.equal(getText(descHeader), '公司↓');
+});
+
 test('顶部独立筛选框已移除', async () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   await act(async () => {

@@ -127,9 +127,18 @@ function DeleteIcon() {
 }
 
 function SortIcon({ active, direction }: { active: boolean; direction?: 'asc' | 'desc' }) {
+  if (active) {
+    return (
+      <span className="application-records-sort-icon is-active" aria-hidden="true">
+        {direction === 'asc' ? '↑' : '↓'}
+      </span>
+    );
+  }
+
   return (
-    <span className={`application-records-sort-icon${active ? ' is-active' : ''}`} aria-hidden="true">
-      {active ? (direction === 'asc' ? '↑' : '↓') : '↕'}
+    <span className="application-records-sort-icon application-records-sort-icon-dual" aria-hidden="true">
+      <span className="application-records-sort-icon-arrow">↑</span>
+      <span className="application-records-sort-icon-arrow">↓</span>
     </span>
   );
 }
