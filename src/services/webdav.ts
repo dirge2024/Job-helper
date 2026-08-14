@@ -3,6 +3,7 @@ import type { WebDAVConfig } from '../shared/types';
 const REQUEST_TIMEOUT_MS = 20_000;
 export const WEBDAV_BACKUP_DIRECTORY = 'job-application-helper/';
 export const WEBDAV_BACKUP_FILENAME = 'job-application-helper.json';
+export const WEBDAV_APPLICATION_RECORDS_FILENAME = 'application-records.csv';
 
 export type WebDAVErrorCode =
   | 'INVALID_URL'
@@ -54,6 +55,13 @@ export function normalizeWebDAVServerUrl(rawUrl: string): string {
 export function buildWebDAVFileUrl(serverUrl: string): string {
   return new URL(
     `${WEBDAV_BACKUP_DIRECTORY}${WEBDAV_BACKUP_FILENAME}`,
+    normalizeWebDAVServerUrl(serverUrl),
+  ).toString();
+}
+
+export function buildWebDAVApplicationRecordsCsvUrl(serverUrl: string): string {
+  return new URL(
+    `${WEBDAV_BACKUP_DIRECTORY}${WEBDAV_APPLICATION_RECORDS_FILENAME}`,
     normalizeWebDAVServerUrl(serverUrl),
   ).toString();
 }
@@ -196,29 +204,66 @@ export async function putRemoteDocument(
   json: string,
   condition: { type: 'create' } | { type: 'update'; etag: string },
 ): Promise<{ etag?: string }> {
+  return putRemoteFile(
+    config,
+    json,
+    {
+      condition,
+      contentType: 'application/json; charset=utf-8',
+      targetUrl: buildWebDAVFileUrl(config.serverUrl),
+    },
+  );
+}
+
+export async function putRemoteApplicationRecordsCsv(
+  config: WebDAVConfig,
+  csv: string,
+): Promise<{ etag?: string }> {
+  return putRemoteFile(
+    config,
+    csv,
+    {
+      condition: { type: 'overwrite' },
+      contentType: 'text/csv; charset=utf-8',
+      targetUrl: buildWebDAVApplicationRecordsCsvUrl(config.serverUrl),
+    },
+  );
+}
+
+async function putRemoteFile(
+  config: WebDAVConfig,
+  body: string,
+  options: {
+    condition: { type: 'create' } | { type: 'update'; etag: string } | { type: 'overwrite' };
+    contentType: string;
+    targetUrl: string;
+  },
+): Promise<{ etag?: string }> {
   let response = await request(config, {
     method: 'PUT',
     headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      ...(condition.type === 'create'
+      'Content-Type': options.contentType,
+      ...(options.condition.type === 'create'
         ? { 'If-None-Match': '*' }
-        : { 'If-Match': condition.etag }),
+        : options.condition.type === 'update'
+          ? { 'If-Match': options.condition.etag }
+          : {}),
     },
-    body: json,
-  });
+    body,
+  }, options.targetUrl);
   if (
-    condition.type === 'create'
+    options.condition.type !== 'update'
     && (response.status === 404 || response.status === 409)
   ) {
     await ensureBackupDirectory(config);
     response = await request(config, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'If-None-Match': '*',
+        'Content-Type': options.contentType,
+        ...(options.condition.type === 'create' ? { 'If-None-Match': '*' } : {}),
       },
-      body: json,
-    });
+      body,
+    }, options.targetUrl);
   }
   if (!response.ok) throw mapHttpError(response.status, 'write-file');
   return { etag: response.headers.get('ETag') || undefined };

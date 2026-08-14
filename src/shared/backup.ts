@@ -1,4 +1,5 @@
 import type {
+  ApplicationRecord,
   BackupData,
   BackupDocument,
   BackupDocumentV1,
@@ -100,6 +101,22 @@ function validateLLMConfig(value: unknown): value is LLMConfig {
   return true;
 }
 
+function validateApplicationRecords(value: unknown): boolean {
+  return value === undefined || value === null || validateOptionalObjectArray(value, [
+    'id',
+    'companyName',
+    'jobTitle',
+    'sourceSite',
+    'sourceUrl',
+    'status',
+    'notes',
+    'appliedAt',
+    'location',
+    'createdAt',
+    'updatedAt',
+  ]);
+}
+
 function validateV1(value: PlainObject): BackupParseResult {
   if (typeof value.exportedAt !== 'string' || Number.isNaN(Date.parse(value.exportedAt))) {
     return failure('INVALID_EXPORTED_AT', '导出时间无效');
@@ -112,7 +129,7 @@ function validateV1(value: PlainObject): BackupParseResult {
   }
   if (!isPlainObject(value.data)) return failure('INVALID_DATA', '备份数据区域无效');
 
-  const { userProfile, llmConfig, settings } = value.data;
+  const { userProfile, llmConfig, settings, applicationRecords } = value.data;
   if (userProfile !== null && !validateUserProfile(userProfile)) {
     return failure('INVALID_USER_PROFILE', '个人资料结构无效');
   }
@@ -121,6 +138,9 @@ function validateV1(value: PlainObject): BackupParseResult {
   }
   if (settings !== null && !isPlainObject(settings)) {
     return failure('INVALID_SETTINGS', '设置数据结构无效');
+  }
+  if (!validateApplicationRecords(applicationRecords)) {
+    return failure('INVALID_DATA', '投递记录结构无效');
   }
 
   // webdavConfig 仅出现在本地导出文件中；WebDAV 同步的文档不含此字段。
@@ -142,6 +162,9 @@ function validateV1(value: PlainObject): BackupParseResult {
       settings,
     },
   };
+  if (applicationRecords !== undefined) {
+    document.data.applicationRecords = (applicationRecords as ApplicationRecord[] | null) ?? null;
+  }
   if (value.webdavConfig !== undefined) {
     document.webdavConfig = (value.webdavConfig as WebDAVConfig | null) ?? null;
   }
@@ -162,6 +185,7 @@ export function createBackupDocument(
       userProfile: data.userProfile ? normalizeUserProfile(data.userProfile) : null,
       llmConfig: data.llmConfig,
       settings: data.settings,
+      applicationRecords: data.applicationRecords ?? [],
     },
   };
   // 只有本地导出会显式传入 webdavConfig；同步上传不带凭据，避免密码落到远端。

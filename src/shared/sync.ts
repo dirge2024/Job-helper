@@ -1,13 +1,16 @@
 import type {
+  ApplicationRecord,
   BackupData,
   BackupDocument,
   SyncAction,
   SyncResultStatus,
 } from './types';
+import { serializeApplicationRecordsCsv } from './applicationRecords.ts';
 import { createBackupDocument, createBackupSummary, parseAndValidateBackup, serializeBackup } from './backup.ts';
 import { StorageService } from './storage.ts';
 import {
   getRemoteDocument,
+  putRemoteApplicationRecordsCsv,
   putRemoteDocument,
   WebDAVError,
 } from '../services/webdav.ts';
@@ -26,8 +29,15 @@ function sortedValue(value: unknown): unknown {
   return value;
 }
 
+function normalizeBusinessData(data: BackupData): BackupData {
+  return {
+    ...data,
+    applicationRecords: data.applicationRecords ?? [],
+  };
+}
+
 export function stableStringifyBusinessData(data: BackupData): string {
-  return JSON.stringify(sortedValue(data));
+  return JSON.stringify(sortedValue(normalizeBusinessData(data)));
 }
 
 export async function sha256BusinessData(data: BackupData): Promise<string> {
@@ -101,6 +111,12 @@ async function completeSync(hash: string, etag?: string): Promise<void> {
   });
 }
 
+async function syncApplicationRecordsCsvSidecar(records: ApplicationRecord[]): Promise<void> {
+  const config = await StorageService.getWebDAVConfig();
+  if (!config?.enabled) return;
+  await putRemoteApplicationRecordsCsv(config, serializeApplicationRecordsCsv(records));
+}
+
 async function upload(
   data: BackupData,
   localHash: string,
@@ -132,6 +148,7 @@ async function upload(
       '远端服务未提供 ETag，数据已上传但无法继续安全同步；请改用支持 ETag 的 WebDAV 服务',
     );
   }
+  await syncApplicationRecordsCsvSidecar(data.applicationRecords ?? []);
   await completeSync(localHash, nextEtag);
 }
 
@@ -166,12 +183,20 @@ export async function performSync(_reason: string): Promise<SyncResultStatus> {
     if (action === 'create-remote') {
       await upload(localData, localHash, undefined, true);
     } else if (action === 'no-change') {
+      await syncApplicationRecordsCsvSidecar(localData.applicationRecords ?? []);
       await completeSync(localHash, remote.etag);
     } else if (action === 'upload-local') {
       await upload(localData, localHash, remote.etag, false);
     } else if (action === 'download-remote' && remoteDocument) {
       await StorageService.applyRemoteBusinessData(remoteDocument.data);
-      await completeSync(remoteHash as string, remote.etag);
+      const effectiveLocalData = await StorageService.getBackupData();
+      const effectiveHash = await sha256BusinessData(effectiveLocalData);
+      if (effectiveHash === remoteHash) {
+        await syncApplicationRecordsCsvSidecar(effectiveLocalData.applicationRecords ?? []);
+        await completeSync(effectiveHash, remote.etag);
+      } else {
+        await upload(effectiveLocalData, effectiveHash, remote.etag, false);
+      }
     } else if (remoteDocument) {
       await StorageService.saveSyncMetadata({
         ...previous,
@@ -245,7 +270,15 @@ async function performForceDownloadRemote(): Promise<SyncResultStatus> {
     const parsed = parseAndValidateBackup(remote.json || '');
     if (!parsed.success) throw new Error(`远端备份无效：${parsed.error.message}`);
     await StorageService.applyRemoteBusinessData(parsed.document.data);
-    await completeSync(await sha256BusinessData(parsed.document.data), remote.etag);
+    const effectiveLocalData = await StorageService.getBackupData();
+    const effectiveHash = await sha256BusinessData(effectiveLocalData);
+    const remoteHash = await sha256BusinessData(parsed.document.data);
+    if (effectiveHash === remoteHash) {
+      await syncApplicationRecordsCsvSidecar(effectiveLocalData.applicationRecords ?? []);
+      await completeSync(effectiveHash, remote.etag);
+    } else {
+      await upload(effectiveLocalData, effectiveHash, remote.etag, false);
+    }
     return 'synced';
   } catch (error) {
     return await setError(error, '下载失败');

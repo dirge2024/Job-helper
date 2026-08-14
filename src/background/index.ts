@@ -118,19 +118,31 @@ export async function handleMessage(
       return await handleGetApplicationRecords();
 
     case 'CREATE_APPLICATION_RECORD':
-      return await handleCreateApplicationRecord(message.payload);
+      return await handleApplicationRecordMutation(
+        () => handleCreateApplicationRecord(message.payload),
+        'application-record-create',
+      );
 
     case 'UPDATE_APPLICATION_RECORD':
-      return await handleUpdateApplicationRecord(message.payload);
+      return await handleApplicationRecordMutation(
+        () => handleUpdateApplicationRecord(message.payload),
+        'application-record-update',
+      );
 
     case 'DELETE_APPLICATION_RECORD':
-      return await handleDeleteApplicationRecord(message.payload.id);
+      return await handleApplicationRecordMutation(
+        () => handleDeleteApplicationRecord(message.payload.id),
+        'application-record-delete',
+      );
 
     case 'EXPORT_APPLICATION_RECORDS_CSV':
       return await handleExportApplicationRecordsCsv();
 
     case 'IMPORT_APPLICATION_RECORDS_CSV':
-      return await handleImportApplicationRecordsCsv(message.payload.csv);
+      return await handleApplicationRecordMutation(
+        () => handleImportApplicationRecordsCsv(message.payload.csv),
+        'application-record-import',
+      );
 
     case 'GET_RESUME_DATA':
       return await handleGetResumeData();
@@ -204,6 +216,17 @@ export async function handleMessage(
         error: 'Unknown message type'
       };
   }
+}
+
+async function handleApplicationRecordMutation(
+  operation: () => Promise<MessageResponse>,
+  reason: string,
+): Promise<MessageResponse> {
+  const response = await operation();
+  if (response.success) {
+    await queueAutoSync(reason);
+  }
+  return response;
 }
 
 async function handleWriteFocusedField(

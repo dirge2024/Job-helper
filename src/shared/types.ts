@@ -89,6 +89,7 @@ export interface BackupData {
   userProfile: UserProfile | null;
   llmConfig: LLMConfig | null;
   settings: SettingsData | null;
+  applicationRecords?: ApplicationRecord[] | null;
 }
 
 export interface BackupDocumentV1 {

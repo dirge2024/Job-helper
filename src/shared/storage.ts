@@ -149,12 +149,14 @@ export class StorageService {
       STORAGE_KEYS.USER_PROFILE,
       STORAGE_KEYS.LLM_CONFIG,
       STORAGE_KEYS.SETTINGS,
+      STORAGE_KEYS.APPLICATION_RECORDS,
     ]);
     const profile = (result[STORAGE_KEYS.USER_PROFILE] as UserProfile | undefined) || null;
     return {
       userProfile: profile ? normalizeUserProfile(profile) : null,
       llmConfig: (result[STORAGE_KEYS.LLM_CONFIG] as LLMConfig | undefined) || null,
       settings: (result[STORAGE_KEYS.SETTINGS] as SettingsData | undefined) || null,
+      applicationRecords: (result[STORAGE_KEYS.APPLICATION_RECORDS] as ApplicationRecord[] | undefined) || [],
     };
   }
 
@@ -170,6 +172,11 @@ export class StorageService {
     for (const [key, value] of entries) {
       if (value === null) removals.push(key);
       else values[key] = value;
+    }
+
+    if (Object.hasOwn(data, 'applicationRecords')) {
+      if (data.applicationRecords === null) removals.push(STORAGE_KEYS.APPLICATION_RECORDS);
+      else values[STORAGE_KEYS.APPLICATION_RECORDS] = data.applicationRecords ?? [];
     }
 
     // webdavConfig 仅在本地导入时恢复，同步下载不会覆盖本地凭据。
