@@ -6,13 +6,23 @@ import type {
 } from './types.ts';
 
 export const APPLICATION_RECORD_STATUSES: ApplicationRecordStatus[] = [
-  '待投',
+  '待投递',
   '已投递',
-  '笔试',
-  '面试',
-  'Offer',
+  '已笔试',
+  '面试中',
+  'offer',
   '终止',
 ];
+
+const LEGACY_APPLICATION_RECORD_STATUS_MAP: Record<string, ApplicationRecordStatus> = {
+  待投: '待投递',
+  已投递: '已投递',
+  笔试: '已笔试',
+  面试: '面试中',
+  Offer: 'offer',
+  offer: 'offer',
+  终止: '终止',
+};
 
 export const APPLICATION_RECORD_CSV_HEADERS = [
   'companyName',
@@ -31,6 +41,28 @@ type ApplicationRecordCsvHeader = typeof APPLICATION_RECORD_CSV_HEADERS[number];
 
 function isApplicationRecordStatus(value: string): value is ApplicationRecordStatus {
   return APPLICATION_RECORD_STATUSES.includes(value as ApplicationRecordStatus);
+}
+
+export function normalizeApplicationRecordStatus(value: string | undefined): ApplicationRecordStatus | null {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return null;
+  }
+  if (isApplicationRecordStatus(normalized)) {
+    return normalized;
+  }
+  return LEGACY_APPLICATION_RECORD_STATUS_MAP[normalized] ?? null;
+}
+
+export function normalizeApplicationRecord(record: ApplicationRecord): ApplicationRecord {
+  return {
+    ...record,
+    status: normalizeApplicationRecordStatus(record.status) ?? '已投递',
+  };
+}
+
+export function normalizeApplicationRecords(records: ApplicationRecord[] | undefined | null): ApplicationRecord[] {
+  return (records ?? []).map(normalizeApplicationRecord);
 }
 
 function normalizeText(value: string | undefined): string {
@@ -182,8 +214,8 @@ export function parseApplicationRecordsCsv(csv: string): {
       APPLICATION_RECORD_CSV_HEADERS.map((header, headerIndex) => [header, row[headerIndex] ?? '']),
     ) as Record<ApplicationRecordCsvHeader, string>;
 
-    const status = normalizeText(valuesByHeader.status);
-    if (!isApplicationRecordStatus(status)) {
+    const status = normalizeApplicationRecordStatus(valuesByHeader.status);
+    if (!status) {
       warnings.push(`第 ${rowNumber} 行存在非法状态: ${valuesByHeader.status}`);
       return;
     }

@@ -164,11 +164,11 @@ export interface SyncMetadata {
 }
 
 export type ApplicationRecordStatus =
-  | '待投'
+  | '待投递'
   | '已投递'
-  | '笔试'
-  | '面试'
-  | 'Offer'
+  | '已笔试'
+  | '面试中'
+  | 'offer'
   | '终止';
 
 export interface ApplicationPageMetadata {

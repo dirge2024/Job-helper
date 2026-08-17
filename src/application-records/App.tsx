@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { APPLICATION_RECORD_STATUSES } from '../shared/applicationRecords.ts';
+import { APPLICATION_RECORD_STATUSES, normalizeApplicationRecordStatus } from '../shared/applicationRecords.ts';
 import { MessageService } from '../shared/message.ts';
 import type {
   ApplicationRecord,
@@ -37,6 +37,7 @@ function normalizeDraftToRecord(draft: ApplicationRecordDraft): ApplicationRecor
   return {
     ...EMPTY_FORM,
     ...draft,
+    status: normalizeApplicationRecordStatus(draft.status) ?? '已投递',
     id: createRecordId(),
   };
 }

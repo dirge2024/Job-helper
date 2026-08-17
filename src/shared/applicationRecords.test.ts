@@ -153,16 +153,50 @@ test('StorageService 可新增、更新、删除单条投递记录', async () =>
 
     const updated: ApplicationRecord = {
       ...created,
-      status: '面试',
+      status: '面试中',
       notes: '一面已过',
       updatedAt: '2026-08-08T10:00:00.000Z',
     };
 
     await StorageService.updateApplicationRecord(updated);
-    assert.equal((await StorageService.getApplicationRecords())[0]?.status, '面试');
+    assert.equal((await StorageService.getApplicationRecords())[0]?.status, '面试中');
 
     await StorageService.deleteApplicationRecord(created.id);
     assert.deepEqual(await StorageService.getApplicationRecords(), []);
+  } finally {
+    (globalThis as { chrome?: unknown }).chrome = originalChrome;
+  }
+});
+
+test('StorageService 读取旧状态值时会自动归一化到新状态文案', async () => {
+  const storageState: Record<string, unknown> = {
+    [STORAGE_KEYS.APPLICATION_RECORDS]: [{
+      id: 'legacy-r1',
+      companyName: '字节跳动',
+      jobTitle: '',
+      sourceSite: 'jobs.bytedance.com',
+      sourceUrl: 'https://jobs.bytedance.com/example',
+      status: 'Offer',
+      notes: '',
+      appliedAt: '2026-08-07',
+      location: '',
+      createdAt: '2026-08-07T10:00:00.000Z',
+      updatedAt: '2026-08-07T10:00:00.000Z',
+    }],
+  };
+  const originalChrome = (globalThis as { chrome?: unknown }).chrome;
+  (globalThis as { chrome?: unknown }).chrome = {
+    storage: {
+      local: {
+        get: async (key: string) => ({ [key]: storageState[key] }),
+        set: async (values: Record<string, unknown>) => Object.assign(storageState, values),
+      },
+    },
+  };
+
+  try {
+    const records = await StorageService.getApplicationRecords();
+    assert.equal(records[0]?.status, 'offer');
   } finally {
     (globalThis as { chrome?: unknown }).chrome = originalChrome;
   }

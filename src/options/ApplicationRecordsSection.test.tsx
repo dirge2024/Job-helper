@@ -46,7 +46,7 @@ const records: ApplicationRecord[] = [
     jobTitle: '产品经理',
     sourceSite: 'join.qq.com',
     sourceUrl: 'https://join.qq.com/example-2',
-    status: '面试',
+    status: '面试中',
     notes: '',
     appliedAt: '2026-08-06',
     location: '深圳',
@@ -119,6 +119,12 @@ test('表格列头渲染公司、岗位、链接等明确列名', () => {
   assert.match(html, /链接/);
   assert.match(html, /状态/);
   assert.doesNotMatch(html, /来源站点/);
+});
+
+test('投递记录说明文案已移除“在设置页”字样', () => {
+  const html = renderToStaticMarkup(<ApplicationRecordsSection initialRecords={records} />);
+  assert.match(html, /统一查看、筛选、排序、编辑、删除，并支持 CSV 导入导出已有投递记录。/);
+  assert.doesNotMatch(html, /在设置页统一查看/);
 });
 
 test('设置页桌面容器宽度已放宽到 1240px', () => {

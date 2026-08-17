@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { APPLICATION_RECORD_STATUSES } from '../shared/applicationRecords.ts';
+import { APPLICATION_RECORD_STATUSES, normalizeApplicationRecord } from '../shared/applicationRecords.ts';
 import { MessageService } from '../shared/message.ts';
 import type { ApplicationRecord, ApplicationRecordStatus } from '../shared/types.ts';
 
@@ -53,7 +53,7 @@ const FILTER_FIELDS: Array<{ key: 'companyName' | 'jobTitle' | 'status'; label: 
 ];
 
 function defaultSort(records: ApplicationRecord[]): ApplicationRecord[] {
-  return [...records].sort((left, right) => {
+  return [...records].map(normalizeApplicationRecord).sort((left, right) => {
     const leftValue = left.appliedAt || left.updatedAt || left.createdAt;
     const rightValue = right.appliedAt || right.updatedAt || right.createdAt;
     return rightValue.localeCompare(leftValue);
@@ -375,7 +375,7 @@ export function ApplicationRecordsSection({
         <div>
           <h2 className="section-title">投递记录</h2>
           <p className="application-records-description">
-            在设置页统一查看、筛选、排序、编辑、删除，并支持 CSV 导入导出已有投递记录。
+            统一查看、筛选、排序、编辑、删除，并支持 CSV 导入导出已有投递记录。
           </p>
         </div>
         <div className="application-records-actions">

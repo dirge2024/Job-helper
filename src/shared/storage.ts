@@ -7,6 +7,7 @@ import type {
   WebDAVConfig,
 } from './types';
 import type { LLMConfig } from '../services/llm/types';
+import { normalizeApplicationRecords } from './applicationRecords.ts';
 import { normalizeWebDAVServerUrl } from '../services/webdav.ts';
 
 export const STORAGE_KEYS = {
@@ -156,7 +157,9 @@ export class StorageService {
       userProfile: profile ? normalizeUserProfile(profile) : null,
       llmConfig: (result[STORAGE_KEYS.LLM_CONFIG] as LLMConfig | undefined) || null,
       settings: (result[STORAGE_KEYS.SETTINGS] as SettingsData | undefined) || null,
-      applicationRecords: (result[STORAGE_KEYS.APPLICATION_RECORDS] as ApplicationRecord[] | undefined) || [],
+      applicationRecords: normalizeApplicationRecords(
+        result[STORAGE_KEYS.APPLICATION_RECORDS] as ApplicationRecord[] | undefined,
+      ),
     };
   }
 
@@ -176,7 +179,7 @@ export class StorageService {
 
     if (Object.hasOwn(data, 'applicationRecords')) {
       if (data.applicationRecords === null) removals.push(STORAGE_KEYS.APPLICATION_RECORDS);
-      else values[STORAGE_KEYS.APPLICATION_RECORDS] = data.applicationRecords ?? [];
+      else values[STORAGE_KEYS.APPLICATION_RECORDS] = normalizeApplicationRecords(data.applicationRecords);
     }
 
     // webdavConfig 仅在本地导入时恢复，同步下载不会覆盖本地凭据。
@@ -226,11 +229,13 @@ export class StorageService {
 
   static async getApplicationRecords(): Promise<ApplicationRecord[]> {
     const result = await chrome.storage.local.get(STORAGE_KEYS.APPLICATION_RECORDS);
-    return (result[STORAGE_KEYS.APPLICATION_RECORDS] as ApplicationRecord[] | undefined) || [];
+    return normalizeApplicationRecords(result[STORAGE_KEYS.APPLICATION_RECORDS] as ApplicationRecord[] | undefined);
   }
 
   static async saveApplicationRecords(records: ApplicationRecord[]): Promise<void> {
-    await chrome.storage.local.set({ [STORAGE_KEYS.APPLICATION_RECORDS]: records });
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.APPLICATION_RECORDS]: normalizeApplicationRecords(records),
+    });
   }
 
   static async createApplicationRecord(record: ApplicationRecord): Promise<void> {
