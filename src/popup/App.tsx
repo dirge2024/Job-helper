@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MessageService } from '../shared/message';
 import type { Message, MessageResponse, UserProfile } from '../shared/types';
 import type { LLMConfig } from '../services/llm/types';
-import { buildSidepanelUrl } from '../sidepanel/navigation';
+import { buildSidepanelUrl, openInfoFloatWindow } from '../sidepanel/navigation';
 
 const APPLICATION_RECORDS_PAGE = 'src/application-records/index.html';
 
@@ -217,34 +217,45 @@ function App() {
   const handleOpenSidePanel = async () => {
     setOpeningView(true);
     try {
-      await openSidePanelFallbackWindow();
+      const opened = await openNativeSidePanel();
+      if (!opened) {
+        // 原生侧边栏不可用（旧版浏览器 / API 缺失 / 手势失效）时回退到浮动小窗
+        await openInfoFloatWindow();
+      }
       window.close();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : '打开资料窗口失败');
-      setOpeningView(false);
+    } catch {
+      // 原生侧边栏调用抛错时同样回退，避免用户点击后毫无反应
+      try {
+        await openInfoFloatWindow();
+        window.close();
+      } catch (fallbackError) {
+        alert(fallbackError instanceof Error ? fallbackError.message : '打开信息窗口失败');
+        setOpeningView(false);
+      }
     }
   };
 
-  const openSidePanelFallbackWindow = async () => {
-    const currentWindow = await chrome.windows.getCurrent();
-    const width = 420;
-    const height = Math.max(640, Math.min(900, currentWindow.height || 800));
-    const left = currentWindow.left !== undefined && currentWindow.width !== undefined
-      ? currentWindow.left + Math.max(0, currentWindow.width - width)
-      : undefined;
-    const top = currentWindow.top;
+  // 尝试打开 Chrome 原生侧边栏；成功返回 true，不支持或未开启时返回 false。
+  const openNativeSidePanel = async (): Promise<boolean> => {
+    const sidePanel = (chrome as typeof chrome & { sidePanel?: chrome.sidePanel.SidePanel }).sidePanel;
+    if (!sidePanel?.open || !sidePanel.setOptions) {
+      return false;
+    }
 
-    await chrome.windows.create({
-      url: chrome.runtime.getURL(buildSidepanelUrl({
-        targetWindowId: currentWindow.id,
-      })),
-      type: 'popup',
-      width,
-      height,
-      left,
-      top,
-      focused: true,
+    const currentWindow = await chrome.windows.getCurrent();
+    const windowId = currentWindow.id;
+    if (typeof windowId !== 'number') {
+      return false;
+    }
+
+    // 把目标窗口写进 path，侧边栏页面据此把字段写回正确的网页窗口
+    await sidePanel.setOptions({
+      path: buildSidepanelUrl({ targetWindowId: windowId }),
+      enabled: true,
     });
+    // open() 必须紧贴用户手势调用栈，前面的 await 已尽量精简
+    await sidePanel.open({ windowId });
+    return true;
   };
 
   const sendMessageToActiveTab = async <T,>(
@@ -365,7 +376,7 @@ function App() {
             disabled={openingView}
             className="button button-secondary"
           >
-            {openingView ? '正在打开浮窗...' : '打开信息浮窗'}
+            {openingView ? '正在打开...' : '打开信息窗口'}
           </button>
 
           <div className="fill-button-pair">

@@ -1,20 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MessageService } from '../shared/message';
 import type {
-  FocusedFieldFailureReason,
   FocusedFieldWriteResult,
   UserProfile,
 } from '../shared/types';
 import {
+  getSidepanelModeFromSearch,
   getTargetWindowIdFromSearch,
+  openInfoFloatWindow,
 } from './navigation';
 import { ProfileSections } from './ProfileSections.tsx';
-
-type Status = {
-  kind: 'idle' | 'working' | 'success' | 'warning' | 'error';
-  text: string;
-  manualValue?: string;
-};
 
 type DocumentPictureInPictureApi = {
   window: Window | null;
@@ -26,29 +21,24 @@ type DocumentPictureInPictureApi = {
   }): Promise<Window>;
 };
 
-const reasonText: Record<FocusedFieldFailureReason, string> = {
-  NO_ACTIVE_TAB: '当前没有可写入的网页',
-  NO_CONTENT_SCRIPT: '当前页面不支持扩展写入',
-  NO_FOCUSED_FIELD: '请先点击网页中的目标输入框',
-  FIELD_DETACHED: '目标输入框已被页面刷新，请重新点击',
-  FIELD_NOT_WRITABLE: '目标控件不可写',
-  VALUE_REJECTED: '页面拒绝了该值',
-  RESTRICTED_PAGE: '浏览器限制页面不允许写入',
-};
-
 const targetWindowId = getTargetWindowIdFromSearch(window.location.search);
-const defaultStatusText = '先点击网页输入框，再点击下方信息字段';
+const subtitleText = '点击下方信息字段即可自动复制对应内容；若先点击网页输入框再点击字段，可自动写入，写入失败时也可手动粘贴';
 const hasTargetWindowId = typeof targetWindowId === 'number';
+// 提示气泡显示时长（毫秒）
+const TOAST_DURATION_MS = 1000;
+// 浮动小窗与原生侧边栏共用本页面，按模式决定右上角按钮：
+// - 浮窗(float)：可置顶小窗，但隐藏「打开浮窗」，避免在浮窗里再开浮窗
+// - 侧边栏(panel)：可再开浮窗，但隐藏仅浮窗可用的「置顶小窗」
+const sidepanelMode = getSidepanelModeFromSearch(window.location.search);
+const isFloatMode = sidepanelMode === 'float';
 
 export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [workingKey, setWorkingKey] = useState<string | null>(null);
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
-  const [status, setStatus] = useState<Status>({
-    kind: 'idle',
-    text: defaultStatusText,
-  });
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     void loadInitialData();
@@ -61,7 +51,10 @@ export default function App() {
       }
     };
     chrome.storage.onChanged.addListener(handleStorageChange);
-    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   const loadInitialData = async () => {
@@ -74,53 +67,39 @@ export default function App() {
     setLoading(false);
   };
 
-  const copyValue = async (value: string, prefix: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setStatus({ kind: 'warning', text: `${prefix}，已复制到剪贴板` });
-    } catch {
-      setStatus({
-        kind: 'error',
-        text: `${prefix}，复制也失败，请手动复制下方内容`,
-        manualValue: value,
-      });
-    }
+  // 显示一个 1 秒后自动消失的提示气泡
+  const showToast = (text: string) => {
+    setToast(text);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), TOAST_DURATION_MS);
   };
 
   const handleFieldClick = async (key: string, value: string) => {
     if (!value.trim() || workingKey) return;
     setWorkingKey(key);
-    setStatus({ kind: 'working', text: '正在写入网页输入框...' });
 
     try {
+      // 先尝试写入网页聚焦的输入框（成功与否都会继续尝试复制）
       const query = hasTargetWindowId
         ? { active: true, windowId: targetWindowId }
         : { active: true, currentWindow: true };
       const [tab] = await chrome.tabs.query(query);
-      if (!tab?.id) {
-        await copyValue(value, '当前没有活动网页');
-        return;
+      if (tab?.id) {
+        await MessageService.sendMessage<FocusedFieldWriteResult>({
+          type: 'WRITE_FOCUSED_FIELD',
+          payload: { tabId: tab.id, value },
+        }).catch(() => undefined);
       }
-
-      const response = await MessageService.sendMessage<FocusedFieldWriteResult>({
-        type: 'WRITE_FOCUSED_FIELD',
-        payload: { tabId: tab.id, value },
-      });
-
-      if (response.success && response.data?.written) {
-        setStatus({ kind: 'idle', text: defaultStatusText });
-        return;
-      }
-
-      const reason = response.data?.reason;
-      const message = reason ? reasonText[reason] : (response.error || '网页写入失败');
-      await copyValue(value, message);
-    } catch (error) {
-      await copyValue(
-        value,
-        error instanceof Error ? error.message : '网页写入失败'
-      );
+    } catch {
+      // 写入失败无需单独提示，下面统一以「复制」为准
     } finally {
+      // 不管是否成功写入，都尝试复制；仅在复制成功时弹出提示
+      try {
+        await navigator.clipboard.writeText(value);
+        showToast('已复制到剪贴板');
+      } catch {
+        // 复制也失败时不弹提示（按需求仅保留复制成功提示）
+      }
       setWorkingKey(null);
     }
   };
@@ -135,10 +114,7 @@ export default function App() {
       window as Window & { documentPictureInPicture?: DocumentPictureInPictureApi }
     ).documentPictureInPicture;
     if (!api?.requestWindow) {
-      setStatus({
-        kind: 'warning',
-        text: '当前浏览器未开放文档画中画，无法使用置顶小窗',
-      });
+      showToast('当前浏览器不支持置顶小窗');
       return;
     }
 
@@ -164,17 +140,22 @@ export default function App() {
           openerDocument.body.appendChild(root);
         }
         setPipWindow(null);
-        setStatus({ kind: 'idle', text: '已退出置顶小窗' });
       }, { once: true });
 
       if (hasTargetWindowId) {
         await chrome.windows.update(targetWindowId, { focused: true }).catch(() => undefined);
       }
     } catch {
-      setStatus({
-        kind: 'warning',
-        text: '当前浏览器未开放文档画中画，无法使用置顶小窗',
-      });
+      showToast('当前浏览器不支持置顶小窗');
+    }
+  };
+
+  const handleOpenFloatWindow = async () => {
+    try {
+      // 复用侧边栏页面以浮动小窗形式打开，沿用当前的目标网页窗口
+      await openInfoFloatWindow(hasTargetWindowId ? targetWindowId : undefined);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '打开浮窗失败');
     }
   };
 
@@ -199,34 +180,32 @@ export default function App() {
       <header className="panel-header">
         <div>
             <h1>网申信息浮窗</h1>
-            <p>点击网页输入框，再点击信息字段</p>
+            <p className="panel-subtitle">{subtitleText}</p>
         </div>
         <div className="header-actions">
-          <button className="pip-button" onClick={handlePictureInPicture}>
-            {pipWindow && !pipWindow.closed ? '退出置顶' : '置顶小窗'}
-          </button>
+          {!isFloatMode && (
+            <button className="pip-button" onClick={() => void handleOpenFloatWindow()}>
+              打开浮窗
+            </button>
+          )}
+          {isFloatMode && (
+            <button className="pip-button" onClick={handlePictureInPicture}>
+              {pipWindow && !pipWindow.closed ? '退出置顶' : '置顶小窗'}
+            </button>
+          )}
           <button className="settings-button" onClick={() => chrome.runtime.openOptionsPage()}>
             设置
           </button>
         </div>
       </header>
 
-      <div className={`status status-${status.kind}`}>
-        <span>{status.text}</span>
-        {status.manualValue && (
-          <textarea
-            className="manual-copy"
-            readOnly
-            value={status.manualValue}
-            onFocus={(event) => event.currentTarget.select()}
-          />
-        )}
-      </div>
       <ProfileSections
         profile={profile}
         workingKey={workingKey}
         onFieldClick={handleFieldClick}
       />
+
+      {toast && <div className="copy-toast" role="status">{toast}</div>}
     </main>
   );
 }
