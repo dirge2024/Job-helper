@@ -22,7 +22,7 @@
 
 如果你只是想使用插件：
 
-1. 在当前仓库的 Releases 页面下载最新版扩展压缩包。
+1. 点击当前仓库右侧的 Releases 页面，点击下载最新版扩展压缩包（job-application-helper-extension.zip）。
 2. 先将压缩包解压到本地任意文件夹。
 3. 打开 Chrome 或 Edge 的扩展程序管理界面。
 4. 开启页面内的“开发者模式”。
