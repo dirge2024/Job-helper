@@ -11,6 +11,7 @@ import { StorageService } from './storage.ts';
 import {
   decideSyncAction,
   performSync,
+  resolveConflict,
   sha256BusinessData,
   stableStringifyBusinessData,
 } from './sync.ts';
@@ -520,6 +521,93 @@ test('已有同步基线后远端文件被删除会进入冲突状态', async ()
     assert.equal(metadata.status, 'conflict');
     assert.match(metadata.lastError || '', /远端文件已被删除/);
     assert.equal(metadata.conflict, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+    mock.restore();
+  }
+});
+
+test('手动同步不要求启用保存后的自动同步', async () => {
+  const mock = installChromeStorageMock({
+    userProfile: completeData.userProfile,
+    llmConfig: completeData.llmConfig,
+    settings: completeData.settings,
+    applicationRecords: completeData.applicationRecords,
+    webdavConfig: { ...webdavConfig, enabled: false },
+    syncMetadata: { status: 'idle' },
+  });
+  const originalFetch = globalThis.fetch;
+  const requests: Array<{ method?: string; url: string }> = [];
+  globalThis.fetch = async (input, init) => {
+    requests.push({ method: init?.method, url: String(input) });
+    if (init?.method === 'GET') return new Response('', { status: 404 });
+    return new Response(null, { status: 204, headers: { ETag: '"v1"' } });
+  };
+  try {
+    assert.equal(await performSync('manual'), 'synced');
+    assert.ok(requests.some(request =>
+      request.method === 'PUT'
+      && request.url === 'https://dav.example.com/backups/job-application-helper/job-application-helper.json'
+    ));
+    const metadata = mock.values.syncMetadata as {
+      status: string;
+      etag?: string;
+    };
+    assert.equal(metadata.status, 'synced');
+    assert.equal(metadata.etag, '"v1"');
+  } finally {
+    globalThis.fetch = originalFetch;
+    mock.restore();
+  }
+});
+
+test('冲突后选择使用本地不要求启用保存后的自动同步', async () => {
+  const baseHash = await sha256BusinessData({
+    ...completeData,
+    settings: { locale: 'base' },
+  });
+  const mock = installChromeStorageMock({
+    userProfile: completeData.userProfile,
+    llmConfig: completeData.llmConfig,
+    settings: { locale: 'local' },
+    applicationRecords: completeData.applicationRecords,
+    webdavConfig: { ...webdavConfig, enabled: false },
+    syncMetadata: {
+      status: 'conflict',
+      lastSyncedHash: baseHash,
+      etag: '"v1"',
+      conflict: {
+        local: createBackupSummary(createBackupDocument({
+          ...completeData,
+          settings: { locale: 'local' },
+        }, '1.0.0', '2026-08-24T00:00:00.000Z')),
+        remote: createBackupSummary(createBackupDocument({
+          ...completeData,
+          settings: { locale: 'remote' },
+        }, '1.0.0', '2026-08-24T00:00:00.000Z')),
+      },
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_input, init) => {
+    if (init?.method === 'GET') {
+      return new Response(validJson(), {
+        status: 200,
+        headers: { ETag: '"v1"' },
+      });
+    }
+    return new Response(null, { status: 204, headers: { ETag: '"v2"' } });
+  };
+  try {
+    assert.equal(await resolveConflict('local'), 'synced');
+    const metadata = mock.values.syncMetadata as {
+      status: string;
+      conflict?: unknown;
+      etag?: string;
+    };
+    assert.equal(metadata.status, 'synced');
+    assert.equal(metadata.conflict, undefined);
+    assert.equal(metadata.etag, '"v2"');
   } finally {
     globalThis.fetch = originalFetch;
     mock.restore();

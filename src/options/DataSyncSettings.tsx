@@ -165,10 +165,14 @@ export function DataSyncSettings({ onDataChanged }: Props) {
       return;
     }
     setNotice({
-      type: response.data?.status === 'synced' ? 'success' : 'error',
+      type: response.data?.status === 'error' ? 'error' : 'success',
       text: response.data?.status === 'synced'
         ? '同步完成'
-        : '操作未完成，请查看下方同步状态',
+        : response.data?.status === 'conflict'
+          ? '同步遇到冲突，请查看下方同步状态'
+          : response.data?.status === 'disabled'
+            ? '请先填写并保存 WebDAV 同步设置'
+            : '同步请求已提交，请查看下方同步状态',
     });
   });
 
@@ -292,7 +296,7 @@ export function DataSyncSettings({ onDataChanged }: Props) {
         <div className="sync-actions">
           <button className="btn btn-secondary" onClick={testWebDAV} disabled={busy !== null}>测试连接</button>
           <button className="btn btn-primary" onClick={saveConfig} disabled={busy !== null}>保存同步设置</button>
-          <button className="btn btn-secondary" onClick={syncNow} disabled={busy !== null || !config.enabled}>
+        <button className="btn btn-secondary" onClick={syncNow} disabled={busy !== null}>
             {busy === 'sync' ? '同步中…' : '立即同步'}
           </button>
         </div>

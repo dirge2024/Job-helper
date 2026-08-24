@@ -4,6 +4,7 @@ import type {
   BackupDocument,
   SyncAction,
   SyncResultStatus,
+  WebDAVConfig,
 } from './types';
 import { serializeApplicationRecordsCsv } from './applicationRecords.ts';
 import { createBackupDocument, createBackupSummary, parseAndValidateBackup, serializeBackup } from './backup.ts';
@@ -111,9 +112,12 @@ async function completeSync(hash: string, etag?: string): Promise<void> {
   });
 }
 
-async function syncApplicationRecordsCsvSidecar(records: ApplicationRecord[]): Promise<void> {
-  const config = await StorageService.getWebDAVConfig();
-  if (!config?.enabled) return;
+async function syncApplicationRecordsCsvSidecar(
+  records: ApplicationRecord[],
+  config: WebDAVConfig | null,
+  force = false,
+): Promise<void> {
+  if (!config || (!config.enabled && !force)) return;
   await putRemoteApplicationRecordsCsv(config, serializeApplicationRecordsCsv(records));
 }
 
@@ -122,6 +126,8 @@ async function upload(
   localHash: string,
   etag: string | undefined,
   create: boolean,
+  config: WebDAVConfig,
+  forceSidecarUpload = false,
 ): Promise<void> {
   if (!create && !etag) {
     throw new WebDAVError(
@@ -129,8 +135,6 @@ async function upload(
       '远端服务未提供 ETag，不支持安全覆盖；请改用支持 ETag 的 WebDAV 服务',
     );
   }
-  const config = await StorageService.getWebDAVConfig();
-  if (!config) throw new Error('WebDAV 配置不存在');
   const document = createBackupDocument(data, extensionVersion());
   const result = await putRemoteDocument(
     config,
@@ -148,13 +152,15 @@ async function upload(
       '远端服务未提供 ETag，数据已上传但无法继续安全同步；请改用支持 ETag 的 WebDAV 服务',
     );
   }
-  await syncApplicationRecordsCsvSidecar(data.applicationRecords ?? []);
+  await syncApplicationRecordsCsvSidecar(data.applicationRecords ?? [], config, forceSidecarUpload);
   await completeSync(localHash, nextEtag);
 }
 
-export async function performSync(_reason: string): Promise<SyncResultStatus> {
+export async function performSync(reason: string): Promise<SyncResultStatus> {
   const config = await StorageService.getWebDAVConfig();
-  if (!config?.enabled) return 'disabled';
+  const isManualSync = reason === 'manual';
+  if (!config) return 'disabled';
+  if (!config.enabled && !isManualSync) return 'disabled';
 
   const previous = await StorageService.getSyncMetadata();
   await StorageService.saveSyncMetadata({ ...previous, status: 'syncing', lastError: undefined });
@@ -181,21 +187,25 @@ export async function performSync(_reason: string): Promise<SyncResultStatus> {
       remote.exists,
     );
     if (action === 'create-remote') {
-      await upload(localData, localHash, undefined, true);
+      await upload(localData, localHash, undefined, true, config, isManualSync);
     } else if (action === 'no-change') {
-      await syncApplicationRecordsCsvSidecar(localData.applicationRecords ?? []);
+      await syncApplicationRecordsCsvSidecar(localData.applicationRecords ?? [], config, isManualSync);
       await completeSync(localHash, remote.etag);
     } else if (action === 'upload-local') {
-      await upload(localData, localHash, remote.etag, false);
+      await upload(localData, localHash, remote.etag, false, config, isManualSync);
     } else if (action === 'download-remote' && remoteDocument) {
       await StorageService.applyRemoteBusinessData(remoteDocument.data);
       const effectiveLocalData = await StorageService.getBackupData();
       const effectiveHash = await sha256BusinessData(effectiveLocalData);
       if (effectiveHash === remoteHash) {
-        await syncApplicationRecordsCsvSidecar(effectiveLocalData.applicationRecords ?? []);
+        await syncApplicationRecordsCsvSidecar(
+          effectiveLocalData.applicationRecords ?? [],
+          config,
+          isManualSync,
+        );
         await completeSync(effectiveHash, remote.etag);
       } else {
-        await upload(effectiveLocalData, effectiveHash, remote.etag, false);
+        await upload(effectiveLocalData, effectiveHash, remote.etag, false, config, isManualSync);
       }
     } else if (remoteDocument) {
       await StorageService.saveSyncMetadata({
@@ -237,7 +247,7 @@ export function enqueueSyncAndWait(reason: string): Promise<SyncResultStatus> {
 
 async function performForceUploadLocal(): Promise<SyncResultStatus> {
   const config = await StorageService.getWebDAVConfig();
-  if (!config?.enabled) return 'disabled';
+  if (!config) return 'disabled';
   await StorageService.saveSyncMetadata({
     ...(await StorageService.getSyncMetadata()),
     status: 'syncing',
@@ -249,7 +259,7 @@ async function performForceUploadLocal(): Promise<SyncResultStatus> {
       getRemoteDocument(config),
     ]);
     const localHash = await sha256BusinessData(localData);
-    await upload(localData, localHash, remote.etag, !remote.exists);
+    await upload(localData, localHash, remote.etag, !remote.exists, config, true);
     return 'synced';
   } catch (error) {
     return await setError(error, '上传失败');
@@ -258,7 +268,7 @@ async function performForceUploadLocal(): Promise<SyncResultStatus> {
 
 async function performForceDownloadRemote(): Promise<SyncResultStatus> {
   const config = await StorageService.getWebDAVConfig();
-  if (!config?.enabled) return 'disabled';
+  if (!config) return 'disabled';
   await StorageService.saveSyncMetadata({
     ...(await StorageService.getSyncMetadata()),
     status: 'syncing',
@@ -274,10 +284,10 @@ async function performForceDownloadRemote(): Promise<SyncResultStatus> {
     const effectiveHash = await sha256BusinessData(effectiveLocalData);
     const remoteHash = await sha256BusinessData(parsed.document.data);
     if (effectiveHash === remoteHash) {
-      await syncApplicationRecordsCsvSidecar(effectiveLocalData.applicationRecords ?? []);
+      await syncApplicationRecordsCsvSidecar(effectiveLocalData.applicationRecords ?? [], config, true);
       await completeSync(effectiveHash, remote.etag);
     } else {
-      await upload(effectiveLocalData, effectiveHash, remote.etag, false);
+      await upload(effectiveLocalData, effectiveHash, remote.etag, false, config, true);
     }
     return 'synced';
   } catch (error) {
