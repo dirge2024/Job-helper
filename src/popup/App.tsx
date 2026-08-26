@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageService } from '../shared/message';
-import type { Message, MessageResponse, UserProfile } from '../shared/types';
+import type { Message, MessageResponse, ResumeProfileSummary, UserProfile } from '../shared/types';
 import type { LLMConfig } from '../services/llm/types';
+import { executePopupProfileSwitch, ResumeProfileSelector } from './ResumeProfileSelector';
 import { buildSidepanelUrl, openInfoFloatWindow } from '../sidepanel/navigation';
 
 const APPLICATION_RECORDS_PAGE = 'src/application-records/index.html';
@@ -41,6 +42,12 @@ export async function openApplicationRecordOptions(): Promise<void> {
 
 function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [resumeProfiles, setResumeProfiles] = useState<ResumeProfileSummary | null>(null);
+  const [switching, setSwitching] = useState(false);
+  const [profileSwitchError, setProfileSwitchError] = useState('');
+  const switchPendingRef = useRef(false);
+  const switchRequestRef = useRef(0);
+  const mountedRef = useRef(true);
   const [loading, setLoading] = useState(typeof window !== 'undefined');
   const [filling, setFilling] = useState(false);
   const [aiScanning, setAiScanning] = useState(false);
@@ -51,23 +58,78 @@ function App() {
   const [detectedFields, setDetectedFields] = useState(0);
 
   useEffect(() => {
-    loadProfile();
-    detectFields();
+    mountedRef.current = true;
+    void loadProfile();
+    void loadResumeProfiles();
+    void detectFields();
+    return () => {
+      mountedRef.current = false;
+      switchRequestRef.current += 1;
+      switchPendingRef.current = false;
+    };
   }, []);
+
+  const fetchProfile = async (): Promise<UserProfile> => {
+    const response = await MessageService.sendMessage<UserProfile>({ type: 'GET_USER_PROFILE' });
+    if (!response.success || !response.data) throw new Error(response.error || '加载个人信息失败');
+    return response.data;
+  };
+
+  const fetchResumeProfiles = async (): Promise<ResumeProfileSummary> => {
+    const response = await MessageService.sendMessage<ResumeProfileSummary>({ type: 'GET_RESUME_PROFILES' });
+    if (!response.success || !response.data) throw new Error(response.error || '加载简历列表失败');
+    return response.data;
+  };
 
   const loadProfile = async () => {
     try {
-      const response = await MessageService.sendMessage<UserProfile>({
-        type: 'GET_USER_PROFILE'
-      });
-
-      if (response.success && response.data) {
-        setProfile(response.data);
-      }
+      const loadedProfile = await fetchProfile();
+      if (mountedRef.current) setProfile(loadedProfile);
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
+    }
+  };
+
+  const loadResumeProfiles = async () => {
+    try {
+      const summary = await fetchResumeProfiles();
+      if (mountedRef.current) setResumeProfiles(summary);
+    } catch (error) {
+      console.error('Failed to load resume profiles:', error);
+    }
+  };
+
+  const handleProfileSwitch = async (nextId: string) => {
+    if (!resumeProfiles || switchPendingRef.current || nextId === resumeProfiles.activeProfileId) return;
+    const previousId = resumeProfiles.activeProfileId;
+    const requestId = ++switchRequestRef.current;
+    const isCurrent = () => mountedRef.current && switchRequestRef.current === requestId;
+    switchPendingRef.current = true;
+    setSwitching(true);
+    setProfileSwitchError('');
+    setResumeProfiles(current => current ? { ...current, activeProfileId: nextId } : current);
+
+    await executePopupProfileSwitch(nextId, previousId, {
+      switchProfile: () => MessageService.sendMessage<ResumeProfileSummary>({
+        type: 'SWITCH_RESUME_PROFILE',
+        payload: { id: nextId },
+      }),
+      loadSummary: fetchResumeProfiles,
+      loadProfile: fetchProfile,
+      commit: (summary, loadedProfile) => {
+        setResumeProfiles(summary);
+        setProfile(loadedProfile);
+      },
+      rollback: id => setResumeProfiles(current => current ? { ...current, activeProfileId: id } : current),
+      showError: setProfileSwitchError,
+      isCurrent,
+    });
+
+    if (isCurrent()) {
+      switchPendingRef.current = false;
+      setSwitching(false);
     }
   };
 
@@ -319,6 +381,17 @@ function App() {
       </header>
 
       <div className="popup-content">
+        {resumeProfiles && (
+          <>
+            <ResumeProfileSelector
+              profiles={resumeProfiles.profiles}
+              activeProfileId={resumeProfiles.activeProfileId}
+              disabled={switching || filling || aiScanning || startingAIRegion}
+              onSwitch={id => void handleProfileSwitch(id)}
+            />
+            {profileSwitchError && <p className="resume-profile-selector-error" role="alert">{profileSwitchError}</p>}
+          </>
+        )}
         {profile ? (
           <div className="profile-section">
             <div className="profile-card">
@@ -382,7 +455,7 @@ function App() {
           <div className="fill-button-pair">
             <button
               onClick={handleFillForm}
-              disabled={!profile || filling || aiScanning || startingAIRegion}
+              disabled={!profile || switching || filling || aiScanning || startingAIRegion}
               className="button button-primary"
             >
               {filling ? '填充中...' : '快速填充'}
@@ -390,7 +463,7 @@ function App() {
 
             <button
               onClick={handleAIScanFill}
-              disabled={!profile || filling || aiScanning || startingAIRegion}
+              disabled={!profile || switching || filling || aiScanning || startingAIRegion}
               className="button button-ai"
             >
               {aiScanning ? '扫描中...' : 'AI 扫描填充'}
@@ -399,7 +472,7 @@ function App() {
 
           <button
             onClick={handleStartAIRegionFill}
-            disabled={!profile || filling || startingAIRegion}
+            disabled={!profile || switching || filling || aiScanning || startingAIRegion}
             className="button button-tonal"
           >
             {startingAIRegion ? '正在启动框选...' : 'AI 框选补填'}
