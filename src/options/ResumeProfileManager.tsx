@@ -87,6 +87,9 @@ export function ResumeProfileManager({ summary, dirty, onSave, onSummaryChange, 
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(false);
   const [guardOpen, setGuardOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const operationPending = useRef(false);
   const guardResolver = useRef<((choice: UnsavedChoice) => void) | null>(null);
   const suspendedNameMode = useRef<NameMode | null>(null);
@@ -105,6 +108,16 @@ export function ResumeProfileManager({ summary, dirty, onSave, onSummaryChange, 
       suspendedNameMode.current = null;
     };
   }, []);
+
+
+  useEffect(() => {
+    if (!menuOpen || typeof document === 'undefined') return;
+    const closeOnOutside = (event: MouseEvent) => { if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false); };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('mousedown', closeOnOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => { document.removeEventListener('mousedown', closeOnOutside); document.removeEventListener('keydown', closeOnEscape); };
+  }, [menuOpen]);
 
   const chooseUnsaved = (): Promise<UnsavedChoice> => {
     if (guardResolver.current) return Promise.resolve('cancel');
@@ -152,7 +165,7 @@ export function ResumeProfileManager({ summary, dirty, onSave, onSummaryChange, 
     }
   };
 
-  const openNameDialog = (mode: NameMode) => { setError(''); setName(mode === 'rename' ? active?.name || '' : ''); setNameError(''); setNameMode(mode); };
+  const openNameDialog = (mode: NameMode, target = active) => { setError(''); setRenameTargetId(target?.id ?? null); setName(mode === 'rename' ? target?.name || '' : ''); setNameError(''); setNameMode(mode); setMenuOpen(false); };
   const closeNameDialog = () => { if (!busy && !pending) setNameMode(null); };
 
   const submitName = async () => {
@@ -161,8 +174,9 @@ export function ResumeProfileManager({ summary, dirty, onSave, onSummaryChange, 
     if (!trimmed) return setNameError('简历名称不能为空');
     if (summary.profiles.some(item => item.name === trimmed && (nameMode !== 'rename' || item.id !== active?.id))) return setNameError('该简历名称已存在');
     setNameError('');
-    if (nameMode === 'rename' && active) {
-      if (await apply({ type: 'RENAME_RESUME_PROFILE', payload: { id: active.id, name: trimmed } }, false)) setNameMode(null);
+    const renameTarget = summary.profiles.find(item => item.id === renameTargetId);
+    if (nameMode === 'rename' && renameTarget) {
+      if (await apply({ type: 'RENAME_RESUME_PROFILE', payload: { id: renameTarget.id, name: trimmed } }, false)) setNameMode(null);
       return;
     }
     if (nameMode === 'create') {
@@ -170,17 +184,16 @@ export function ResumeProfileManager({ summary, dirty, onSave, onSummaryChange, 
     }
   };
 
-  return <section className="profile-manager" aria-labelledby="profile-manager-title">
-    <span id="profile-manager-title" className="profile-manager-label">当前简历</span>
-    <label className="profile-switcher"><span className="sr-only">切换简历</span><select value={active?.id || ''} disabled={busy || pending} onChange={event => { const id = event.target.value; void guarded(() => apply({ type: 'SWITCH_RESUME_PROFILE', payload: { id } }, true)); }}>{summary.profiles.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-    <div className="profile-manager-actions">
-      <button type="button" className="btn btn-secondary" aria-label="新建空白简历" disabled={busy || pending} onClick={() => void guarded(() => apply({ type: 'CREATE_RESUME_PROFILE', payload: {} }, true))}>新建空白</button>
-      <button type="button" className="btn btn-secondary" disabled={busy || pending || !active} onClick={() => active && void guarded(() => apply({ type: 'DUPLICATE_RESUME_PROFILE', payload: { id: active.id } }, true))}>复制当前</button>
-      <button type="button" className="btn btn-secondary" aria-label="重命名当前简历" disabled={busy || pending || !active} onClick={() => openNameDialog('rename')}>重命名</button>
-      <button type="button" className="btn btn-danger" aria-label="删除当前简历" disabled={busy || pending || summary.profiles.length <= 1 || !active} onClick={() => active && void guarded(async () => {
-        const confirmed = typeof window === 'undefined' || typeof window.confirm !== 'function' || window.confirm(`确定删除“${active.name}”吗？此操作无法撤销。`);
-        return confirmed ? apply({ type: 'DELETE_RESUME_PROFILE', payload: { id: active.id } }, true) : false;
-      })}>删除</button>
+  return <section className="profile-manager" aria-label="简历选择">
+    <div className="resume-menu" ref={menuRef}>
+      <button type="button" className="resume-menu-trigger" aria-haspopup="menu" aria-expanded={menuOpen} disabled={busy || pending} onClick={() => setMenuOpen(open => !open)}><span>{active?.name || '默认简历'}</span><span aria-hidden="true">⌄</span></button>
+      <div className="resume-menu-popover" role="menu" hidden={!menuOpen}>
+        {summary.profiles.map(item => <div className={item.id === active?.id ? 'resume-menu-row active' : 'resume-menu-row'} key={item.id}>
+          <button type="button" className="resume-menu-name" role="menuitem" disabled={busy || pending} onClick={() => { setMenuOpen(false); if (item.id !== active?.id) void guarded(() => apply({ type: 'SWITCH_RESUME_PROFILE', payload: { id: item.id } }, true)); }}>{item.id === active?.id && <span aria-hidden="true">✓</span>}<span>{item.name}</span></button>
+          <div className="resume-menu-row-actions"><button type="button" aria-label={item.id === active?.id ? '重命名当前简历' : '重命名' + item.name} disabled={busy || pending} onClick={() => openNameDialog('rename', item)}>重命名</button><button type="button" aria-label={item.id === active?.id ? '复制当前简历' : '复制' + item.name} disabled={busy || pending} onClick={() => { setMenuOpen(false); void guarded(() => apply({ type: 'DUPLICATE_RESUME_PROFILE', payload: { id: item.id } }, true)); }}>复制</button><button type="button" className="danger" aria-label={item.id === active?.id ? '删除当前简历' : '删除' + item.name} disabled={busy || pending || summary.profiles.length <= 1} onClick={() => { setMenuOpen(false); void guarded(async () => { const confirmed = typeof window === 'undefined' || typeof window.confirm !== 'function' || window.confirm('确定删除这份简历吗？此操作无法撤销。'); return confirmed ? apply({ type: 'DELETE_RESUME_PROFILE', payload: { id: item.id } }, true) : false; }); }}>删除</button></div>
+        </div>)}
+        <button type="button" className="resume-menu-create" role="menuitem" disabled={busy || pending} onClick={() => { setMenuOpen(false); void guarded(() => apply({ type: 'CREATE_RESUME_PROFILE', payload: {} }, true)); }}>新建空白</button>
+      </div>
     </div>
     {error && <p className="profile-manager-error" role="alert">{error}</p>}
     {nameMode && <AccessibleDialog labelledBy="name-dialog-title" initialFocus={nameInputRef} onClose={closeNameDialog}><h2 id="name-dialog-title">{nameMode === 'create' ? '新建空白简历' : '重命名简历'}</h2><label>简历名称<input ref={nameInputRef} aria-label="简历名称" value={name} disabled={busy || pending} onChange={event => { setName(event.target.value); setNameError(''); }} onKeyDown={event => { if (event.key === 'Enter') void submitName(); }} /></label>{nameError && <p role="alert">{nameError}</p>}<div className="profile-dialog-actions"><button type="button" className="btn btn-secondary" disabled={busy || pending} onClick={closeNameDialog}>取消</button><button type="button" className="btn btn-primary" aria-label="确认名称" disabled={busy || pending} onClick={() => void submitName()}>{busy ? '处理中...' : '确认'}</button></div></AccessibleDialog>}
