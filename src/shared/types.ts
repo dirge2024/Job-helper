@@ -316,7 +316,7 @@ export type Message =
   | { type: 'SAVE_USER_PROFILE'; payload: UserProfile | { profile: UserProfile; expectedProfileId: string } }
   | { type: 'GET_RESUME_PROFILES'; payload?: null }
   | { type: 'SWITCH_RESUME_PROFILE'; payload: { id: string } }
-  | { type: 'CREATE_RESUME_PROFILE'; payload: { name: string } }
+  | { type: 'CREATE_RESUME_PROFILE'; payload: { name?: string } }
   | { type: 'DUPLICATE_RESUME_PROFILE'; payload: { id: string } }
   | { type: 'RENAME_RESUME_PROFILE'; payload: { id: string; name: string } }
   | { type: 'DELETE_RESUME_PROFILE'; payload: { id: string } }

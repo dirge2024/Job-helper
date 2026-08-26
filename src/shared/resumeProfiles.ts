@@ -52,7 +52,7 @@ function isObjectArray(value: unknown, required: string[], optional: string[] = 
     && value.every(item => isRecord(item) && hasStrings(item, required, optional));
 }
 
-function isValidUserProfile(value: unknown): value is UserProfile {
+export function isValidUserProfile(value: unknown): value is UserProfile {
   if (!isRecord(value) || !isRecord(value.personal)) return false;
   if (!hasStrings(
     value.personal,
@@ -124,10 +124,11 @@ export function normalizeResumeProfileLibrary(value: unknown, legacyProfile?: Us
   return { schemaVersion: 1, activeProfileId, profiles };
 }
 
-export function createResumeProfile(library: ResumeProfileLibrary, name: string, now: string): ResumeProfileLibrary {
-  const trimmed = name.trim();
+export function createResumeProfile(library: ResumeProfileLibrary, nameOrNow: string, legacyNow?: string): ResumeProfileLibrary {
+  const now = legacyNow ?? nameOrNow;
+  const trimmed = legacyNow ? nameOrNow.trim() : uniqueProfileName('未命名简历', library.profiles.map(item => item.name));
   if (!trimmed) throw new Error('简历名称不能为空');
-  if (library.profiles.some(profile => profile.name === trimmed)) throw new Error('简历名称已存在');
+  if (legacyNow && library.profiles.some(profile => profile.name === trimmed)) throw new Error('简历名称已存在');
   const profile = newProfile(
     trimmed,
     createEmptyUserProfile(),
@@ -139,7 +140,7 @@ export function createResumeProfile(library: ResumeProfileLibrary, name: string,
 export function duplicateResumeProfile(library: ResumeProfileLibrary, id: string, now: string): ResumeProfileLibrary {
   const source = requireProfile(library, id);
   const profile = newProfile(
-    uniqueProfileName(`${source.name} 副本`, library.profiles.map(item => item.name)),
+    uniqueProfileName(`${source.name} - 副本`, library.profiles.map(item => item.name)),
     source.profile,
     now,
   );
@@ -162,11 +163,13 @@ export function renameResumeProfile(library: ResumeProfileLibrary, id: string, n
 export function deleteResumeProfile(library: ResumeProfileLibrary, id: string): ResumeProfileLibrary {
   requireProfile(library, id);
   if (library.profiles.length === 1) throw new Error('至少保留一套简历');
+  const deletedIndex = library.profiles.findIndex(profile => profile.id === id);
   const profiles = library.profiles.filter(profile => profile.id !== id);
+  const fallback = profiles[deletedIndex] ?? profiles[deletedIndex - 1] ?? profiles[0];
   return {
     ...library,
     profiles,
-    activeProfileId: library.activeProfileId === id ? profiles[0].id : library.activeProfileId,
+    activeProfileId: library.activeProfileId === id ? fallback.id : library.activeProfileId,
   };
 }
 

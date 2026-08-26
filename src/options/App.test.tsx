@@ -28,6 +28,7 @@ async function setup() {
   globalThis.chrome = { storage: { onChanged: { addListener(fn) { listener = fn; }, removeListener() {} } }, runtime: {} } as unknown as typeof chrome;
   MessageService.sendMessage = (async message => {
     if (message.type === "GET_RESUME_PROFILES") return { success: true, data: { activeProfileId: activeId, profiles: [{ id: "profile-a", name: "A", updatedAt: "1" }, { id: "profile-b", name: "B", updatedAt: "2" }] } };
+    if (message.type === "GET_ACTIVE_RESUME_CONTEXT") { getProfileCount++; return profileFailure ? { success: false, error: "读取失败" } : { success: true, data: { activeProfileId: activeId, profiles: [{ id: "profile-a", name: "A", updatedAt: "1" }, { id: "profile-b", name: "B", updatedAt: "2" }], profile: profiles[activeId], revision: activeId } }; }
     if (message.type === "GET_USER_PROFILE") { getProfileCount++; return profileFailure ? { success: false, error: "读取失败" } : { success: true, data: profiles[activeId] }; }
     if (message.type === "SAVE_USER_PROFILE") { saveCount++; return { success: true }; }
     return { success: true };
@@ -66,7 +67,7 @@ test("options 仅响应 local resumeProfileLibrary；dirty 时保留输入并等
     assert.equal(nameInput(env.renderer).props.value, "本地草稿");
     assert.match(text(env.renderer), /重新加载/);
     assert.match(text(env.renderer), /保留本地修改/);
-    assert.equal(env.getProfileCount(), 1);
+    assert.equal(env.getProfileCount(), 2);
   } finally { await env.cleanup(); }
 });
 

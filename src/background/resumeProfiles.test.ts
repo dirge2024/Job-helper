@@ -107,7 +107,7 @@ test('复制只追加一个深拷贝并生成唯一名称', async () => {
   const response = await duplicateResumeProfileHandler({ id: 'profile-1' }, deps);
   assert.equal(response.success, true);
   assert.equal(library.profiles.length, 3);
-  assert.equal(library.profiles[2].name, '第一份 副本');
+  assert.equal(library.profiles[2].name, '第一份 - 副本');
   assert.deepEqual(library.profiles[2].profile, library.profiles[0].profile);
   assert.notEqual(library.profiles[2].profile, library.profiles[0].profile);
   assertSinglePersistence();

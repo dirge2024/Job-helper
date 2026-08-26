@@ -9,7 +9,7 @@ import type {
 } from './types';
 import type { LLMConfig } from '../services/llm/types';
 import { normalizeApplicationRecords } from './applicationRecords.ts';
-import { isCanonicalResumeProfileLibrary, normalizeResumeProfileLibrary, updateActiveUserProfile } from './resumeProfiles.ts';
+import { isCanonicalResumeProfileLibrary, isValidUserProfile, normalizeResumeProfileLibrary, updateActiveUserProfile } from './resumeProfiles.ts';
 import { withResumeProfileMutation } from './resumeProfileRepository.ts';
 import { normalizeWebDAVServerUrl } from '../services/webdav.ts';
 
@@ -62,7 +62,10 @@ export class StorageService {
     let library: ResumeProfileLibrary;
     try {
       library = normalizeResumeProfileLibrary(storedLibrary, legacyProfile);
-    } catch {
+    } catch (error) {
+      if (!isValidUserProfile(legacyProfile)) {
+        throw new Error(`简历资料库已损坏且无法从旧版资料恢复：${error instanceof Error ? error.message : '格式无效'}`);
+      }
       library = normalizeResumeProfileLibrary(undefined, legacyProfile);
     }
     await this.saveResumeProfileLibrary(library);
@@ -193,7 +196,7 @@ export class StorageService {
   static async replaceBusinessData(data: BackupData, webdavConfig?: WebDAVConfig | null): Promise<void> {
     return withResumeProfileMutation(async () => {
     const values: Record<string, unknown> = {};
-    const removals: string[] = [STORAGE_KEYS.USER_PROFILE];
+    const removals: string[] = [];
     const entries = [
       [STORAGE_KEYS.RESUME_PROFILE_LIBRARY, data.resumeProfileLibrary],
       [STORAGE_KEYS.LLM_CONFIG, data.llmConfig],

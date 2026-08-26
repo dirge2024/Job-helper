@@ -7,6 +7,7 @@ import type {
   CustomInformation,
   ParsedResumeData,
   ResumeProfileSummary,
+  ActiveResumeContext,
 } from '../shared/types';
 import { AISettings } from './AISettings';
 import { EducationSection } from './EducationSection';
@@ -164,8 +165,7 @@ function App() {
     }
 
     void (async () => {
-      const summary = await loadProfileSummary();
-      await loadProfile(summary?.activeProfileId ?? null);
+      await loadProfile();
     })();
     const handleStorageChange = (
       changes: Record<string, chrome.storage.StorageChange>,
@@ -173,12 +173,8 @@ function App() {
     ) => {
       if (!shouldReloadProfile(changes, areaName)) return;
       void (async () => {
-        const summary = await loadProfileSummary();
-        const externalProfileId = summary?.activeProfileId ?? null;
-        if (externalProfileId && externalProfileId === draftProfileIdRef.current) {
-          setExternalConflict(null);
-          return;
-        }
+        const context = await loadActiveContext();
+        const externalProfileId = context?.activeProfileId ?? null;
         if (getExternalProfileChangeAction(profileDirtyRef.current) === 'prompt') {
           setExternalConflict({
             draftProfileId: draftProfileIdRef.current,
@@ -202,11 +198,11 @@ function App() {
     }
 
     try {
-      const response = await MessageService.sendMessage<UserProfile>({
-        type: 'GET_USER_PROFILE'
-      });
+      const response = await MessageService.sendMessage<ActiveResumeContext>({ type: 'GET_ACTIVE_RESUME_CONTEXT' });
       if (!response.success) return { success: false, error: response.error || '读取当前简历失败' };
-      const loadedProfile: UserProfile = response.data || {
+      const context = response.data;
+      if (context) setProfileSummary({ activeProfileId: context.activeProfileId, profiles: context.profiles });
+      const loadedProfile: UserProfile = context?.profile || {
         personal: {} as PersonalInfo,
         education: [],
         experience: [],
@@ -216,7 +212,7 @@ function App() {
         certifications: [],
       };
       applyLoadedProfile(loadedProfile, setProfile, setSavedProfileSnapshot);
-      draftProfileIdRef.current = profileId;
+      draftProfileIdRef.current = context?.activeProfileId ?? profileId;
       return { success: true };
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -224,6 +220,13 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadActiveContext = async (): Promise<ActiveResumeContext | null> => {
+    const response = await MessageService.sendMessage<ActiveResumeContext>({ type: 'GET_ACTIVE_RESUME_CONTEXT' });
+    if (!response.success || !response.data) return null;
+    setProfileSummary({ activeProfileId: response.data.activeProfileId, profiles: response.data.profiles });
+    return response.data;
   };
 
   const loadProfileSummary = async (): Promise<ResumeProfileSummary | null> => {
@@ -266,7 +269,7 @@ function App() {
     try {
       const response = await MessageService.sendMessage({
         type: 'SAVE_USER_PROFILE',
-        payload: profile
+        payload: { profile, expectedProfileId: draftProfileIdRef.current || profileSummary?.activeProfileId || '' }
       });
 
       if (response.success) {

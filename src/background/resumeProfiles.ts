@@ -62,9 +62,9 @@ export async function getResumeProfilesHandler(): Promise<MessageResponse<Resume
 export function switchResumeProfileHandler(payload: { id: string }, dependencies?: ResumeProfileHandlerDependencies) {
   return mutateResumeProfiles(library => switchResumeProfile(library, payload.id), 'resume-profile-switch', dependencies);
 }
-export function createResumeProfileHandler(payload: { name: string }, dependencies?: ResumeProfileHandlerDependencies) {
+export function createResumeProfileHandler(payload: { name?: string }, dependencies?: ResumeProfileHandlerDependencies) {
   const deps = dependencies ?? defaultDependencies;
-  return mutateResumeProfiles(library => createResumeProfile(library, payload.name, deps.now()), 'resume-profile-create', deps);
+  return mutateResumeProfiles(library => createResumeProfile(library, Object.hasOwn(payload, 'name') ? (payload.name ?? '') : deps.now(), Object.hasOwn(payload, 'name') ? deps.now() : undefined), 'resume-profile-create', deps);
 }
 export function duplicateResumeProfileHandler(payload: { id: string }, dependencies?: ResumeProfileHandlerDependencies) {
   const deps = dependencies ?? defaultDependencies;

@@ -25,17 +25,19 @@ function makeTwoProfileLibrary() {
 
 function installChromeStorageMock(initial: Record<string, unknown> = {}) {
   const values: Record<string, unknown> = structuredClone(initial);
+  let setCalls = 0;
   const local = {
     async get(keys: string | string[]) {
       const requested = Array.isArray(keys) ? keys : [keys];
       return Object.fromEntries(requested.filter(key => key in values).map(key => [key, values[key]]));
     },
     async set(updates: Record<string, unknown>) {
+      setCalls++;
       Object.assign(values, structuredClone(updates));
     },
   };
   Object.assign(globalThis, { chrome: { storage: { local } } });
-  return { values };
+  return { values, get setCalls() { return setCalls; } };
 }
 
 test('读取时把旧 userProfile 迁移并写回资料库', async () => {
@@ -207,4 +209,34 @@ test('严格校验拒绝缺失或不完整的用户资料且不抛 TypeError', (
       profiles: [{ ...library.profiles[0], profile }],
     }), /用户资料格式无效/);
   }
+});
+
+
+test('损坏资料库且无有效 legacy 时明确失败并且不写回', async () => {
+  const originalLibrary = { schemaVersion: 1, profiles: [] };
+  const mock = installChromeStorageMock({ resumeProfileLibrary: originalLibrary, userProfile: { broken: true } });
+  await assert.rejects(() => StorageService.getResumeProfileLibrary(), /已损坏且无法从旧版资料恢复/);
+  assert.equal(mock.setCalls, 0);
+  assert.deepEqual(mock.values.resumeProfileLibrary, originalLibrary);
+  assert.deepEqual(mock.values.userProfile, { broken: true });
+});
+
+test('默认新建和复制名称自动避重', () => {
+  let library = normalizeResumeProfileLibrary(undefined, createProfile('一'));
+  library = createResumeProfile(library, NOW);
+  assert.equal(library.profiles.at(-1)?.name, '未命名简历');
+  library = createResumeProfile(library, LATER);
+  assert.equal(library.profiles.at(-1)?.name, '未命名简历 2');
+  library = duplicateResumeProfile(library, library.profiles[0].id, LATER);
+  assert.equal(library.profiles.at(-1)?.name, '默认简历 - 副本');
+});
+
+test('删除当前项按原位置优先下一项、末项回退上一项', () => {
+  let library = normalizeResumeProfileLibrary(undefined, createProfile('一'));
+  library = createResumeProfile(library, '二', NOW);
+  library = createResumeProfile(library, '三', LATER);
+  const [first, middle, last] = library.profiles;
+  assert.equal(deleteResumeProfile({ ...library, activeProfileId: first.id }, first.id).activeProfileId, middle.id);
+  assert.equal(deleteResumeProfile({ ...library, activeProfileId: middle.id }, middle.id).activeProfileId, last.id);
+  assert.equal(deleteResumeProfile({ ...library, activeProfileId: last.id }, last.id).activeProfileId, middle.id);
 });
