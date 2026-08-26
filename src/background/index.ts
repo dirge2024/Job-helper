@@ -55,6 +55,7 @@ import {
   duplicateResumeProfileHandler,
   getResumeProfilesHandler,
   renameResumeProfileHandler,
+  serializeResumeProfileMutation,
   switchResumeProfileHandler,
 } from './resumeProfiles.ts';
 import {
@@ -72,6 +73,25 @@ async function queueAutoSync(reason: string): Promise<'disabled' | 'queued'> {
   if (!config?.enabled) return 'disabled';
   enqueueSync(reason);
   return 'queued';
+}
+
+async function queueAutoSyncResult(reason: string): Promise<
+  { sync: 'disabled' | 'queued' } | { sync: 'error'; syncError: string }
+> {
+  try {
+    return { sync: await queueAutoSync(reason) };
+  } catch (error) {
+    return {
+      sync: 'error',
+      syncError: error instanceof Error ? error.message : '自动同步排队失败',
+    };
+  }
+}
+
+function activeUserProfile(library: Awaited<ReturnType<typeof StorageService.getResumeProfileLibrary>>): UserProfile {
+  const active = library.profiles.find(item => item.id === library.activeProfileId);
+  if (!active) throw new Error('当前简历不存在');
+  return active.profile;
 }
 
 // 监听消息
@@ -411,7 +431,7 @@ function handleCancelAIFill(requestId: string): MessageResponse {
 async function handleGetUserProfile(): Promise<MessageResponse<UserProfile>> {
   try {
     const library = await StorageService.getResumeProfileLibrary();
-    const profile = library.profiles.find(item => item.id === library.activeProfileId)?.profile;
+    const profile = activeUserProfile(library);
     return {
       success: true,
       data: profile
@@ -429,13 +449,16 @@ async function handleSaveUserProfile(
   profile: UserProfile
 ): Promise<MessageResponse> {
   try {
-    const library = await StorageService.getResumeProfileLibrary();
-    const next = updateActiveUserProfile(library, profile, new Date().toISOString());
-    await StorageService.saveResumeProfileLibrary(next);
-    const sync = await queueAutoSync('profile-save');
+    await serializeResumeProfileMutation(async () => {
+      const library = await StorageService.getResumeProfileLibrary();
+      activeUserProfile(library);
+      const next = updateActiveUserProfile(library, profile, new Date().toISOString());
+      await StorageService.saveResumeProfileLibrary(next);
+    });
+    const syncResult = await queueAutoSyncResult('profile-save');
     return {
       success: true,
-      data: { localSaved: true, sync }
+      data: { localSaved: true, ...syncResult }
     };
   } catch (error) {
     return {
@@ -501,33 +524,34 @@ async function handleParseResume(
       }
     }
 
-    const library = await StorageService.getResumeProfileLibrary();
-    const currentProfile = library.profiles.find(item => item.id === library.activeProfileId)?.profile;
+    await serializeResumeProfileMutation(async () => {
+      const library = await StorageService.getResumeProfileLibrary();
+      const currentProfile = activeUserProfile(library);
+      const updatedProfile: UserProfile = {
+        // 解析结果里的空值不能覆盖用户已填的内容
+        personal: {
+          ...currentProfile.personal,
+          ...dropEmptyValues(parsedData.personal)
+        } as any,
+        education: pickNonEmpty(parsedData.education, currentProfile.education) as any,
+        experience: pickNonEmpty(parsedData.experience, currentProfile.experience) as any,
+        projects: pickNonEmpty(parsedData.projects, currentProfile.projects) as any,
+        customInformation: currentProfile.customInformation || [],
+        skills: pickNonEmpty(parsedData.skills, currentProfile.skills),
+        certifications: currentProfile.certifications || [],
+        resume: {
+          fileName,
+          fileData,
+          fileType,
+          parsedText: rawText,
+          uploadDate: new Date().toISOString()
+        }
+      };
 
-    const updatedProfile: UserProfile = {
-      // 解析结果里的空值不能覆盖用户已填的内容
-      personal: {
-        ...(currentProfile?.personal || {}),
-        ...dropEmptyValues(parsedData.personal)
-      } as any,
-      education: pickNonEmpty(parsedData.education, currentProfile?.education) as any,
-      experience: pickNonEmpty(parsedData.experience, currentProfile?.experience) as any,
-      projects: pickNonEmpty(parsedData.projects, currentProfile?.projects) as any,
-      customInformation: currentProfile?.customInformation || [],
-      skills: pickNonEmpty(parsedData.skills, currentProfile?.skills),
-      certifications: currentProfile?.certifications || [],
-      resume: {
-        fileName,
-        fileData,
-        fileType,
-        parsedText: rawText,
-        uploadDate: new Date().toISOString()
-      }
-    };
-
-    const next = updateActiveUserProfile(library, updatedProfile, new Date().toISOString());
-    await StorageService.saveResumeProfileLibrary(next);
-    await queueAutoSync('resume-save');
+      const next = updateActiveUserProfile(library, updatedProfile, new Date().toISOString());
+      await StorageService.saveResumeProfileLibrary(next);
+    });
+    const syncResult = await queueAutoSyncResult('resume-save');
 
     return {
       success: true,
@@ -535,7 +559,8 @@ async function handleParseResume(
         parsedData,
         rawText,
         parseMethod,
-        llmError
+        llmError,
+        ...syncResult
       }
     };
   } catch (error) {

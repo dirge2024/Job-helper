@@ -13,7 +13,7 @@ const defaultDependencies: ResumeProfileHandlerDependencies = {
 
 let mutationQueue: Promise<void> = Promise.resolve();
 
-function serializeMutation<T>(operation: () => Promise<T>): Promise<T> {
+export function serializeResumeProfileMutation<T>(operation: () => Promise<T>): Promise<T> {
   const result = mutationQueue.then(operation, operation);
   mutationQueue = result.then(() => undefined, () => undefined);
   return result;
@@ -30,7 +30,7 @@ export async function mutateResumeProfiles(
 ): Promise<MessageResponse<ResumeProfileMutationResult>> {
   let summary: ResumeProfileSummary;
   try {
-    summary = await serializeMutation(async () => {
+    summary = await serializeResumeProfileMutation(async () => {
       const current = await StorageService.getResumeProfileLibrary();
       const next = transform(current);
       await StorageService.saveResumeProfileLibrary(next);

@@ -97,6 +97,16 @@ function validateLibrary(value: unknown): ResumeProfileLibrary {
   return value as unknown as ResumeProfileLibrary;
 }
 
+export function isCanonicalResumeProfileLibrary(value: unknown): value is ResumeProfileLibrary {
+  try {
+    const library = validateLibrary(value);
+    return library.profiles.every(profile => profile.name === profile.name.trim())
+      && library.profiles.some(profile => profile.id === library.activeProfileId);
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeResumeProfileLibrary(value: unknown, legacyProfile?: UserProfile): ResumeProfileLibrary {
   if (value == null) {
     const now = new Date().toISOString();

@@ -9,7 +9,7 @@ import type {
 } from './types';
 import type { LLMConfig } from '../services/llm/types';
 import { normalizeApplicationRecords } from './applicationRecords.ts';
-import { normalizeResumeProfileLibrary, updateActiveUserProfile } from './resumeProfiles.ts';
+import { isCanonicalResumeProfileLibrary, normalizeResumeProfileLibrary, updateActiveUserProfile } from './resumeProfiles.ts';
 import { normalizeWebDAVServerUrl } from '../services/webdav.ts';
 
 export const STORAGE_KEYS = {
@@ -54,6 +54,10 @@ export class StorageService {
     ]);
     const storedLibrary = result[STORAGE_KEYS.RESUME_PROFILE_LIBRARY];
     const legacyProfile = result[STORAGE_KEYS.USER_PROFILE] as UserProfile | undefined;
+    if (isCanonicalResumeProfileLibrary(storedLibrary)) {
+      return storedLibrary;
+    }
+
     let library: ResumeProfileLibrary;
     try {
       library = normalizeResumeProfileLibrary(storedLibrary, legacyProfile);
