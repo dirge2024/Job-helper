@@ -125,6 +125,7 @@ test('管理器四类变更在取消、放弃、保存失败分支执行正确',
     { label: '取消', saveResult: true, expected: 0 },
     { label: '放弃修改并继续', saveResult: true, expected: 1 },
     { label: '保存并继续', saveResult: false, expected: 0 },
+    { label: '保存并继续', saveResult: true, expected: 1 },
   ] as const;
   for (const operation of operations) for (const choice of choices) {
     let sends = 0;
@@ -148,4 +149,27 @@ test('管理器四类变更在取消、放弃、保存失败分支执行正确',
     assert.equal(sends, choice.expected, `${operation}/${choice.label}`);
     await act(async () => renderer.unmount());
   }
+});
+
+
+test('快速双击新建确认只保留一个 modal、一个 resolver，取消后可再次提交且仅发送一次', async () => {
+  let sends = 0;
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => { renderer = TestRenderer.create(<ResumeProfileManager {...props} dirty sendMessage={async () => { sends++; return { success: true, data: summary }; }} />); });
+  const root = renderer.root;
+  await act(async () => root.findByProps({ 'aria-label': '新建空白简历' }).props.onClick());
+  await act(async () => root.findByProps({ 'aria-label': '简历名称' }).props.onChange({ target: { value: '快速新建' } }));
+  const confirm = root.findByProps({ 'aria-label': '确认名称' });
+  await act(async () => { confirm.props.onClick(); confirm.props.onClick(); });
+  assert.equal(root.findAll(node => node.props['aria-modal'] === 'true').length, 1);
+  assert.equal(sends, 0);
+  await act(async () => root.findAllByType('button').find(node => node.children.join('') === '取消')!.props.onClick());
+  assert.equal(root.findAll(node => node.props['aria-modal'] === 'true').length, 1, '取消 guard 后恢复名称 dialog');
+  const restoredConfirm = root.findByProps({ 'aria-label': '确认名称' });
+  await act(async () => { restoredConfirm.props.onClick(); restoredConfirm.props.onClick(); });
+  assert.equal(root.findAll(node => node.props['aria-modal'] === 'true').length, 1);
+  await act(async () => root.findAllByType('button').find(node => node.children.join('') === '放弃修改并继续')!.props.onClick());
+  await act(async () => undefined);
+  assert.equal(sends, 1);
+  assert.equal(root.findAll(node => node.props['aria-modal'] === 'true').length, 0);
 });

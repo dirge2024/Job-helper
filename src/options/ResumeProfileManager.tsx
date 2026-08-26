@@ -85,16 +85,37 @@ export function ResumeProfileManager({ summary, dirty, onSave, onSummaryChange, 
   const [nameError, setNameError] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(false);
   const [guardOpen, setGuardOpen] = useState(false);
+  const operationPending = useRef(false);
   const guardResolver = useRef<((choice: UnsavedChoice) => void) | null>(null);
+  const suspendedNameMode = useRef<NameMode | null>(null);
+  const mounted = useRef(true);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const guardCancelRef = useRef<HTMLButtonElement>(null);
   const active = summary.profiles.find(item => item.id === summary.activeProfileId) ?? summary.profiles[0];
 
-  useEffect(() => () => { guardResolver.current?.('cancel'); guardResolver.current = null; }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      guardResolver.current?.('cancel');
+      guardResolver.current = null;
+      operationPending.current = false;
+      suspendedNameMode.current = null;
+    };
+  }, []);
 
-  const chooseUnsaved = () => new Promise<UnsavedChoice>(resolve => { guardResolver.current = resolve; setGuardOpen(true); });
-  const resolveGuard = (choice: UnsavedChoice) => { setGuardOpen(false); guardResolver.current?.(choice); guardResolver.current = null; };
+  const chooseUnsaved = (): Promise<UnsavedChoice> => {
+    if (guardResolver.current) return Promise.resolve('cancel');
+    return new Promise(resolve => { guardResolver.current = resolve; setGuardOpen(true); });
+  };
+  const resolveGuard = (choice: UnsavedChoice) => {
+    const resolve = guardResolver.current;
+    guardResolver.current = null;
+    setGuardOpen(false);
+    resolve?.(choice);
+  };
 
   const apply = async (message: Message, reload: boolean): Promise<boolean> => {
     setBusy(true); setError('');
@@ -108,16 +129,31 @@ export function ResumeProfileManager({ summary, dirty, onSave, onSummaryChange, 
     finally { setBusy(false); }
   };
 
-  const guarded = (action: () => Promise<boolean>) => {
+  const guarded = async (action: () => Promise<boolean>, suspendNameDialog = false): Promise<boolean> => {
+    if (operationPending.current) return false;
+    operationPending.current = true;
+    setPending(true);
     setError('');
-    return runGuardedProfileChange(dirty, onSave, action, chooseUnsaved);
+    if (suspendNameDialog && nameMode) {
+      suspendedNameMode.current = nameMode;
+      setNameMode(null);
+    }
+    try {
+      const completed = await runGuardedProfileChange(dirty, onSave, action, chooseUnsaved);
+      if (!completed && suspendedNameMode.current && mounted.current) setNameMode(suspendedNameMode.current);
+      return completed;
+    } finally {
+      suspendedNameMode.current = null;
+      operationPending.current = false;
+      if (mounted.current) setPending(false);
+    }
   };
 
   const openNameDialog = (mode: NameMode) => { setError(''); setName(mode === 'rename' ? active?.name || '' : ''); setNameError(''); setNameMode(mode); };
-  const closeNameDialog = () => { if (!busy) setNameMode(null); };
+  const closeNameDialog = () => { if (!busy && !pending) setNameMode(null); };
 
   const submitName = async () => {
-    if (busy) return;
+    if (busy || operationPending.current) return;
     const trimmed = name.trim();
     if (!trimmed) return setNameError('简历名称不能为空');
     if (summary.profiles.some(item => item.name === trimmed && (nameMode !== 'rename' || item.id !== active?.id))) return setNameError('该简历名称已存在');
@@ -127,21 +163,21 @@ export function ResumeProfileManager({ summary, dirty, onSave, onSummaryChange, 
       return;
     }
     if (nameMode === 'create') {
-      if (await guarded(() => apply({ type: 'CREATE_RESUME_PROFILE', payload: { name: trimmed } }, true))) setNameMode(null);
+      if (await guarded(() => apply({ type: 'CREATE_RESUME_PROFILE', payload: { name: trimmed } }, true), true)) setNameMode(null);
     }
   };
 
   return <section className="profile-manager" aria-labelledby="profile-manager-title">
     <div className="profile-manager-heading"><div><span id="profile-manager-title" className="profile-manager-label">当前简历</span><strong>{active?.name || '默认简历'}</strong></div>
-      <label className="profile-switcher"><span className="sr-only">切换简历</span><select value={active?.id || ''} disabled={busy} onChange={event => { const id = event.target.value; void guarded(() => apply({ type: 'SWITCH_RESUME_PROFILE', payload: { id } }, true)); }}>{summary.profiles.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
+      <label className="profile-switcher"><span className="sr-only">切换简历</span><select value={active?.id || ''} disabled={busy || pending} onChange={event => { const id = event.target.value; void guarded(() => apply({ type: 'SWITCH_RESUME_PROFILE', payload: { id } }, true)); }}>{summary.profiles.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
     <div className="profile-manager-actions">
-      <button type="button" className="btn btn-secondary" aria-label="新建空白简历" disabled={busy} onClick={() => openNameDialog('create')}>新建空白</button>
-      <button type="button" className="btn btn-secondary" disabled={busy || !active} onClick={() => active && void guarded(() => apply({ type: 'DUPLICATE_RESUME_PROFILE', payload: { id: active.id } }, true))}>复制当前</button>
-      <button type="button" className="btn btn-secondary" aria-label="重命名当前简历" disabled={busy || !active} onClick={() => openNameDialog('rename')}>重命名</button>
-      <button type="button" className="btn btn-danger" aria-label="删除当前简历" disabled={busy || summary.profiles.length <= 1 || !active} onClick={() => active && void guarded(() => apply({ type: 'DELETE_RESUME_PROFILE', payload: { id: active.id } }, true))}>删除</button>
+      <button type="button" className="btn btn-secondary" aria-label="新建空白简历" disabled={busy || pending} onClick={() => openNameDialog('create')}>新建空白</button>
+      <button type="button" className="btn btn-secondary" disabled={busy || pending || !active} onClick={() => active && void guarded(() => apply({ type: 'DUPLICATE_RESUME_PROFILE', payload: { id: active.id } }, true))}>复制当前</button>
+      <button type="button" className="btn btn-secondary" aria-label="重命名当前简历" disabled={busy || pending || !active} onClick={() => openNameDialog('rename')}>重命名</button>
+      <button type="button" className="btn btn-danger" aria-label="删除当前简历" disabled={busy || pending || summary.profiles.length <= 1 || !active} onClick={() => active && void guarded(() => apply({ type: 'DELETE_RESUME_PROFILE', payload: { id: active.id } }, true))}>删除</button>
     </div>
     {error && <p className="profile-manager-error" role="alert">{error}</p>}
-    {nameMode && <AccessibleDialog labelledBy="name-dialog-title" initialFocus={nameInputRef} onClose={closeNameDialog}><h2 id="name-dialog-title">{nameMode === 'create' ? '新建空白简历' : '重命名简历'}</h2><label>简历名称<input ref={nameInputRef} aria-label="简历名称" value={name} disabled={busy} onChange={event => { setName(event.target.value); setNameError(''); }} onKeyDown={event => { if (event.key === 'Enter') void submitName(); }} /></label>{nameError && <p role="alert">{nameError}</p>}<div className="profile-dialog-actions"><button type="button" className="btn btn-secondary" disabled={busy} onClick={closeNameDialog}>取消</button><button type="button" className="btn btn-primary" aria-label="确认名称" disabled={busy} onClick={() => void submitName()}>{busy ? '处理中...' : '确认'}</button></div></AccessibleDialog>}
+    {nameMode && <AccessibleDialog labelledBy="name-dialog-title" initialFocus={nameInputRef} onClose={closeNameDialog}><h2 id="name-dialog-title">{nameMode === 'create' ? '新建空白简历' : '重命名简历'}</h2><label>简历名称<input ref={nameInputRef} aria-label="简历名称" value={name} disabled={busy || pending} onChange={event => { setName(event.target.value); setNameError(''); }} onKeyDown={event => { if (event.key === 'Enter') void submitName(); }} /></label>{nameError && <p role="alert">{nameError}</p>}<div className="profile-dialog-actions"><button type="button" className="btn btn-secondary" disabled={busy || pending} onClick={closeNameDialog}>取消</button><button type="button" className="btn btn-primary" aria-label="确认名称" disabled={busy || pending} onClick={() => void submitName()}>{busy ? '处理中...' : '确认'}</button></div></AccessibleDialog>}
     {guardOpen && <AccessibleDialog labelledBy="unsaved-title" describedBy="unsaved-description" initialFocus={guardCancelRef} onClose={() => resolveGuard('cancel')}><h2 id="unsaved-title">有未保存的修改</h2><p id="unsaved-description">继续此操作会影响当前简历中尚未保存的表单内容。</p><div className="profile-dialog-actions three-way"><button ref={guardCancelRef} type="button" className="btn btn-secondary" onClick={() => resolveGuard('cancel')}>取消</button><button type="button" className="btn btn-danger" onClick={() => resolveGuard('discard')}>放弃修改并继续</button><button type="button" className="btn btn-primary" onClick={() => resolveGuard('save')}>保存并继续</button></div></AccessibleDialog>}
   </section>;
 }
