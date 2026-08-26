@@ -15,7 +15,7 @@ function deferred<T>() { let resolve!: (value: T) => void; const promise = new P
 
 test('弹窗显示当前简历但不显示管理入口', () => {
   const html = renderToStaticMarkup(<ResumeProfileSelector profiles={profiles} activeProfileId="p1" disabled={false} onSwitch={() => {}} />);
-  assert.match(html, /当前简历/); assert.match(html, /后端开发/); assert.doesNotMatch(html, /管理简历/);
+  assert.match(html, /当前简历/); assert.equal(html.match(/后端开发/g)?.length, 1); assert.doesNotMatch(html, /<strong>/); assert.doesNotMatch(html, /管理简历/);
 });
 
 test('忙碌期间禁用当前简历选择器', () => {
