@@ -49,6 +49,14 @@ import {
   handleUpdateApplicationRecord,
 } from './applicationRecords.ts';
 import {
+  createResumeProfileHandler,
+  deleteResumeProfileHandler,
+  duplicateResumeProfileHandler,
+  getResumeProfilesHandler,
+  renameResumeProfileHandler,
+  switchResumeProfileHandler,
+} from './resumeProfiles.ts';
+import {
   captureVisibleRegion,
   handleVisualRegionFill,
 } from './visualRegionFill.ts';
@@ -99,6 +107,24 @@ export async function handleMessage(
 
     case 'SAVE_USER_PROFILE':
       return await handleSaveUserProfile(message.payload);
+
+    case 'GET_RESUME_PROFILES':
+      return await getResumeProfilesHandler();
+
+    case 'SWITCH_RESUME_PROFILE':
+      return await switchResumeProfileHandler(message.payload, { now: () => new Date().toISOString(), queueAutoSync });
+
+    case 'CREATE_RESUME_PROFILE':
+      return await createResumeProfileHandler(message.payload, { now: () => new Date().toISOString(), queueAutoSync });
+
+    case 'DUPLICATE_RESUME_PROFILE':
+      return await duplicateResumeProfileHandler(message.payload, { now: () => new Date().toISOString(), queueAutoSync });
+
+    case 'RENAME_RESUME_PROFILE':
+      return await renameResumeProfileHandler(message.payload, { now: () => new Date().toISOString(), queueAutoSync });
+
+    case 'DELETE_RESUME_PROFILE':
+      return await deleteResumeProfileHandler(message.payload, { now: () => new Date().toISOString(), queueAutoSync });
 
     case 'PARSE_RESUME':
       return await handleParseResume(

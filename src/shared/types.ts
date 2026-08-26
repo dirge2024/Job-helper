@@ -299,6 +299,12 @@ export interface VisualRegionFillMappingResult {
 export type Message =
   | { type: 'GET_USER_PROFILE'; payload?: null }
   | { type: 'SAVE_USER_PROFILE'; payload: UserProfile }
+  | { type: 'GET_RESUME_PROFILES'; payload?: null }
+  | { type: 'SWITCH_RESUME_PROFILE'; payload: { id: string } }
+  | { type: 'CREATE_RESUME_PROFILE'; payload?: null }
+  | { type: 'DUPLICATE_RESUME_PROFILE'; payload: { id: string } }
+  | { type: 'RENAME_RESUME_PROFILE'; payload: { id: string; name: string } }
+  | { type: 'DELETE_RESUME_PROFILE'; payload: { id: string } }
   | { type: 'PARSE_RESUME'; payload: { file: string; fileType: string; fileName: string; rawText?: string } }
   | { type: 'FILL_FORM'; payload?: null }
   | { type: 'GET_APPLICATION_PAGE_METADATA'; payload?: null }
@@ -411,6 +417,11 @@ export interface ResumeProfile {
   createdAt: string;
   updatedAt: string;
   profile: UserProfile;
+}
+
+export interface ResumeProfileSummary {
+  activeProfileId: string;
+  profiles: Array<Pick<ResumeProfile, 'id' | 'name' | 'createdAt' | 'updatedAt'>>;
 }
 
 export interface ResumeProfileLibrary {
