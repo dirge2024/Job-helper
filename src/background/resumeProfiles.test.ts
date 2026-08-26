@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test, { afterEach, beforeEach } from 'node:test';
 import { StorageService } from '../shared/storage.ts';
-import type { ResumeProfileLibrary } from '../shared/types.ts';
+import type {
+  ResumeProfileLibrary,
+  ResumeProfileMutationResult,
+  ResumeProfileSummary,
+} from '../shared/types.ts';
 import {
   createResumeProfileHandler,
   deleteResumeProfileHandler,
@@ -11,6 +15,13 @@ import {
   switchResumeProfileHandler,
   type ResumeProfileHandlerDependencies,
 } from './resumeProfiles.ts';
+
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+type Assert<T extends true> = T;
+type SummaryKeysAreExact = Assert<Equal<keyof ResumeProfileSummary, 'activeProfileId' | 'profiles'>>;
+type MutationResultHasSync = Assert<'sync' extends keyof ResumeProfileMutationResult ? true : false>;
+void (0 as unknown as SummaryKeysAreExact);
+void (0 as unknown as MutationResultHasSync);
 
 const originalGet = StorageService.getResumeProfileLibrary;
 const originalSave = StorageService.saveResumeProfileLibrary;

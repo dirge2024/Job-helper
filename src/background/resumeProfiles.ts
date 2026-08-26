@@ -1,6 +1,6 @@
 import { StorageService } from '../shared/storage.ts';
 import { createResumeProfile, deleteResumeProfile, duplicateResumeProfile, renameResumeProfile, switchResumeProfile } from '../shared/resumeProfiles.ts';
-import type { MessageResponse, ResumeProfileLibrary, ResumeProfileSummary, SyncResultStatus } from '../shared/types.ts';
+import type { MessageResponse, ResumeProfileLibrary, ResumeProfileMutationResult, ResumeProfileSummary, SyncResultStatus } from '../shared/types.ts';
 
 export interface ResumeProfileHandlerDependencies {
   now: () => string;
@@ -27,7 +27,7 @@ export async function mutateResumeProfiles(
   transform: (library: ResumeProfileLibrary) => ResumeProfileLibrary,
   reason: string,
   dependencies: ResumeProfileHandlerDependencies = defaultDependencies,
-): Promise<MessageResponse<ResumeProfileSummary>> {
+): Promise<MessageResponse<ResumeProfileMutationResult>> {
   let summary: ResumeProfileSummary;
   try {
     summary = await serializeMutation(async () => {

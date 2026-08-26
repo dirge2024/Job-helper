@@ -422,7 +422,10 @@ export interface ResumeProfile {
 export interface ResumeProfileSummary {
   activeProfileId: string;
   profiles: Array<Pick<ResumeProfile, 'id' | 'name' | 'createdAt' | 'updatedAt'>>;
-  sync?: SyncResultStatus;
+}
+
+export interface ResumeProfileMutationResult extends ResumeProfileSummary {
+  sync: SyncResultStatus;
   syncError?: string;
 }
 
