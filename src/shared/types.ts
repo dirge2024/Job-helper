@@ -301,7 +301,7 @@ export type Message =
   | { type: 'SAVE_USER_PROFILE'; payload: UserProfile }
   | { type: 'GET_RESUME_PROFILES'; payload?: null }
   | { type: 'SWITCH_RESUME_PROFILE'; payload: { id: string } }
-  | { type: 'CREATE_RESUME_PROFILE'; payload?: null }
+  | { type: 'CREATE_RESUME_PROFILE'; payload: { name: string } }
   | { type: 'DUPLICATE_RESUME_PROFILE'; payload: { id: string } }
   | { type: 'RENAME_RESUME_PROFILE'; payload: { id: string; name: string } }
   | { type: 'DELETE_RESUME_PROFILE'; payload: { id: string } }

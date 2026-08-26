@@ -93,12 +93,12 @@ test('切换只更新当前 ID，且只读写一次', async () => {
   assert.deepEqual(queued, ['resume-profile-switch']);
 });
 
-test('创建只追加一个空白资料并设为活动资料', async () => {
-  const response = await createResumeProfileHandler({}, deps);
+test('创建以传入名称原子追加一个空白资料并设为活动资料', async () => {
+  const response = await createResumeProfileHandler({ name: '暑期实习' }, deps);
   assert.equal(response.success, true);
   assert.equal(library.profiles.length, 3);
   assert.equal(library.activeProfileId, library.profiles[2].id);
-  assert.equal(library.profiles[2].name, '未命名简历');
+  assert.equal(library.profiles[2].name, '暑期实习');
   assertSinglePersistence();
   assert.deepEqual(queued, ['resume-profile-create']);
 });
@@ -193,15 +193,15 @@ test('并发 mutation 串行读取最新状态，不丢失更新', async () => {
     await normalSave(next);
   };
 
-  const first = createResumeProfileHandler({}, deps);
+  const first = createResumeProfileHandler({ name: '并发简历一' }, deps);
   await new Promise(resolve => setTimeout(resolve, 0));
-  const second = createResumeProfileHandler({}, deps);
+  const second = createResumeProfileHandler({ name: '并发简历二' }, deps);
   releaseFirstSave();
   const responses = await Promise.all([first, second]);
 
   assert.equal(responses.every(item => item.success), true);
   assert.equal(library.profiles.length, 4);
-  assert.deepEqual(library.profiles.slice(2).map(item => item.name), ['未命名简历', '未命名简历 2']);
+  assert.deepEqual(library.profiles.slice(2).map(item => item.name), ['并发简历一', '并发简历二']);
   assert.equal(loads, 2);
   assert.equal(saves, 2);
   assert.deepEqual(queued, ['resume-profile-create', 'resume-profile-create']);
@@ -495,4 +495,17 @@ test('活动 entry 缺失时 GET_USER_PROFILE 返回显式失败', async () => {
     const response = await handleMessage({ type: 'GET_USER_PROFILE' } as Message, {} as chrome.runtime.MessageSender);
     assert.deepEqual(response, { success: false, error: '当前简历不存在' });
   });
+});
+
+
+test('创建会原子校验空名和重名且失败时不写入', async () => {
+  for (const name of ['   ', '第一份']) {
+    loads = 0;
+    saves = 0;
+    const response = await createResumeProfileHandler({ name }, deps);
+    assert.equal(response.success, false);
+    assert.match(response.error || '', name.trim() ? /已存在/ : /不能为空/);
+    assert.equal(saves, 0);
+    assert.equal(library.profiles.length, 2);
+  }
 });

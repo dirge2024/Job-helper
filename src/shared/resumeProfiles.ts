@@ -124,9 +124,12 @@ export function normalizeResumeProfileLibrary(value: unknown, legacyProfile?: Us
   return { schemaVersion: 1, activeProfileId, profiles };
 }
 
-export function createResumeProfile(library: ResumeProfileLibrary, now: string): ResumeProfileLibrary {
+export function createResumeProfile(library: ResumeProfileLibrary, name: string, now: string): ResumeProfileLibrary {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('简历名称不能为空');
+  if (library.profiles.some(profile => profile.name === trimmed)) throw new Error('简历名称已存在');
   const profile = newProfile(
-    uniqueProfileName('未命名简历', library.profiles.map(item => item.name)),
+    trimmed,
     createEmptyUserProfile(),
     now,
   );

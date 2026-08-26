@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import TestRenderer, { act } from 'react-test-renderer';
-import { ResumeProfileManager, runGuardedProfileChange } from './ResumeProfileManager';
+import { executeGuardedProfileOperation, ResumeProfileManager, runGuardedProfileChange } from './ResumeProfileManager';
 import type { ResumeProfileSummary } from '../shared/types';
 
 const summary: ResumeProfileSummary = {
@@ -51,13 +51,13 @@ test('空名和重名均阻止创建', async () => {
 
 test('脏状态保护覆盖保存、放弃和取消', async () => {
   const events: string[] = [];
-  await runGuardedProfileChange(true, async () => { events.push('save'); return true; }, async () => events.push('action'), async () => 'save');
+  await runGuardedProfileChange(true, async () => { events.push('save'); return true; }, async () => { events.push('action'); }, async () => 'save');
   assert.deepEqual(events, ['save', 'action']);
   events.length = 0;
-  await runGuardedProfileChange(true, async () => { events.push('save'); return true; }, async () => events.push('action'), async () => 'discard');
+  await runGuardedProfileChange(true, async () => { events.push('save'); return true; }, async () => { events.push('action'); }, async () => 'discard');
   assert.deepEqual(events, ['action']);
   events.length = 0;
-  await runGuardedProfileChange(true, async () => true, async () => events.push('action'), async () => 'cancel');
+  await runGuardedProfileChange(true, async () => true, async () => { events.push('action'); }, async () => 'cancel');
   assert.deepEqual(events, []);
 });
 
@@ -77,4 +77,75 @@ test('重命名不经过脏状态保护且不触发资料重载', async () => {
   await act(async () => renderer.root.findByProps({ 'aria-label': '确认名称' }).props.onClick());
   assert.deepEqual(messages, ['RENAME_RESUME_PROFILE']);
   assert.equal(reloads, 0);
+});
+
+
+test('switch/create/duplicate/delete 均执行操作级脏状态保护', async () => {
+  const operations = [
+    { type: 'SWITCH_RESUME_PROFILE', payload: { id: 'two' } },
+    { type: 'CREATE_RESUME_PROFILE', payload: { name: '新简历' } },
+    { type: 'DUPLICATE_RESUME_PROFILE', payload: { id: 'one' } },
+    { type: 'DELETE_RESUME_PROFILE', payload: { id: 'one' } },
+  ] as const;
+  for (const message of operations) {
+    let sends = 0;
+    await executeGuardedProfileOperation(message, { dirty: true, save: async () => true, choose: async () => 'cancel', send: async () => { sends++; return { success: true, data: summary }; } });
+    assert.equal(sends, 0, `${message.type}: cancel`);
+    await executeGuardedProfileOperation(message, { dirty: true, save: async () => true, choose: async () => 'discard', send: async () => { sends++; return { success: true, data: summary }; } });
+    assert.equal(sends, 1, `${message.type}: discard`);
+    await executeGuardedProfileOperation(message, { dirty: true, save: async () => false, choose: async () => 'save', send: async () => { sends++; return { success: true, data: summary }; } });
+    assert.equal(sends, 1, `${message.type}: save failure`);
+  }
+});
+
+test('新建使用单条带校验名称的原子消息', async () => {
+  const messages: unknown[] = [];
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => { renderer = TestRenderer.create(<ResumeProfileManager {...props} sendMessage={async message => { messages.push(message); return { success: true, data: { ...summary, activeProfileId: 'two' } }; }} />); });
+  await act(async () => renderer.root.findByProps({ 'aria-label': '新建空白简历' }).props.onClick());
+  await act(async () => renderer.root.findByProps({ 'aria-label': '简历名称' }).props.onChange({ target: { value: '暑期实习' } }));
+  await act(async () => renderer.root.findByProps({ 'aria-label': '确认名称' }).props.onClick());
+  assert.deepEqual(messages, [{ type: 'CREATE_RESUME_PROFILE', payload: { name: '暑期实习' } }]);
+});
+
+test('重命名失败时保留对话框供用户修正或重试', async () => {
+  let renderer!: TestRenderer.ReactTestRenderer;
+  await act(async () => { renderer = TestRenderer.create(<ResumeProfileManager {...props} sendMessage={async () => ({ success: false, error: '重命名失败' })} />); });
+  await act(async () => renderer.root.findByProps({ 'aria-label': '重命名当前简历' }).props.onClick());
+  await act(async () => renderer.root.findByProps({ 'aria-label': '简历名称' }).props.onChange({ target: { value: '失败名称' } }));
+  await act(async () => renderer.root.findByProps({ 'aria-label': '确认名称' }).props.onClick());
+  assert.equal(renderer.root.findByProps({ 'aria-label': '简历名称' }).props.value, '失败名称');
+  assert.match(renderer.root.findAllByProps({ role: 'alert' }).map(node => node.children.join('')).join(' '), /重命名失败/);
+});
+
+
+test('管理器四类变更在取消、放弃、保存失败分支执行正确', async () => {
+  const operations = ['switch', 'create', 'duplicate', 'delete'] as const;
+  const choices = [
+    { label: '取消', saveResult: true, expected: 0 },
+    { label: '放弃修改并继续', saveResult: true, expected: 1 },
+    { label: '保存并继续', saveResult: false, expected: 0 },
+  ] as const;
+  for (const operation of operations) for (const choice of choices) {
+    let sends = 0;
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => { renderer = TestRenderer.create(<ResumeProfileManager {...props} dirty onSave={async () => choice.saveResult} sendMessage={async () => { sends++; return { success: true, data: summary }; }} />); });
+    const root = renderer.root;
+    await act(async () => {
+      if (operation === 'switch') root.findByType('select').props.onChange({ target: { value: 'two' } });
+      if (operation === 'duplicate') root.findAllByType('button').find(node => node.children.join('') === '复制当前')!.props.onClick();
+      if (operation === 'delete') root.findByProps({ 'aria-label': '删除当前简历' }).props.onClick();
+      if (operation === 'create') {
+        root.findByProps({ 'aria-label': '新建空白简历' }).props.onClick();
+      }
+    });
+    if (operation === 'create') {
+      await act(async () => root.findByProps({ 'aria-label': '简历名称' }).props.onChange({ target: { value: `新简历-${choice.label}` } }));
+      await act(async () => root.findByProps({ 'aria-label': '确认名称' }).props.onClick());
+    }
+    await act(async () => root.findAllByType('button').find(node => node.children.join('') === choice.label)!.props.onClick());
+    await act(async () => undefined);
+    assert.equal(sends, choice.expected, `${operation}/${choice.label}`);
+    await act(async () => renderer.unmount());
+  }
 });

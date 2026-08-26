@@ -19,7 +19,7 @@ function createProfile(name: string): UserProfile {
   return { personal: { name, gender: '', birthDate: '', phone: '', email: '' }, education: [], experience: [], projects: [], customInformation: [], skills: [], certifications: [] };
 }
 function makeTwoProfileLibrary() {
-  const library = createResumeProfile(normalizeResumeProfileLibrary(undefined, createProfile('张三')), NOW);
+  const library = createResumeProfile(normalizeResumeProfileLibrary(undefined, createProfile('张三')), '第二份', NOW);
   return switchResumeProfile(library, library.profiles[0].id);
 }
 
@@ -113,9 +113,11 @@ test('无旧资料时创建包含空资料的默认简历', () => {
 test('修复无效的活动简历 ID', () => {
   const library = makeTwoProfileLibrary(); const repaired = normalizeResumeProfileLibrary({ ...library, activeProfileId: 'missing' }); assert.equal(repaired.activeProfileId, repaired.profiles[0].id);
 });
-test('创建简历时生成唯一名称并切换到新简历', () => {
-  const first = normalizeResumeProfileLibrary(undefined); const second = createResumeProfile(first, NOW); const third = createResumeProfile(second, LATER);
-  assert.deepEqual(third.profiles.map(({ name }) => name), ['默认简历', '未命名简历', '未命名简历 2']); assert.equal(third.activeProfileId, third.profiles[2].id);
+test('创建简历时使用校验后的名称并切换到新简历', () => {
+  const first = normalizeResumeProfileLibrary(undefined); const second = createResumeProfile(first, '实习简历', NOW); const third = createResumeProfile(second, '校招简历', LATER);
+  assert.deepEqual(third.profiles.map(({ name }) => name), ['默认简历', '实习简历', '校招简历']); assert.equal(third.activeProfileId, third.profiles[2].id);
+  assert.throws(() => createResumeProfile(third, '  ', LATER), /不能为空/);
+  assert.throws(() => createResumeProfile(third, '实习简历', LATER), /已存在/);
 });
 test('唯一名称会去除空白并递增后缀', () => { assert.equal(uniqueProfileName(' 简历 ', ['简历', '简历 2']), '简历 3'); assert.equal(uniqueProfileName('  ', []), '未命名简历'); });
 test('复制后修改副本不影响来源', () => {

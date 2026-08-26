@@ -13,6 +13,7 @@ import { ExperienceSection } from './ExperienceSection';
 import { DataSyncSettings } from './DataSyncSettings';
 import { ApplicationRecordsSection } from './ApplicationRecordsSection';
 import { ResumeProfileManager } from './ResumeProfileManager';
+import { applyLoadedProfile, isProfileDirty, profileSnapshot, reloadAfterActiveProfileChange } from './profileState';
 import { parsePDF } from '../parsers/pdfParser';
 import { parseDOCX } from '../parsers/docxParser';
 
@@ -183,8 +184,7 @@ function App() {
       });
 
       if (response.success && response.data) {
-        setProfile(response.data);
-        setSavedProfileSnapshot(JSON.stringify(response.data));
+        applyLoadedProfile(response.data, setProfile, setSavedProfileSnapshot);
       } else if (response.success) {
         const emptyProfile: UserProfile = {
           personal: {} as PersonalInfo,
@@ -195,8 +195,7 @@ function App() {
           skills: [],
           certifications: [],
         };
-        setProfile(emptyProfile);
-        setSavedProfileSnapshot(JSON.stringify(emptyProfile));
+        applyLoadedProfile(emptyProfile, setProfile, setSavedProfileSnapshot);
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -230,7 +229,7 @@ function App() {
       });
 
       if (response.success) {
-        setSavedProfileSnapshot(JSON.stringify(profile));
+        setSavedProfileSnapshot(profileSnapshot(profile));
         setSaveNotice({ type: 'success', text: '保存成功' });
         return true;
       } else {
@@ -393,13 +392,13 @@ function App() {
         {profileSummary && (
           <ResumeProfileManager
             summary={profileSummary}
-            dirty={savedProfileSnapshot !== '' && JSON.stringify(profile) !== savedProfileSnapshot}
+            dirty={isProfileDirty(profile, savedProfileSnapshot)}
             onSave={handleSave}
             onSummaryChange={setProfileSummary}
-            onActiveProfileChange={async () => {
-              await loadProfile();
-              setDataRevision(revision => revision + 1);
-            }}
+            onActiveProfileChange={() => reloadAfterActiveProfileChange(
+              loadProfile,
+              () => setDataRevision(revision => revision + 1),
+            )}
           />
         )}
         <nav className="options-tabs" aria-label="设置分类">
