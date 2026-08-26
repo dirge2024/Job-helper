@@ -436,11 +436,7 @@ function App() {
       <header className="options-header">
         <div className="options-header-inner">
           <h1>个人信息设置</h1>
-        </div>
-      </header>
-
-      <div className="options-content">
-        {profileSummary && (
+          {profileSummary && (
           <ResumeProfileManager
             summary={profileSummary}
             dirty={isProfileDirty(profile, savedProfileSnapshot)}
@@ -456,6 +452,10 @@ function App() {
             }}
           />
         )}
+        </div>
+      </header>
+
+      <div className="options-content">
         <nav className="options-tabs" aria-label="设置分类">
           <button
             onClick={() => setActiveTab('personal')}
