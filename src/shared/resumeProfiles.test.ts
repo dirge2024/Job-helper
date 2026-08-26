@@ -10,6 +10,11 @@ import {
 
 const NOW = '2026-08-25T00:00:00.000Z';
 const LATER = '2026-08-26T00:00:00.000Z';
+const originalChrome = Object.getOwnPropertyDescriptor(globalThis, 'chrome');
+test.afterEach(() => {
+  if (originalChrome) Object.defineProperty(globalThis, 'chrome', originalChrome);
+  else delete (globalThis as { chrome?: unknown }).chrome;
+});
 function createProfile(name: string): UserProfile {
   return { personal: { name, gender: '', birthDate: '', phone: '', email: '' }, education: [], experience: [], projects: [], customInformation: [], skills: [], certifications: [] };
 }
@@ -64,6 +69,37 @@ test('保存资料库时写入独立的新存储键', async () => {
   const library: ResumeProfileLibrary = normalizeResumeProfileLibrary(undefined, createProfile('新资料'));
   await StorageService.saveResumeProfileLibrary(library);
   assert.deepEqual(mock.values.resumeProfileLibrary, library);
+  assert.deepEqual(mock.values.userProfile, legacy);
+});
+
+test('旧 saveUserProfile 写入活动资料库条目并保留其他条目和旧键', async () => {
+  const legacy = createProfile('只读旧键');
+  const library = makeTwoProfileLibrary();
+  const inactiveBefore = structuredClone(library.profiles[1]);
+  const mock = installChromeStorageMock({ resumeProfileLibrary: library, userProfile: legacy });
+
+  assert.equal(await StorageService.saveUserProfile(createProfile('活动资料已保存')), true);
+
+  const stored = mock.values.resumeProfileLibrary as ResumeProfileLibrary;
+  assert.equal(stored.profiles[0].profile.personal.name, '活动资料已保存');
+  assert.deepEqual(stored.profiles[1], inactiveBefore);
+  assert.deepEqual(mock.values.userProfile, legacy);
+});
+
+test('旧 updateUserProfile 基于活动条目更新且不覆盖其他条目和旧键', async () => {
+  const legacy = createProfile('只读旧键');
+  const library = makeTwoProfileLibrary();
+  const activeBefore = library.profiles[0].profile;
+  const inactiveBefore = structuredClone(library.profiles[1]);
+  const mock = installChromeStorageMock({ resumeProfileLibrary: library, userProfile: legacy });
+
+  assert.equal(await StorageService.updateUserProfile({
+    personal: { ...activeBefore.personal, name: '活动资料已更新' },
+  }), true);
+
+  const stored = mock.values.resumeProfileLibrary as ResumeProfileLibrary;
+  assert.equal(stored.profiles[0].profile.personal.name, '活动资料已更新');
+  assert.deepEqual(stored.profiles[1], inactiveBefore);
   assert.deepEqual(mock.values.userProfile, legacy);
 });
 
