@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test, { afterEach, beforeEach } from 'node:test';
 import { StorageService } from '../shared/storage.ts';
 import type {
+  Message,
   ResumeProfileLibrary,
   ResumeProfileMutationResult,
   ResumeProfileSummary,
+  UserProfile,
 } from '../shared/types.ts';
 import {
   createResumeProfileHandler,
@@ -224,4 +226,83 @@ test('串行队列在一次存储失败后仍可处理后续 mutation', async ()
   assert.equal(loads, 2);
   assert.equal(saves, 2);
   assert.deepEqual(queued, ['resume-profile-rename']);
+});
+
+
+async function withBackgroundHandler<T>(run: (handleMessage: typeof import('./index.ts').handleMessage) => Promise<T>): Promise<T> {
+  const originalChrome = (globalThis as { chrome?: unknown }).chrome;
+  (globalThis as { chrome?: unknown }).chrome = {
+    runtime: {
+      onMessage: { addListener: () => {} },
+      onInstalled: { addListener: () => {} },
+    },
+  };
+  try {
+    const moduleUrl = new URL(`./index.ts?profile-compat=${Date.now()}-${Math.random()}`, import.meta.url).href;
+    const background = await import(moduleUrl);
+    return await run(background.handleMessage);
+  } finally {
+    (globalThis as { chrome?: unknown }).chrome = originalChrome;
+  }
+}
+
+function activeProfile(): UserProfile {
+  return library.profiles.find(item => item.id === library.activeProfileId)!.profile;
+}
+
+test('GET_USER_PROFILE 只返回当前简历', async () => {
+  library.activeProfileId = 'profile-2';
+  await withBackgroundHandler(async handleMessage => {
+    const response = await handleMessage({ type: 'GET_USER_PROFILE' } as Message, {} as chrome.runtime.MessageSender);
+    assert.equal(response.success, true);
+    assert.deepEqual(response.data, library.profiles[1].profile);
+  });
+});
+
+test('SAVE_USER_PROFILE 只更新当前简历，保留其它 entry 和附件并返回同步语义', async () => {
+  const otherBefore = structuredClone(library.profiles[1]);
+  const updatedProfile = structuredClone(activeProfile());
+  updatedProfile.personal.name = '当前简历已更新';
+  const originalGetWebDAV = StorageService.getWebDAVConfig;
+  StorageService.getWebDAVConfig = async () => undefined;
+
+  try {
+    await withBackgroundHandler(async handleMessage => {
+      const response = await handleMessage({
+        type: 'SAVE_USER_PROFILE',
+        payload: updatedProfile,
+      } as Message, {} as chrome.runtime.MessageSender);
+      assert.deepEqual(response, { success: true, data: { localSaved: true, sync: 'disabled' } });
+    });
+    assert.deepEqual(activeProfile(), updatedProfile);
+    assert.deepEqual(library.profiles[1], otherBefore);
+  } finally {
+    StorageService.getWebDAVConfig = originalGetWebDAV;
+  }
+});
+
+test('PARSE_RESUME 只合并当前简历和附件，保留其它 entry 与附件', async () => {
+  const otherBefore = structuredClone(library.profiles[1]);
+  const originalGetWebDAV = StorageService.getWebDAVConfig;
+  StorageService.getWebDAVConfig = async () => undefined;
+  const parsedText = JSON.stringify({
+    basic: { name: '解析后的姓名' },
+    education: [], experience: [], projects: [], skills: [],
+  });
+
+  try {
+    await withBackgroundHandler(async handleMessage => {
+      const response = await handleMessage({
+        type: 'PARSE_RESUME',
+        payload: { file: 'new-file-data', fileType: 'json', fileName: 'backend.json', rawText: parsedText },
+      } as Message, {} as chrome.runtime.MessageSender);
+      assert.equal(response.success, true);
+    });
+    assert.equal(activeProfile().personal.name, '解析后的姓名');
+    assert.equal(activeProfile().resume?.fileName, 'backend.json');
+    assert.equal(activeProfile().resume?.fileData, 'new-file-data');
+    assert.deepEqual(library.profiles[1], otherBefore);
+  } finally {
+    StorageService.getWebDAVConfig = originalGetWebDAV;
+  }
 });

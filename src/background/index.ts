@@ -9,6 +9,7 @@ import type {
   WebDAVConfig,
 } from '../shared/types.ts';
 import { StorageService } from '../shared/storage.ts';
+import { updateActiveUserProfile } from '../shared/resumeProfiles.ts';
 import {
   createBackupDocument,
   createBackupSummary,
@@ -409,10 +410,11 @@ function handleCancelAIFill(requestId: string): MessageResponse {
 // 获取用户资料
 async function handleGetUserProfile(): Promise<MessageResponse<UserProfile>> {
   try {
-    const profile = await StorageService.getUserProfile();
+    const library = await StorageService.getResumeProfileLibrary();
+    const profile = library.profiles.find(item => item.id === library.activeProfileId)?.profile;
     return {
       success: true,
-      data: profile || undefined
+      data: profile
     };
   } catch (error) {
     return {
@@ -427,12 +429,13 @@ async function handleSaveUserProfile(
   profile: UserProfile
 ): Promise<MessageResponse> {
   try {
-    const success = await StorageService.saveUserProfile(profile);
-    const sync = success ? await queueAutoSync('profile-save') : 'disabled';
+    const library = await StorageService.getResumeProfileLibrary();
+    const next = updateActiveUserProfile(library, profile, new Date().toISOString());
+    await StorageService.saveResumeProfileLibrary(next);
+    const sync = await queueAutoSync('profile-save');
     return {
-      success,
-      data: success ? { localSaved: true, sync } : undefined,
-      error: success ? undefined : 'Failed to save user profile'
+      success: true,
+      data: { localSaved: true, sync }
     };
   } catch (error) {
     return {
@@ -498,7 +501,8 @@ async function handleParseResume(
       }
     }
 
-    const currentProfile = await StorageService.getUserProfile();
+    const library = await StorageService.getResumeProfileLibrary();
+    const currentProfile = library.profiles.find(item => item.id === library.activeProfileId)?.profile;
 
     const updatedProfile: UserProfile = {
       // 解析结果里的空值不能覆盖用户已填的内容
@@ -521,10 +525,8 @@ async function handleParseResume(
       }
     };
 
-    const saved = await StorageService.saveUserProfile(updatedProfile);
-    if (!saved) {
-      return { success: false, error: '简历已解析，但保存个人信息失败' };
-    }
+    const next = updateActiveUserProfile(library, updatedProfile, new Date().toISOString());
+    await StorageService.saveResumeProfileLibrary(next);
     await queueAutoSync('resume-save');
 
     return {
