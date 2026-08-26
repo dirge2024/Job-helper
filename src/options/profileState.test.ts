@@ -25,7 +25,6 @@ test('重载失败时不递增 revision', async () => {
   assert.equal(revision, 0);
 });
 
-
 test('外部资料库变化不会静默覆盖未保存的本地表单', () => {
   assert.equal(getExternalProfileChangeAction(true), 'prompt');
   assert.equal(getExternalProfileChangeAction(false), 'reload');

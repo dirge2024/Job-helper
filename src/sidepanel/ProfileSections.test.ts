@@ -110,7 +110,7 @@ test('各模块标题行右侧都有折叠箭头图标', () => {
   );
 
   assert.equal(
-    (html.match(/class=\"section-toggle-icon is-open\"/g) || []).length,
+    (html.match(/class="section-toggle-icon is-open"/g) || []).length,
     5,
   );
   assert.equal(
@@ -118,7 +118,6 @@ test('各模块标题行右侧都有折叠箭头图标', () => {
     5,
   );
 });
-
 
 test('资料库变化会触发信息窗口重新加载', () => {
   const oldValue = { activeProfileId: 'old' };

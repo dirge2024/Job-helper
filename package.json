@@ -15,7 +15,7 @@
     "test:sidepanel": "tsx --test src/sidepanel/basicInfo.test.ts src/sidepanel/ProfileSections.test.ts src/sidepanel/navigation.test.ts",
     "test": "node --experimental-strip-types --test src/shared/backup-sync.test.ts src/shared/packageScripts.test.ts src/utils/resume-parse.test.ts src/services/llm/visionCapabilities.test.ts src/services/llm/llm-service.test.ts src/services/llm/visualRegionFill.test.ts src/background/visualRegionFill.test.ts src/content/visualRegionFill.test.ts src/offscreen/imageCrop.test.ts src/parsers/offscreen-routing.test.ts src/content/pageScan.test.ts && npm run test:sidepanel && npm run test:application-records && npm run test:resume-profiles",
     "preview": "vite preview",
-    "test:resume-profiles": "tsx --test src/shared/resumeProfiles.test.ts src/background/resumeProfiles.test.ts src/options/profileState.test.ts src/options/ResumeProfileManager.test.tsx src/popup/ResumeProfileSelector.test.tsx src/sidepanel/ProfileSections.test.ts"
+    "test:resume-profiles": "tsx --test src/shared/resumeProfiles.test.ts src/background/resumeProfiles.test.ts src/options/profileState.test.ts src/options/ResumeProfileManager.test.tsx src/popup/ResumeProfileSelector.test.tsx src/sidepanel/ProfileSections.test.ts src/options/App.test.tsx"
   },
   "dependencies": {
     "@types/chrome": "^0.2.2",

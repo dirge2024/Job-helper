@@ -14,7 +14,7 @@ import { ExperienceSection } from './ExperienceSection';
 import { DataSyncSettings } from './DataSyncSettings';
 import { ApplicationRecordsSection } from './ApplicationRecordsSection';
 import { ResumeProfileManager } from './ResumeProfileManager';
-import { applyLoadedProfile, getExternalProfileChangeAction, isProfileDirty, profileSnapshot, reloadAfterActiveProfileChange } from './profileState';
+import { applyLoadedProfile, getExternalProfileChangeAction, isProfileDirty, profileSnapshot } from './profileState';
 import { parsePDF } from '../parsers/pdfParser';
 import { parseDOCX } from '../parsers/docxParser';
 
@@ -128,8 +128,9 @@ function App() {
   const [profileSummary, setProfileSummary] = useState<ResumeProfileSummary | null>(null);
   const [savedProfileSnapshot, setSavedProfileSnapshot] = useState('');
   const [saving, setSaving] = useState(false);
-  const [externalChangePending, setExternalChangePending] = useState(false);
+  const [externalConflict, setExternalConflict] = useState<{ draftProfileId: string | null; externalProfileId: string | null; keptLocal: boolean; error?: string } | null>(null);
   const profileDirtyRef = useRef(false);
+  const draftProfileIdRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<OptionTab>(() => {
     if (typeof window === 'undefined') {
       return 'personal';
@@ -162,77 +163,93 @@ function App() {
       return;
     }
 
-    void loadProfile();
-    void loadProfileSummary();
+    void (async () => {
+      const summary = await loadProfileSummary();
+      await loadProfile(summary?.activeProfileId ?? null);
+    })();
     const handleStorageChange = (
       changes: Record<string, chrome.storage.StorageChange>,
       areaName: string,
     ) => {
-      if (shouldReloadProfile(changes, areaName)) {
-        void loadProfileSummary();
-        if (getExternalProfileChangeAction(profileDirtyRef.current) === 'prompt') {
-          setExternalChangePending(true);
+      if (!shouldReloadProfile(changes, areaName)) return;
+      void (async () => {
+        const summary = await loadProfileSummary();
+        const externalProfileId = summary?.activeProfileId ?? null;
+        if (externalProfileId && externalProfileId === draftProfileIdRef.current) {
+          setExternalConflict(null);
           return;
         }
-        void reloadAfterActiveProfileChange(
-          loadProfile,
-          () => setDataRevision(revision => revision + 1),
-        );
-      }
+        if (getExternalProfileChangeAction(profileDirtyRef.current) === 'prompt') {
+          setExternalConflict({
+            draftProfileId: draftProfileIdRef.current,
+            externalProfileId,
+            keptLocal: false,
+          });
+          return;
+        }
+        const result = await loadProfile(externalProfileId);
+        if (result.success) setDataRevision(revision => revision + 1);
+      })();
     };
     chrome.storage.onChanged.addListener(handleStorageChange);
     return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, []);
 
-  const loadProfile = async () => {
+  const loadProfile = async (profileId: string | null = profileSummary?.activeProfileId ?? null): Promise<{ success: boolean; error?: string }> => {
     if (!hasChromeApis()) {
       setLoading(false);
-      return;
+      return { success: false, error: 'Chrome API 不可用' };
     }
 
     try {
       const response = await MessageService.sendMessage<UserProfile>({
         type: 'GET_USER_PROFILE'
       });
-
-      if (response.success && response.data) {
-        applyLoadedProfile(response.data, setProfile, setSavedProfileSnapshot);
-      } else if (response.success) {
-        const emptyProfile: UserProfile = {
-          personal: {} as PersonalInfo,
-          education: [],
-          experience: [],
-          projects: [],
-          customInformation: [],
-          skills: [],
-          certifications: [],
-        };
-        applyLoadedProfile(emptyProfile, setProfile, setSavedProfileSnapshot);
-      }
+      if (!response.success) return { success: false, error: response.error || '读取当前简历失败' };
+      const loadedProfile: UserProfile = response.data || {
+        personal: {} as PersonalInfo,
+        education: [],
+        experience: [],
+        projects: [],
+        customInformation: [],
+        skills: [],
+        certifications: [],
+      };
+      applyLoadedProfile(loadedProfile, setProfile, setSavedProfileSnapshot);
+      draftProfileIdRef.current = profileId;
+      return { success: true };
     } catch (error) {
       console.error('Failed to load profile:', error);
+      return { success: false, error: error instanceof Error ? error.message : '读取当前简历失败' };
     } finally {
       setLoading(false);
     }
   };
 
-  const loadProfileSummary = async () => {
+  const loadProfileSummary = async (): Promise<ResumeProfileSummary | null> => {
     try {
       const response = await MessageService.sendMessage<ResumeProfileSummary>({
         type: 'GET_RESUME_PROFILES',
       });
-      if (response.success && response.data) setProfileSummary(response.data);
+      if (response.success && response.data) {
+        setProfileSummary(response.data);
+        return response.data;
+      }
     } catch (error) {
       console.error('Failed to load resume profiles:', error);
     }
+    return null;
   };
 
   const reloadExternalProfile = async () => {
-    await reloadAfterActiveProfileChange(
-      loadProfile,
-      () => setDataRevision(revision => revision + 1),
-    );
-    setExternalChangePending(false);
+    if (!externalConflict) return;
+    const result = await loadProfile(externalConflict.externalProfileId);
+    if (result.success) {
+      setDataRevision(revision => revision + 1);
+      setExternalConflict(null);
+      return;
+    }
+    setExternalConflict(conflict => conflict ? { ...conflict, error: result.error || '读取当前简历失败' } : conflict);
   };
 
   const handleExternalDataChange = () => {
@@ -241,6 +258,10 @@ function App() {
   };
 
   const handleSave = async () => {
+    if (externalConflict?.keptLocal) {
+      setSaveNotice({ type: 'error', text: '当前草稿属于另一份简历，请先重新加载或切回原简历后再保存' });
+      return false;
+    }
     setSaving(true);
     try {
       const response = await MessageService.sendMessage({
@@ -401,11 +422,12 @@ function App() {
           {saveNotice.text}
         </div>
       )}
-      {externalChangePending && (
+      {externalConflict && (
         <div className="resume-notice warning" role="alert">
-          <span>其他页面更新了当前简历。你有未保存的修改，请选择如何处理。</span>
+          <span>{externalConflict.keptLocal ? '已保留本地修改；当前草稿属于另一份简历，重新加载或切回原简历前不能保存。' : '其他页面更新了当前简历。你有未保存的修改，请选择如何处理。'}</span>
+          {externalConflict.error && <span role="alert">{externalConflict.error}</span>}
           <button type="button" className="btn btn-primary" onClick={() => void reloadExternalProfile()}>重新加载</button>
-          <button type="button" className="btn btn-secondary" onClick={() => setExternalChangePending(false)}>保留本地修改</button>
+          <button type="button" className="btn btn-secondary" onClick={() => setExternalConflict(conflict => conflict ? { ...conflict, keptLocal: true, error: undefined } : conflict)}>保留本地修改</button>
         </div>
       )}
       <header className="options-header">
@@ -422,10 +444,14 @@ function App() {
             dirty={isProfileDirty(profile, savedProfileSnapshot)}
             onSave={handleSave}
             onSummaryChange={setProfileSummary}
-            onActiveProfileChange={() => reloadAfterActiveProfileChange(
-              loadProfile,
-              () => setDataRevision(revision => revision + 1),
-            )}
+            onActiveProfileChange={async () => {
+              const summary = await loadProfileSummary();
+              const result = await loadProfile(summary?.activeProfileId ?? null);
+              if (result.success) {
+                setExternalConflict(null);
+                setDataRevision(revision => revision + 1);
+              }
+            }}
           />
         )}
         <nav className="options-tabs" aria-label="设置分类">
@@ -804,7 +830,7 @@ function App() {
 
           {activeTab !== 'ai' && activeTab !== 'data-sync' && activeTab !== 'application-records' && (
             <div className="options-actions">
-            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+            <button onClick={handleSave} disabled={saving || externalConflict?.keptLocal === true} className="btn btn-primary">
               {saving ? '保存中...' : '保存设置'}
             </button>
             </div>
