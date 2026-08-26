@@ -5,12 +5,14 @@ import type {
   PersonalInfo,
   CustomInformation,
   ParsedResumeData,
+  ResumeProfileSummary,
 } from '../shared/types';
 import { AISettings } from './AISettings';
 import { EducationSection } from './EducationSection';
 import { ExperienceSection } from './ExperienceSection';
 import { DataSyncSettings } from './DataSyncSettings';
 import { ApplicationRecordsSection } from './ApplicationRecordsSection';
+import { ResumeProfileManager } from './ResumeProfileManager';
 import { parsePDF } from '../parsers/pdfParser';
 import { parseDOCX } from '../parsers/docxParser';
 
@@ -121,6 +123,8 @@ function App() {
     certifications: []
   });
   const [loading, setLoading] = useState(hasChromeApis());
+  const [profileSummary, setProfileSummary] = useState<ResumeProfileSummary | null>(null);
+  const [savedProfileSnapshot, setSavedProfileSnapshot] = useState('');
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<OptionTab>(() => {
     if (typeof window === 'undefined') {
@@ -153,6 +157,7 @@ function App() {
     }
 
     void loadProfile();
+    void loadProfileSummary();
     const handleStorageChange = (
       changes: Record<string, chrome.storage.StorageChange>,
       areaName: string,
@@ -179,8 +184,9 @@ function App() {
 
       if (response.success && response.data) {
         setProfile(response.data);
+        setSavedProfileSnapshot(JSON.stringify(response.data));
       } else if (response.success) {
-        setProfile({
+        const emptyProfile: UserProfile = {
           personal: {} as PersonalInfo,
           education: [],
           experience: [],
@@ -188,12 +194,25 @@ function App() {
           customInformation: [],
           skills: [],
           certifications: [],
-        });
+        };
+        setProfile(emptyProfile);
+        setSavedProfileSnapshot(JSON.stringify(emptyProfile));
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProfileSummary = async () => {
+    try {
+      const response = await MessageService.sendMessage<ResumeProfileSummary>({
+        type: 'GET_RESUME_PROFILES',
+      });
+      if (response.success && response.data) setProfileSummary(response.data);
+    } catch (error) {
+      console.error('Failed to load resume profiles:', error);
     }
   };
 
@@ -211,16 +230,20 @@ function App() {
       });
 
       if (response.success) {
+        setSavedProfileSnapshot(JSON.stringify(profile));
         setSaveNotice({ type: 'success', text: '保存成功' });
+        return true;
       } else {
         setSaveNotice({
           type: 'error',
           text: `保存失败：${response.error || '未知错误'}`,
         });
+        return false;
       }
     } catch (error) {
       console.error('Save error:', error);
       setSaveNotice({ type: 'error', text: '保存时出错，请稍后重试' });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -367,6 +390,18 @@ function App() {
       </header>
 
       <div className="options-content">
+        {profileSummary && (
+          <ResumeProfileManager
+            summary={profileSummary}
+            dirty={savedProfileSnapshot !== '' && JSON.stringify(profile) !== savedProfileSnapshot}
+            onSave={handleSave}
+            onSummaryChange={setProfileSummary}
+            onActiveProfileChange={async () => {
+              await loadProfile();
+              setDataRevision(revision => revision + 1);
+            }}
+          />
+        )}
         <nav className="options-tabs" aria-label="设置分类">
           <button
             onClick={() => setActiveTab('personal')}
