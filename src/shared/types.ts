@@ -312,7 +312,8 @@ export interface VisualRegionFillMappingResult {
 // 消息类型定义
 export type Message =
   | { type: 'GET_USER_PROFILE'; payload?: null }
-  | { type: 'SAVE_USER_PROFILE'; payload: UserProfile }
+  | { type: 'GET_ACTIVE_RESUME_CONTEXT'; payload?: null }
+  | { type: 'SAVE_USER_PROFILE'; payload: UserProfile | { profile: UserProfile; expectedProfileId: string } }
   | { type: 'GET_RESUME_PROFILES'; payload?: null }
   | { type: 'SWITCH_RESUME_PROFILE'; payload: { id: string } }
   | { type: 'CREATE_RESUME_PROFILE'; payload: { name: string } }
@@ -441,6 +442,11 @@ export interface ResumeProfileSummary {
 export interface ResumeProfileMutationResult extends ResumeProfileSummary {
   sync: SyncResultStatus;
   syncError?: string;
+}
+
+export interface ActiveResumeContext extends ResumeProfileSummary {
+  profile: UserProfile;
+  revision: string;
 }
 
 export interface ResumeProfileLibrary {

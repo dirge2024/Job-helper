@@ -54,6 +54,7 @@ import {
   deleteResumeProfileHandler,
   duplicateResumeProfileHandler,
   getResumeProfilesHandler,
+  toResumeProfileSummary,
   renameResumeProfileHandler,
   serializeResumeProfileMutation,
   switchResumeProfileHandler,
@@ -126,8 +127,15 @@ export async function handleMessage(
     case 'GET_USER_PROFILE':
       return await handleGetUserProfile();
 
+    case 'GET_ACTIVE_RESUME_CONTEXT': {
+      const library = await StorageService.getResumeProfileLibrary();
+      const active = library.profiles.find(item => item.id === library.activeProfileId);
+      if (!active) return { success: false, error: '当前简历不存在' };
+      return { success: true, data: { ...toResumeProfileSummary(library), profile: active.profile, revision: active.updatedAt } };
+    }
+
     case 'SAVE_USER_PROFILE':
-      return await handleSaveUserProfile(message.payload);
+      return await handleSaveUserProfile('profile' in message.payload ? message.payload.profile : message.payload, 'profile' in message.payload ? message.payload.expectedProfileId : undefined);
 
     case 'GET_RESUME_PROFILES':
       return await getResumeProfilesHandler();
@@ -446,12 +454,14 @@ async function handleGetUserProfile(): Promise<MessageResponse<UserProfile>> {
 
 // 保存用户资料
 async function handleSaveUserProfile(
-  profile: UserProfile
+  profile: UserProfile,
+  expectedProfileId?: string,
 ): Promise<MessageResponse> {
   try {
     await serializeResumeProfileMutation(async () => {
       const library = await StorageService.getResumeProfileLibrary();
       activeUserProfile(library);
+      if (expectedProfileId && library.activeProfileId !== expectedProfileId) throw new Error('当前简历已切换，已拒绝保存陈旧草稿');
       const next = updateActiveUserProfile(library, profile, new Date().toISOString());
       await StorageService.saveResumeProfileLibrary(next);
     });
