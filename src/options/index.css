@@ -1229,19 +1229,15 @@ textarea:focus {
 .profile-manager {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  gap: 10px;
   margin-bottom: 14px;
-  padding: 16px 18px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+  overflow-x: auto;
+  white-space: nowrap;
 }
-.profile-manager-heading, .profile-manager-actions { display: flex; align-items: center; gap: 10px; }
-.profile-manager-heading > div { display: grid; gap: 3px; min-width: 120px; }
-.profile-manager-label { color: #64748b; font-size: 12px; }
-.profile-switcher select { min-width: 150px; padding: 8px 30px 8px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: white; }
+.profile-manager-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.profile-manager-label { color: #64748b; font-size: 14px; flex: 0 0 auto; }
+.profile-switcher { flex: 1 1 240px; min-width: 180px; }
+.profile-switcher select { width: 100%; min-width: 180px; padding: 8px 30px 8px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: white; }
 .profile-manager-error { flex-basis: 100%; margin: 0; color: #b42318; font-size: 13px; }
 .btn-danger { color: #b42318; border-color: #f3b7b1; background: #fff; }
 .btn-danger:hover:not(:disabled) { background: #fff1f0; }

@@ -383,22 +383,6 @@ function App() {
         )}
         {profile ? (
           <div className="profile-section">
-            <div className="profile-card">
-              <div className="profile-card-heading">当前信息</div>
-              <div className="profile-row">
-                <span className="profile-label">姓名</span>
-                <span className="profile-value">{profile.personal.name || '未设置'}</span>
-              </div>
-              <div className="profile-row">
-                <span className="profile-label">邮箱</span>
-                <span className="profile-value">{profile.personal.email || '未设置'}</span>
-              </div>
-              <div className="profile-row">
-                <span className="profile-label">手机</span>
-                <span className="profile-value">{profile.personal.phone || '未设置'}</span>
-              </div>
-            </div>
-
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-value">{detectedFields}</div>

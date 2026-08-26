@@ -171,8 +171,8 @@ export function ResumeProfileManager({ summary, dirty, onSave, onSummaryChange, 
   };
 
   return <section className="profile-manager" aria-labelledby="profile-manager-title">
-    <div className="profile-manager-heading"><div><span id="profile-manager-title" className="profile-manager-label">当前简历</span><strong>{active?.name || '默认简历'}</strong></div>
-      <label className="profile-switcher"><span className="sr-only">切换简历</span><select value={active?.id || ''} disabled={busy || pending} onChange={event => { const id = event.target.value; void guarded(() => apply({ type: 'SWITCH_RESUME_PROFILE', payload: { id } }, true)); }}>{summary.profiles.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
+    <span id="profile-manager-title" className="profile-manager-label">当前简历</span>
+    <label className="profile-switcher"><span className="sr-only">切换简历</span><select value={active?.id || ''} disabled={busy || pending} onChange={event => { const id = event.target.value; void guarded(() => apply({ type: 'SWITCH_RESUME_PROFILE', payload: { id } }, true)); }}>{summary.profiles.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
     <div className="profile-manager-actions">
       <button type="button" className="btn btn-secondary" aria-label="新建空白简历" disabled={busy || pending} onClick={() => void guarded(() => apply({ type: 'CREATE_RESUME_PROFILE', payload: {} }, true))}>新建空白</button>
       <button type="button" className="btn btn-secondary" disabled={busy || pending || !active} onClick={() => active && void guarded(() => apply({ type: 'DUPLICATE_RESUME_PROFILE', payload: { id: active.id } }, true))}>复制当前</button>

@@ -436,7 +436,6 @@ function App() {
       <header className="options-header">
         <div className="options-header-inner">
           <h1>个人信息设置</h1>
-          <p>集中维护网申资料，保存后即可在表单中快速调用。</p>
         </div>
       </header>
 
