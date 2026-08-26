@@ -1,6 +1,7 @@
 import type {
   ApplicationRecord,
   BackupData,
+  ResumeProfileLibrary,
   SettingsData,
   SyncMetadata,
   UserProfile,
@@ -8,10 +9,12 @@ import type {
 } from './types';
 import type { LLMConfig } from '../services/llm/types';
 import { normalizeApplicationRecords } from './applicationRecords.ts';
+import { normalizeResumeProfileLibrary } from './resumeProfiles.ts';
 import { normalizeWebDAVServerUrl } from '../services/webdav.ts';
 
 export const STORAGE_KEYS = {
   USER_PROFILE: 'userProfile',
+  RESUME_PROFILE_LIBRARY: 'resumeProfileLibrary',
   SETTINGS: 'settings',
   LLM_CONFIG: 'llmConfig',
   WEBDAV_CONFIG: 'webdavConfig',
@@ -44,6 +47,27 @@ function inferCollegeForKnownMockData(school?: string, major?: string): string {
 }
 
 export class StorageService {
+  static async getResumeProfileLibrary(): Promise<ResumeProfileLibrary> {
+    const result = await chrome.storage.local.get([
+      STORAGE_KEYS.RESUME_PROFILE_LIBRARY,
+      STORAGE_KEYS.USER_PROFILE,
+    ]);
+    const storedLibrary = result[STORAGE_KEYS.RESUME_PROFILE_LIBRARY];
+    const legacyProfile = result[STORAGE_KEYS.USER_PROFILE] as UserProfile | undefined;
+    let library: ResumeProfileLibrary;
+    try {
+      library = normalizeResumeProfileLibrary(storedLibrary, legacyProfile);
+    } catch {
+      library = normalizeResumeProfileLibrary(undefined, legacyProfile);
+    }
+    await this.saveResumeProfileLibrary(library);
+    return library;
+  }
+
+  static async saveResumeProfileLibrary(library: ResumeProfileLibrary): Promise<void> {
+    await chrome.storage.local.set({ [STORAGE_KEYS.RESUME_PROFILE_LIBRARY]: library });
+  }
+
   // 获取用户资料
   static async getUserProfile(): Promise<UserProfile | null> {
     try {
