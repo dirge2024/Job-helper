@@ -404,3 +404,17 @@ export interface ParsedResumeData {
   skills?: string[];
   rawText: string;
 }
+
+export interface ResumeProfile {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  profile: UserProfile;
+}
+
+export interface ResumeProfileLibrary {
+  schemaVersion: 1;
+  activeProfileId: string;
+  profiles: ResumeProfile[];
+}
