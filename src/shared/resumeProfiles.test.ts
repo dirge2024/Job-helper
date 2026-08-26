@@ -60,3 +60,63 @@ test('严格校验拒绝重复 ID 和名称', () => {
   assert.throws(() => normalizeResumeProfileLibrary({ ...library, profiles: library.profiles.map(profile => ({ ...profile, id: 'same' })) }), /ID.*重复|重复.*ID/);
   assert.throws(() => normalizeResumeProfileLibrary({ ...library, profiles: library.profiles.map(profile => ({ ...profile, name: 'same' })) }), /名称.*重复|重复.*名称/);
 });
+
+test('归一化后与输入资料库及共享资料引用完全隔离', () => {
+  const sharedProfile = createProfile('共享');
+  const source = makeTwoProfileLibrary();
+  source.profiles[0].profile = sharedProfile;
+  source.profiles[1].profile = sharedProfile;
+
+  const normalized = normalizeResumeProfileLibrary(source);
+  normalized.profiles[0].name = '已修改';
+  normalized.profiles[0].profile.personal.name = '甲';
+  normalized.profiles[1].profile.personal.name = '乙';
+
+  assert.notStrictEqual(normalized.profiles[0], source.profiles[0]);
+  assert.notStrictEqual(normalized.profiles[0].profile, source.profiles[0].profile);
+  assert.notStrictEqual(normalized.profiles[0].profile, normalized.profiles[1].profile);
+  assert.equal(source.profiles[0].name, '默认简历');
+  assert.equal(source.profiles[0].profile.personal.name, '共享');
+});
+
+test('严格校验拒绝非字符串、空白及去空白后重复的名称', () => {
+  const library = makeTwoProfileLibrary();
+  assert.throws(() => normalizeResumeProfileLibrary({
+    ...library,
+    profiles: [{ ...library.profiles[0], name: 42 }, library.profiles[1]],
+  }), /简历名称必须是非空字符串/);
+  assert.throws(() => normalizeResumeProfileLibrary({
+    ...library,
+    profiles: [{ ...library.profiles[0], name: '   ' }, library.profiles[1]],
+  }), /简历名称必须是非空字符串/);
+  assert.throws(() => normalizeResumeProfileLibrary({
+    ...library,
+    profiles: [{ ...library.profiles[0], name: ' 求职简历 ' }, { ...library.profiles[1], name: '求职简历' }],
+  }), /简历名称重复/);
+});
+
+test('严格校验每项基础字段并返回业务错误', () => {
+  const library = normalizeResumeProfileLibrary(undefined);
+  assert.throws(() => normalizeResumeProfileLibrary({
+    ...library,
+    profiles: [{ ...library.profiles[0], id: '' }],
+  }), /简历 ID 必须是非空字符串/);
+  assert.throws(() => normalizeResumeProfileLibrary({
+    ...library,
+    profiles: [{ ...library.profiles[0], createdAt: 123 }],
+  }), /创建时间必须是有效字符串/);
+  assert.throws(() => normalizeResumeProfileLibrary({
+    ...library,
+    profiles: [{ ...library.profiles[0], updatedAt: '' }],
+  }), /更新时间必须是有效字符串/);
+});
+
+test('严格校验拒绝缺失或不完整的用户资料且不抛 TypeError', () => {
+  const library = normalizeResumeProfileLibrary(undefined);
+  for (const profile of [undefined, {}, { personal: {} }]) {
+    assert.throws(() => normalizeResumeProfileLibrary({
+      ...library,
+      profiles: [{ ...library.profiles[0], profile }],
+    }), /用户资料格式无效/);
+  }
+});
