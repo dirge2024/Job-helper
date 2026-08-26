@@ -422,6 +422,8 @@ export interface ResumeProfile {
 export interface ResumeProfileSummary {
   activeProfileId: string;
   profiles: Array<Pick<ResumeProfile, 'id' | 'name' | 'createdAt' | 'updatedAt'>>;
+  sync?: SyncResultStatus;
+  syncError?: string;
 }
 
 export interface ResumeProfileLibrary {

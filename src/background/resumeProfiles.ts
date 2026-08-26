@@ -1,15 +1,23 @@
 import { StorageService } from '../shared/storage.ts';
 import { createResumeProfile, deleteResumeProfile, duplicateResumeProfile, renameResumeProfile, switchResumeProfile } from '../shared/resumeProfiles.ts';
-import type { MessageResponse, ResumeProfileLibrary, ResumeProfileSummary } from '../shared/types.ts';
+import type { MessageResponse, ResumeProfileLibrary, ResumeProfileSummary, SyncResultStatus } from '../shared/types.ts';
 
 export interface ResumeProfileHandlerDependencies {
   now: () => string;
-  queueAutoSync: (reason: string) => Promise<unknown>;
+  queueAutoSync: (reason: string) => Promise<'disabled' | 'queued' | unknown>;
 }
 const defaultDependencies: ResumeProfileHandlerDependencies = {
   now: () => new Date().toISOString(),
-  queueAutoSync: async () => undefined,
+  queueAutoSync: async () => 'disabled',
 };
+
+let mutationQueue: Promise<void> = Promise.resolve();
+
+function serializeMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = mutationQueue.then(operation, operation);
+  mutationQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
 
 export function toResumeProfileSummary(library: ResumeProfileLibrary): ResumeProfileSummary {
   return { activeProfileId: library.activeProfileId, profiles: library.profiles.map(({ id, name, createdAt, updatedAt }) => ({ id, name, createdAt, updatedAt })) };
@@ -20,14 +28,31 @@ export async function mutateResumeProfiles(
   reason: string,
   dependencies: ResumeProfileHandlerDependencies = defaultDependencies,
 ): Promise<MessageResponse<ResumeProfileSummary>> {
+  let summary: ResumeProfileSummary;
   try {
-    const current = await StorageService.getResumeProfileLibrary();
-    const next = transform(current);
-    await StorageService.saveResumeProfileLibrary(next);
-    await dependencies.queueAutoSync(reason);
-    return { success: true, data: toResumeProfileSummary(next) };
+    summary = await serializeMutation(async () => {
+      const current = await StorageService.getResumeProfileLibrary();
+      const next = transform(current);
+      await StorageService.saveResumeProfileLibrary(next);
+      return toResumeProfileSummary(next);
+    });
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '资料库操作失败' };
+  }
+
+  try {
+    const syncResult = await dependencies.queueAutoSync(reason);
+    const sync: SyncResultStatus = syncResult === 'disabled' ? 'disabled' : 'queued';
+    return { success: true, data: { ...summary, sync } };
+  } catch (error) {
+    return {
+      success: true,
+      data: {
+        ...summary,
+        sync: 'error',
+        syncError: error instanceof Error ? error.message : '自动同步排队失败',
+      },
+    };
   }
 }
 
