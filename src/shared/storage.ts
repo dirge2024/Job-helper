@@ -10,6 +10,7 @@ import type {
 import type { LLMConfig } from '../services/llm/types';
 import { normalizeApplicationRecords } from './applicationRecords.ts';
 import { isCanonicalResumeProfileLibrary, normalizeResumeProfileLibrary, updateActiveUserProfile } from './resumeProfiles.ts';
+import { withResumeProfileMutation } from './resumeProfileRepository.ts';
 import { normalizeWebDAVServerUrl } from '../services/webdav.ts';
 
 export const STORAGE_KEYS = {
@@ -87,10 +88,10 @@ export class StorageService {
   // 保存用户资料（兼容旧调用方，实际写入活动简历）
   static async saveUserProfile(profile: UserProfile): Promise<boolean> {
     try {
-      const library = await this.getResumeProfileLibrary();
-      await this.saveResumeProfileLibrary(
-        updateActiveUserProfile(library, profile, new Date().toISOString()),
-      );
+      await withResumeProfileMutation(async () => {
+        const library = await this.getResumeProfileLibrary();
+        await this.saveResumeProfileLibrary(updateActiveUserProfile(library, profile, new Date().toISOString()));
+      });
       return true;
     } catch (error) {
       console.error('Failed to save user profile:', error);
@@ -101,17 +102,12 @@ export class StorageService {
   // 更新部分用户资料（兼容旧调用方，实际写入活动简历）
   static async updateUserProfile(updates: Partial<UserProfile>): Promise<boolean> {
     try {
-      const library = await this.getResumeProfileLibrary();
-      const activeProfile = library.profiles.find(profile => profile.id === library.activeProfileId);
-      if (!activeProfile) return false;
-
-      const updatedProfile = {
-        ...activeProfile.profile,
-        ...updates,
-      };
-      await this.saveResumeProfileLibrary(
-        updateActiveUserProfile(library, updatedProfile, new Date().toISOString()),
-      );
+      await withResumeProfileMutation(async () => {
+        const library = await this.getResumeProfileLibrary();
+        const activeProfile = library.profiles.find(profile => profile.id === library.activeProfileId);
+        if (!activeProfile) throw new Error('当前简历不存在');
+        await this.saveResumeProfileLibrary(updateActiveUserProfile(library, { ...activeProfile.profile, ...updates }, new Date().toISOString()));
+      });
       return true;
     } catch (error) {
       console.error('Failed to update user profile:', error);
@@ -195,6 +191,7 @@ export class StorageService {
   }
 
   static async replaceBusinessData(data: BackupData, webdavConfig?: WebDAVConfig | null): Promise<void> {
+    return withResumeProfileMutation(async () => {
     const values: Record<string, unknown> = {};
     const removals: string[] = [STORAGE_KEYS.USER_PROFILE];
     const entries = [
@@ -221,6 +218,7 @@ export class StorageService {
 
     if (Object.keys(values).length > 0) await chrome.storage.local.set(values);
     if (removals.length > 0) await chrome.storage.local.remove(removals);
+    });
   }
 
   static async getWebDAVConfig(): Promise<WebDAVConfig | null> {

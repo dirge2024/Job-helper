@@ -1,5 +1,6 @@
 import { StorageService } from '../shared/storage.ts';
 import { createResumeProfile, deleteResumeProfile, duplicateResumeProfile, renameResumeProfile, switchResumeProfile } from '../shared/resumeProfiles.ts';
+import { withResumeProfileMutation } from '../shared/resumeProfileRepository.ts';
 import type { MessageResponse, ResumeProfileLibrary, ResumeProfileMutationResult, ResumeProfileSummary, SyncResultStatus } from '../shared/types.ts';
 
 export interface ResumeProfileHandlerDependencies {
@@ -11,13 +12,7 @@ const defaultDependencies: ResumeProfileHandlerDependencies = {
   queueAutoSync: async () => 'disabled',
 };
 
-let mutationQueue: Promise<void> = Promise.resolve();
-
-export function serializeResumeProfileMutation<T>(operation: () => Promise<T>): Promise<T> {
-  const result = mutationQueue.then(operation, operation);
-  mutationQueue = result.then(() => undefined, () => undefined);
-  return result;
-}
+export const serializeResumeProfileMutation = withResumeProfileMutation;
 
 export function toResumeProfileSummary(library: ResumeProfileLibrary): ResumeProfileSummary {
   return { activeProfileId: library.activeProfileId, profiles: library.profiles.map(({ id, name, createdAt, updatedAt }) => ({ id, name, createdAt, updatedAt })) };
