@@ -10,6 +10,7 @@ import {
   openInfoFloatWindow,
 } from './navigation';
 import { ProfileSections } from './ProfileSections.tsx';
+import { shouldReloadProfile } from '../shared/profileStorageChange';
 
 type DocumentPictureInPictureApi = {
   window: Window | null;
@@ -21,7 +22,8 @@ type DocumentPictureInPictureApi = {
   }): Promise<Window>;
 };
 
-const targetWindowId = getTargetWindowIdFromSearch(window.location.search);
+const locationSearch = typeof window === 'undefined' ? '' : window.location.search;
+const targetWindowId = getTargetWindowIdFromSearch(locationSearch);
 const subtitleText = '点击下方信息字段即可自动复制对应内容；若先点击网页输入框再点击字段，可自动写入，写入失败时也可手动粘贴';
 const hasTargetWindowId = typeof targetWindowId === 'number';
 // 提示气泡显示时长（毫秒）
@@ -29,7 +31,7 @@ const TOAST_DURATION_MS = 1000;
 // 浮动小窗与原生侧边栏共用本页面，按模式决定右上角按钮：
 // - 浮窗(float)：可置顶小窗，但隐藏「打开浮窗」，避免在浮窗里再开浮窗
 // - 侧边栏(panel)：可再开浮窗，但隐藏仅浮窗可用的「置顶小窗」
-const sidepanelMode = getSidepanelModeFromSearch(window.location.search);
+const sidepanelMode = getSidepanelModeFromSearch(locationSearch);
 const isFloatMode = sidepanelMode === 'float';
 
 export default function App() {
@@ -46,7 +48,7 @@ export default function App() {
       changes: Record<string, chrome.storage.StorageChange>,
       areaName: string
     ) => {
-      if (areaName === 'local' && changes.userProfile) {
+      if (shouldReloadProfile(changes, areaName)) {
         void loadInitialData();
       }
     };

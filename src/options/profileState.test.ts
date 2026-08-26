@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { UserProfile } from '../shared/types';
-import { applyLoadedProfile, isProfileDirty, reloadAfterActiveProfileChange } from './profileState';
+import { applyLoadedProfile, getExternalProfileChangeAction, isProfileDirty, reloadAfterActiveProfileChange } from './profileState';
 
 const oldProfile = { personal: { name: '旧资料' }, education: [], experience: [], projects: [], customInformation: [], skills: [], certifications: [] } as UserProfile;
 const newProfile = { ...oldProfile, personal: { name: '新资料' } } as UserProfile;
@@ -23,4 +23,10 @@ test('重载失败时不递增 revision', async () => {
   let revision = 0;
   await assert.rejects(() => reloadAfterActiveProfileChange(async () => { throw new Error('load failed'); }, () => { revision++; }));
   assert.equal(revision, 0);
+});
+
+
+test('外部资料库变化不会静默覆盖未保存的本地表单', () => {
+  assert.equal(getExternalProfileChangeAction(true), 'prompt');
+  assert.equal(getExternalProfileChangeAction(false), 'reload');
 });

@@ -24,3 +24,7 @@ export async function reloadAfterActiveProfileChange(
   await loadProfile();
   bumpRevision();
 }
+
+export function getExternalProfileChangeAction(dirty: boolean): 'prompt' | 'reload' {
+  return dirty ? 'prompt' : 'reload';
+}

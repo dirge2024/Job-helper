@@ -3,6 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ProfileSections } from './ProfileSections.tsx';
+import { shouldReloadProfile } from '../shared/profileStorageChange.ts';
 import type { UserProfile } from '../shared/types.ts';
 
 const profile: UserProfile = {
@@ -116,4 +117,13 @@ test('各模块标题行右侧都有折叠箭头图标', () => {
     (html.match(/section-toggle-chevron/g) || []).length,
     5,
   );
+});
+
+
+test('资料库变化会触发信息窗口重新加载', () => {
+  const oldValue = { activeProfileId: 'old' };
+  const newValue = { activeProfileId: 'new' };
+  assert.equal(shouldReloadProfile({ resumeProfileLibrary: { oldValue, newValue } }, 'local'), true);
+  assert.equal(shouldReloadProfile({ userProfile: { oldValue, newValue } }, 'local'), false);
+  assert.equal(shouldReloadProfile({ resumeProfileLibrary: { oldValue, newValue } }, 'sync'), false);
 });

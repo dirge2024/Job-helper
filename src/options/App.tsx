@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageService } from '../shared/message';
+import { shouldReloadProfile } from '../shared/profileStorageChange';
 import type {
   UserProfile,
   PersonalInfo,
@@ -13,7 +14,7 @@ import { ExperienceSection } from './ExperienceSection';
 import { DataSyncSettings } from './DataSyncSettings';
 import { ApplicationRecordsSection } from './ApplicationRecordsSection';
 import { ResumeProfileManager } from './ResumeProfileManager';
-import { applyLoadedProfile, isProfileDirty, profileSnapshot, reloadAfterActiveProfileChange } from './profileState';
+import { applyLoadedProfile, getExternalProfileChangeAction, isProfileDirty, profileSnapshot, reloadAfterActiveProfileChange } from './profileState';
 import { parsePDF } from '../parsers/pdfParser';
 import { parseDOCX } from '../parsers/docxParser';
 
@@ -127,6 +128,8 @@ function App() {
   const [profileSummary, setProfileSummary] = useState<ResumeProfileSummary | null>(null);
   const [savedProfileSnapshot, setSavedProfileSnapshot] = useState('');
   const [saving, setSaving] = useState(false);
+  const [externalChangePending, setExternalChangePending] = useState(false);
+  const profileDirtyRef = useRef(false);
   const [activeTab, setActiveTab] = useState<OptionTab>(() => {
     if (typeof window === 'undefined') {
       return 'personal';
@@ -144,6 +147,8 @@ function App() {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+
+  profileDirtyRef.current = isProfileDirty(profile, savedProfileSnapshot);
 
   useEffect(() => {
     if (!saveNotice) return;
@@ -163,9 +168,16 @@ function App() {
       changes: Record<string, chrome.storage.StorageChange>,
       areaName: string,
     ) => {
-      if (areaName === 'local' && changes.userProfile) {
-        void loadProfile();
-        setDataRevision(revision => revision + 1);
+      if (shouldReloadProfile(changes, areaName)) {
+        void loadProfileSummary();
+        if (getExternalProfileChangeAction(profileDirtyRef.current) === 'prompt') {
+          setExternalChangePending(true);
+          return;
+        }
+        void reloadAfterActiveProfileChange(
+          loadProfile,
+          () => setDataRevision(revision => revision + 1),
+        );
       }
     };
     chrome.storage.onChanged.addListener(handleStorageChange);
@@ -213,6 +225,14 @@ function App() {
     } catch (error) {
       console.error('Failed to load resume profiles:', error);
     }
+  };
+
+  const reloadExternalProfile = async () => {
+    await reloadAfterActiveProfileChange(
+      loadProfile,
+      () => setDataRevision(revision => revision + 1),
+    );
+    setExternalChangePending(false);
   };
 
   const handleExternalDataChange = () => {
@@ -379,6 +399,13 @@ function App() {
           aria-live="polite"
         >
           {saveNotice.text}
+        </div>
+      )}
+      {externalChangePending && (
+        <div className="resume-notice warning" role="alert">
+          <span>其他页面更新了当前简历。你有未保存的修改，请选择如何处理。</span>
+          <button type="button" className="btn btn-primary" onClick={() => void reloadExternalProfile()}>重新加载</button>
+          <button type="button" className="btn btn-secondary" onClick={() => setExternalChangePending(false)}>保留本地修改</button>
         </div>
       )}
       <header className="options-header">
