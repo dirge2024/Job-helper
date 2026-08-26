@@ -2,17 +2,19 @@ import type {
   ApplicationRecord,
   BackupData,
   BackupDocument,
-  BackupDocumentV1,
+  BackupDocumentV2,
   BackupErrorCode,
   BackupParseResult,
   BackupSummary,
+  ResumeProfileLibrary,
   UserProfile,
   WebDAVConfig,
 } from './types';
 import type { LLMConfig } from '../services/llm/types';
 import { normalizeUserProfile } from './storage.ts';
+import { isCanonicalResumeProfileLibrary } from './resumeProfiles.ts';
 
-export const BACKUP_SCHEMA_VERSION = 1;
+export const BACKUP_SCHEMA_VERSION = 2;
 export const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
 
 type PlainObject = Record<string, unknown>;
@@ -117,22 +119,19 @@ function validateApplicationRecords(value: unknown): boolean {
   ]);
 }
 
-function validateV1(value: PlainObject): BackupParseResult {
+function validateEnvelope(value: PlainObject): BackupParseResult | null {
   if (typeof value.exportedAt !== 'string' || Number.isNaN(Date.parse(value.exportedAt))) {
     return failure('INVALID_EXPORTED_AT', '导出时间无效');
   }
-  if (
-    !isPlainObject(value.source) ||
-    typeof value.source.extensionVersion !== 'string'
-  ) {
+  if (!isPlainObject(value.source) || typeof value.source.extensionVersion !== 'string') {
     return failure('INVALID_SOURCE', '备份来源信息无效');
   }
   if (!isPlainObject(value.data)) return failure('INVALID_DATA', '备份数据区域无效');
+  return null;
+}
 
-  const { userProfile, llmConfig, settings, applicationRecords } = value.data;
-  if (userProfile !== null && !validateUserProfile(userProfile)) {
-    return failure('INVALID_USER_PROFILE', '个人资料结构无效');
-  }
+function validateSharedData(data: PlainObject): BackupParseResult | null {
+  const { llmConfig, settings, applicationRecords } = data;
   if (llmConfig !== null && !validateLLMConfig(llmConfig)) {
     return failure('INVALID_LLM_CONFIG', 'AI 配置结构无效');
   }
@@ -142,32 +141,72 @@ function validateV1(value: PlainObject): BackupParseResult {
   if (!validateApplicationRecords(applicationRecords)) {
     return failure('INVALID_DATA', '投递记录结构无效');
   }
+  return null;
+}
 
-  // webdavConfig 仅出现在本地导出文件中；WebDAV 同步的文档不含此字段。
-  if (
-    value.webdavConfig !== undefined &&
-    value.webdavConfig !== null &&
-    !validateWebDAVConfig(value.webdavConfig)
-  ) {
+function optionalWebDAV(value: PlainObject): BackupParseResult | null {
+  if (value.webdavConfig !== undefined && value.webdavConfig !== null && !validateWebDAVConfig(value.webdavConfig)) {
     return failure('INVALID_WEBDAV_CONFIG', 'WebDAV 同步设置结构无效');
   }
+  return null;
+}
 
-  const document: BackupDocumentV1 = {
-    schemaVersion: 1,
-    exportedAt: value.exportedAt,
-    source: { extensionVersion: value.source.extensionVersion },
-    data: {
-      userProfile: userProfile ? normalizeUserProfile(userProfile) : null,
-      llmConfig,
-      settings,
-    },
-  };
-  if (applicationRecords !== undefined) {
-    document.data.applicationRecords = (applicationRecords as ApplicationRecord[] | null) ?? null;
+function copyOptionalFields(value: PlainObject, document: BackupDocumentV2): void {
+  const data = value.data as PlainObject;
+  if (data.applicationRecords !== undefined) {
+    document.data.applicationRecords = (data.applicationRecords as ApplicationRecord[] | null) ?? null;
   }
   if (value.webdavConfig !== undefined) {
     document.webdavConfig = (value.webdavConfig as WebDAVConfig | null) ?? null;
   }
+}
+
+function validateV1(value: PlainObject): BackupParseResult {
+  const envelopeError = validateEnvelope(value);
+  if (envelopeError) return envelopeError;
+  const data = value.data as PlainObject;
+  const sharedError = validateSharedData(data) || optionalWebDAV(value);
+  if (sharedError) return sharedError;
+  if (data.userProfile !== null && !validateUserProfile(data.userProfile)) {
+    return failure('INVALID_USER_PROFILE', '个人资料结构无效');
+  }
+  const profile = data.userProfile ? normalizeUserProfile(data.userProfile as UserProfile) : normalizeUserProfile({ personal: {} } as UserProfile);
+  const id = 'default-resume';
+  const library: ResumeProfileLibrary = {
+    schemaVersion: 1,
+    activeProfileId: id,
+    profiles: [{ id, name: '默认简历', createdAt: value.exportedAt as string, updatedAt: value.exportedAt as string, profile }],
+  };
+  const document: BackupDocumentV2 = {
+    schemaVersion: 2,
+    exportedAt: value.exportedAt as string,
+    source: { extensionVersion: (value.source as PlainObject).extensionVersion as string },
+    data: { resumeProfileLibrary: library, llmConfig: data.llmConfig as LLMConfig | null, settings: data.settings as Record<string, unknown> | null },
+  };
+  copyOptionalFields(value, document);
+  return { success: true, document };
+}
+
+function validateV2(value: PlainObject): BackupParseResult {
+  const envelopeError = validateEnvelope(value);
+  if (envelopeError) return envelopeError;
+  const data = value.data as PlainObject;
+  const sharedError = validateSharedData(data) || optionalWebDAV(value);
+  if (sharedError) return sharedError;
+  if (!isCanonicalResumeProfileLibrary(data.resumeProfileLibrary)) {
+    return failure('INVALID_RESUME_PROFILE_LIBRARY', '简历资料库结构无效');
+  }
+  const document: BackupDocumentV2 = {
+    schemaVersion: 2,
+    exportedAt: value.exportedAt as string,
+    source: { extensionVersion: (value.source as PlainObject).extensionVersion as string },
+    data: {
+      resumeProfileLibrary: structuredClone(data.resumeProfileLibrary),
+      llmConfig: data.llmConfig as LLMConfig | null,
+      settings: data.settings as Record<string, unknown> | null,
+    },
+  };
+  copyOptionalFields(value, document);
   return { success: true, document };
 }
 
@@ -176,13 +215,13 @@ export function createBackupDocument(
   extensionVersion: string,
   exportedAt = new Date().toISOString(),
   webdavConfig?: WebDAVConfig | null,
-): BackupDocumentV1 {
-  const document: BackupDocumentV1 = {
+): BackupDocumentV2 {
+  const document: BackupDocumentV2 = {
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt,
     source: { extensionVersion },
     data: {
-      userProfile: data.userProfile ? normalizeUserProfile(data.userProfile) : null,
+      resumeProfileLibrary: structuredClone(data.resumeProfileLibrary),
       llmConfig: data.llmConfig,
       settings: data.settings,
       applicationRecords: data.applicationRecords ?? [],
@@ -199,19 +238,12 @@ export function serializeBackup(document: BackupDocument): string {
 
 export function migrateBackupDocument(value: PlainObject): BackupParseResult {
   if (value.schemaVersion === 1) return validateV1(value);
+  if (value.schemaVersion === 2) return validateV2(value);
   return failure('UNSUPPORTED_OLD_VERSION', '此旧版备份没有可用的迁移器');
 }
 
 export function normalizeBackupDocument(document: BackupDocument): BackupDocument {
-  return {
-    ...document,
-    data: {
-      ...document.data,
-      userProfile: document.data.userProfile
-        ? normalizeUserProfile(document.data.userProfile)
-        : null,
-    },
-  };
+  return structuredClone(document);
 }
 
 export function parseAndValidateBackup(rawJson: string): BackupParseResult {
@@ -243,8 +275,8 @@ export function createBackupSummary(document: BackupDocument): BackupSummary {
     schemaVersion: document.schemaVersion,
     exportedAt: document.exportedAt,
     extensionVersion: document.source.extensionVersion,
-    hasUserProfile: document.data.userProfile !== null,
-    hasResumeFile: Boolean(document.data.userProfile?.resume?.fileData),
+    hasUserProfile: document.data.resumeProfileLibrary.profiles.length > 0,
+    hasResumeFile: document.data.resumeProfileLibrary.profiles.some(item => Boolean(item.profile.resume?.fileData)),
     hasLLMConfig: document.data.llmConfig !== null,
     hasApiKey: Boolean(document.data.llmConfig?.apiKey),
     hasWebDAVConfig: Boolean(document.webdavConfig?.serverUrl),

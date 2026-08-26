@@ -86,6 +86,13 @@ import type { LLMConfig } from '../services/llm/types';
 export type SettingsData = Record<string, unknown>;
 
 export interface BackupData {
+  resumeProfileLibrary: ResumeProfileLibrary;
+  llmConfig: LLMConfig | null;
+  settings: SettingsData | null;
+  applicationRecords?: ApplicationRecord[] | null;
+}
+
+export interface BackupDataV1 {
   userProfile: UserProfile | null;
   llmConfig: LLMConfig | null;
   settings: SettingsData | null;
@@ -95,14 +102,20 @@ export interface BackupData {
 export interface BackupDocumentV1 {
   schemaVersion: 1;
   exportedAt: string;
-  source: {
-    extensionVersion: string;
-  };
+  source: { extensionVersion: string };
+  data: BackupDataV1;
+  webdavConfig?: WebDAVConfig | null;
+}
+
+export interface BackupDocumentV2 {
+  schemaVersion: 2;
+  exportedAt: string;
+  source: { extensionVersion: string };
   data: BackupData;
   webdavConfig?: WebDAVConfig | null;
 }
 
-export type BackupDocument = BackupDocumentV1;
+export type BackupDocument = BackupDocumentV2;
 
 export type BackupErrorCode =
   | 'FILE_TOO_LARGE'
@@ -116,6 +129,7 @@ export type BackupErrorCode =
   | 'INVALID_SOURCE'
   | 'INVALID_DATA'
   | 'INVALID_USER_PROFILE'
+  | 'INVALID_RESUME_PROFILE_LIBRARY'
   | 'INVALID_LLM_CONFIG'
   | 'INVALID_SETTINGS'
   | 'INVALID_WEBDAV_CONFIG';

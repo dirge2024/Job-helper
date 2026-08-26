@@ -27,8 +27,7 @@ import {
 } from '../services/webdav.ts';
 import type { BackupData } from './types.ts';
 
-const completeData: BackupData = {
-  userProfile: {
+const legacyUserProfile = {
     personal: {
       name: '张三',
       gender: '男',
@@ -48,6 +47,19 @@ const completeData: BackupData = {
       fileType: 'pdf',
       uploadDate: '2026-01-01T00:00:00.000Z',
     },
+};
+
+const completeData: BackupData = {
+  resumeProfileLibrary: {
+    schemaVersion: 1,
+    activeProfileId: 'default-resume',
+    profiles: [{
+      id: 'default-resume',
+      name: '默认简历',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      profile: legacyUserProfile,
+    }],
   },
   llmConfig: {
     provider: 'deepseek' as never,
@@ -74,18 +86,24 @@ const completeData: BackupData = {
 };
 
 function validJson() {
-  return serializeBackup(createBackupDocument(
-    completeData,
-    '1.0.0',
-    '2026-01-01T00:00:00.000Z',
-  ));
+  return JSON.stringify({
+    schemaVersion: 1,
+    exportedAt: '2026-01-01T00:00:00.000Z',
+    source: { extensionVersion: '1.0.0' },
+    data: {
+      userProfile: legacyUserProfile,
+      llmConfig: completeData.llmConfig,
+      settings: completeData.settings,
+      applicationRecords: completeData.applicationRecords,
+    },
+  });
 }
 
 test('合法 V1 文档完整保留简历和 API Key', () => {
   const result = parseAndValidateBackup(validJson());
   assert.equal(result.success, true);
   if (!result.success) return;
-  assert.equal(result.document.data.userProfile?.resume?.fileData, completeData.userProfile?.resume?.fileData);
+  assert.equal(result.document.data.resumeProfileLibrary.profiles[0]?.profile.resume?.fileData, legacyUserProfile.resume?.fileData);
   assert.equal(result.document.data.llmConfig?.apiKey, 'sk-secret');
   assert.equal(result.document.data.applicationRecords?.[0]?.companyName, '字节跳动');
 });
@@ -111,7 +129,7 @@ const invalidCases: Array<[string, string, string]> = [
   ['非 JSON', '{', 'INVALID_JSON'],
   ['根节点数组', '[]', 'INVALID_ROOT'],
   ['缺少版本', JSON.stringify({}), 'MISSING_SCHEMA_VERSION'],
-  ['未来版本', JSON.stringify({ schemaVersion: 2 }), 'UNSUPPORTED_FUTURE_VERSION'],
+  ['未来版本', JSON.stringify({ schemaVersion: 3 }), 'UNSUPPORTED_FUTURE_VERSION'],
   ['版本非整数', JSON.stringify({ schemaVersion: 1.5 }), 'INVALID_SCHEMA_VERSION'],
 ];
 
@@ -139,8 +157,8 @@ test('旧资料缺少数组字段时会补齐为空数组', () => {
   const result = parseAndValidateBackup(JSON.stringify(document));
   assert.equal(result.success, true);
   if (result.success) {
-    assert.deepEqual(result.document.data.userProfile?.education, []);
-    assert.deepEqual(result.document.data.userProfile?.customInformation, []);
+    assert.deepEqual(result.document.data.resumeProfileLibrary.profiles[0]?.profile.education, []);
+    assert.deepEqual(result.document.data.resumeProfileLibrary.profiles[0]?.profile.customInformation, []);
     assert.equal('applicationRecords' in result.document.data, false);
   }
 });
@@ -503,7 +521,7 @@ function installChromeStorageMock(initial: Record<string, unknown>) {
 test('已有同步基线后远端文件被删除会进入冲突状态', async () => {
   const baseHash = await sha256BusinessData(completeData);
   const mock = installChromeStorageMock({
-    userProfile: completeData.userProfile,
+    resumeProfileLibrary: completeData.resumeProfileLibrary,
     llmConfig: completeData.llmConfig,
     settings: completeData.settings,
     webdavConfig,
@@ -529,7 +547,7 @@ test('已有同步基线后远端文件被删除会进入冲突状态', async ()
 
 test('手动同步不要求启用保存后的自动同步', async () => {
   const mock = installChromeStorageMock({
-    userProfile: completeData.userProfile,
+    resumeProfileLibrary: completeData.resumeProfileLibrary,
     llmConfig: completeData.llmConfig,
     settings: completeData.settings,
     applicationRecords: completeData.applicationRecords,
@@ -567,7 +585,7 @@ test('冲突后选择使用本地不要求启用保存后的自动同步', async
     settings: { locale: 'base' },
   });
   const mock = installChromeStorageMock({
-    userProfile: completeData.userProfile,
+    resumeProfileLibrary: completeData.resumeProfileLibrary,
     llmConfig: completeData.llmConfig,
     settings: { locale: 'local' },
     applicationRecords: completeData.applicationRecords,
@@ -636,7 +654,7 @@ test('仅远端变化时下载并替换本地业务数据', async () => {
     '2026-02-01T00:00:00.000Z',
   ));
   const mock = installChromeStorageMock({
-    userProfile: completeData.userProfile,
+    resumeProfileLibrary: completeData.resumeProfileLibrary,
     llmConfig: completeData.llmConfig,
     settings: completeData.settings,
     applicationRecords: completeData.applicationRecords,
@@ -788,7 +806,7 @@ test('同步下载不会覆盖本地 WebDAV 凭据', async () => {
     { ...webdavConfig, password: 'remote-password' },
   ));
   const mock = installChromeStorageMock({
-    userProfile: completeData.userProfile,
+    resumeProfileLibrary: completeData.resumeProfileLibrary,
     llmConfig: completeData.llmConfig,
     settings: completeData.settings,
     applicationRecords: completeData.applicationRecords,
@@ -807,6 +825,103 @@ test('同步下载不会覆盖本地 WebDAV 凭据', async () => {
     assert.deepEqual(mock.values.webdavConfig, webdavConfig);
   } finally {
     globalThis.fetch = originalFetch;
+    mock.restore();
+  }
+});
+
+function v1SingleProfileJson(): string {
+  return JSON.stringify({
+    schemaVersion: 1,
+    exportedAt: '2026-01-01T00:00:00.000Z',
+    source: { extensionVersion: '1.0.0' },
+    data: {
+      userProfile: legacyUserProfile,
+      llmConfig: completeData.llmConfig,
+      settings: completeData.settings,
+      applicationRecords: completeData.applicationRecords,
+    },
+  });
+}
+
+function profileLibrary() {
+  return {
+    schemaVersion: 1 as const,
+    activeProfileId: 'profile-2',
+    profiles: [
+      {
+        id: 'profile-1',
+        name: '校招',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-02T00:00:00.000Z',
+        profile: legacyUserProfile,
+      },
+      {
+        id: 'profile-2',
+        name: '社招',
+        createdAt: '2026-02-01T00:00:00.000Z',
+        updatedAt: '2026-02-02T00:00:00.000Z',
+        profile: { ...legacyUserProfile, skills: ['TypeScript', 'React'] },
+      },
+    ],
+  };
+}
+
+test('V1 导入迁移为单套默认简历', () => {
+  const result = parseAndValidateBackup(v1SingleProfileJson());
+  assert.ok(result.success);
+  if (!result.success) return;
+  assert.equal(result.document.schemaVersion, 2);
+  assert.equal(result.document.data.resumeProfileLibrary.profiles[0]?.name, '默认简历');
+});
+
+test('V2 往返保留全部简历及当前 ID', () => {
+  const library = profileLibrary();
+  const data = { ...completeData, userProfile: undefined, resumeProfileLibrary: library } as never;
+  const parsed = parseAndValidateBackup(serializeBackup(createBackupDocument(data, '2.0.0')));
+  assert.ok(parsed.success);
+  if (parsed.success) assert.deepEqual(parsed.document.data.resumeProfileLibrary, library);
+});
+
+for (const [name, mutate] of [
+  ['空列表', (library: ReturnType<typeof profileLibrary>) => { library.profiles = []; }],
+  ['重复 ID', (library: ReturnType<typeof profileLibrary>) => { library.profiles[1]!.id = library.profiles[0]!.id; }],
+  ['trim 后重名', (library: ReturnType<typeof profileLibrary>) => { library.profiles[1]!.name = ` ${library.profiles[0]!.name} `; }],
+  ['非法 active ID', (library: ReturnType<typeof profileLibrary>) => { library.activeProfileId = 'missing'; }],
+] as const) {
+  test(`V2 拒绝${name}`, () => {
+    const library = profileLibrary();
+    mutate(library);
+    const raw = JSON.stringify({
+      schemaVersion: 2,
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      source: { extensionVersion: '2.0.0' },
+      data: { resumeProfileLibrary: library, llmConfig: null, settings: null },
+    });
+    assert.equal(parseAndValidateBackup(raw).success, false);
+  });
+}
+
+test('hash 对 active ID 和任一 profile 变化敏感', async () => {
+  const original = profileLibrary();
+  const changedActive = { ...original, activeProfileId: 'profile-1' };
+  const changedProfile = structuredClone(original);
+  changedProfile.profiles[0]!.profile.skills.push('Node.js');
+  const data = (resumeProfileLibrary: typeof original) => ({
+    resumeProfileLibrary, llmConfig: null, settings: null, applicationRecords: [],
+  }) as never;
+  const baseHash = await sha256BusinessData(data(original));
+  assert.notEqual(await sha256BusinessData(data(changedActive)), baseHash);
+  assert.notEqual(await sha256BusinessData(data(changedProfile)), baseHash);
+});
+
+test('V2 导入替换资料库且缺少投递记录时保留现有记录', async () => {
+  const library = profileLibrary();
+  const mock = installChromeStorageMock({ applicationRecords: completeData.applicationRecords });
+  try {
+    await StorageService.replaceBusinessData({ resumeProfileLibrary: library, llmConfig: null, settings: null } as never);
+    assert.deepEqual(mock.values.resumeProfileLibrary, library);
+    assert.deepEqual(mock.values.applicationRecords, completeData.applicationRecords);
+  } finally {
     mock.restore();
   }
 });

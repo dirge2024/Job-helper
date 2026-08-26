@@ -176,15 +176,16 @@ export class StorageService {
   }
 
   static async getBackupData(): Promise<BackupData> {
-    const result = await chrome.storage.local.get([
-      STORAGE_KEYS.USER_PROFILE,
-      STORAGE_KEYS.LLM_CONFIG,
-      STORAGE_KEYS.SETTINGS,
-      STORAGE_KEYS.APPLICATION_RECORDS,
+    const [resumeProfileLibrary, result] = await Promise.all([
+      this.getResumeProfileLibrary(),
+      chrome.storage.local.get([
+        STORAGE_KEYS.LLM_CONFIG,
+        STORAGE_KEYS.SETTINGS,
+        STORAGE_KEYS.APPLICATION_RECORDS,
+      ]),
     ]);
-    const profile = (result[STORAGE_KEYS.USER_PROFILE] as UserProfile | undefined) || null;
     return {
-      userProfile: profile ? normalizeUserProfile(profile) : null,
+      resumeProfileLibrary,
       llmConfig: (result[STORAGE_KEYS.LLM_CONFIG] as LLMConfig | undefined) || null,
       settings: (result[STORAGE_KEYS.SETTINGS] as SettingsData | undefined) || null,
       applicationRecords: normalizeApplicationRecords(
@@ -195,9 +196,9 @@ export class StorageService {
 
   static async replaceBusinessData(data: BackupData, webdavConfig?: WebDAVConfig | null): Promise<void> {
     const values: Record<string, unknown> = {};
-    const removals: string[] = [];
+    const removals: string[] = [STORAGE_KEYS.USER_PROFILE];
     const entries = [
-      [STORAGE_KEYS.USER_PROFILE, data.userProfile],
+      [STORAGE_KEYS.RESUME_PROFILE_LIBRARY, data.resumeProfileLibrary],
       [STORAGE_KEYS.LLM_CONFIG, data.llmConfig],
       [STORAGE_KEYS.SETTINGS, data.settings],
     ] as const;
