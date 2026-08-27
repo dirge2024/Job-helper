@@ -338,17 +338,19 @@ function App() {
   return (
     <div className="popup-shell">
       <header className="popup-header">
-        <img
-          className="popup-brand-mark"
-          src={getRuntimeUrl('icons/icon128.png')}
-          alt=""
-          aria-hidden="true"
-        />
-        <div>
-          <h1>秋招网申助手</h1>
-          <p>让每一次投递更高效</p>
+        <div className="popup-brand-row">
+          <img
+            className="popup-brand-mark"
+            src={getRuntimeUrl('icons/icon128.png')}
+            alt=""
+            aria-hidden="true"
+          />
+          <div>
+            <h1>秋招网申助手</h1>
+            <p>让每一次投递更高效</p>
+          </div>
         </div>
-        <div className="popup-header-actions">
+        <div className="popup-record-actions">
           <button
             type="button"
             className="header-action-button"
@@ -370,35 +372,34 @@ function App() {
 
       <div className="popup-content">
         {popupLoadError && <p className="resume-profile-selector-error" role="alert">{popupLoadError}</p>}
-        {resumeProfiles && (
-          <>
-            <ResumeProfileSelector
-              profiles={resumeProfiles.profiles}
-              activeProfileId={resumeProfiles.activeProfileId}
-              disabled={interactionDisabled}
-              onSwitch={id => void handleProfileSwitch(id)}
-            />
-            {profileSwitchError && <p className="resume-profile-selector-error" role="alert">{profileSwitchError}</p>}
-          </>
-        )}
-        {profile ? (
-          <div className="profile-section">
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-value">{detectedFields}</div>
-                <div className="stat-label">可填字段</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{profile.education.length}</div>
-                <div className="stat-label">教育经历</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{profile.experience.length}</div>
-                <div className="stat-label">工作经历</div>
-              </div>
-            </div>
+        <ResumeProfileSelector
+          profiles={resumeProfiles?.profiles ?? []}
+          activeProfileId={resumeProfiles?.activeProfileId ?? ''}
+          disabled={interactionDisabled}
+          onSwitch={id => void handleProfileSwitch(id)}
+        />
+        {profileSwitchError && <p className="resume-profile-selector-error" role="alert">{profileSwitchError}</p>}
+        <div className="profile-section">
+          <div className="popup-metrics-strip">
+            {profile && (
+              <>
+                <div className="popup-metric">
+                  <div className="popup-metric-value">{detectedFields}</div>
+                  <div className="popup-metric-label">可填字段</div>
+                </div>
+                <div className="popup-metric">
+                  <div className="popup-metric-value">{profile.education.length}</div>
+                  <div className="popup-metric-label">教育经历</div>
+                </div>
+                <div className="popup-metric">
+                  <div className="popup-metric-value">{profile.experience.length}</div>
+                  <div className="popup-metric-label">工作经历</div>
+                </div>
+              </>
+            )}
           </div>
-        ) : (
+        </div>
+        {!profile && (
           <div className="popup-empty-state">
             <svg
               width="64"
@@ -418,22 +419,14 @@ function App() {
 
         <div className="popup-actions">
           <button
-            onClick={() => void handleOpenSidePanel()}
-            disabled={openingView}
-            className="button button-secondary"
+            onClick={handleFillForm}
+            disabled={!profile || interactionDisabled}
+            className="button button-primary popup-primary-action"
           >
-            {openingView ? '正在打开...' : '打开信息窗口'}
+            {filling ? '填充中...' : '快速填充'}
           </button>
 
-          <div className="fill-button-pair">
-            <button
-              onClick={handleFillForm}
-              disabled={!profile || interactionDisabled}
-              className="button button-primary"
-            >
-              {filling ? '填充中...' : '快速填充'}
-            </button>
-
+          <div className="popup-ai-actions">
             <button
               onClick={handleAIScanFill}
               disabled={!profile || interactionDisabled}
@@ -441,19 +434,29 @@ function App() {
             >
               {aiScanning ? '扫描中...' : 'AI 扫描填充'}
             </button>
+
+            <button
+              onClick={handleStartAIRegionFill}
+              disabled={!profile || interactionDisabled}
+              className="button button-tonal"
+            >
+              {startingAIRegion ? '正在启动框选...' : 'AI 框选补填'}
+            </button>
           </div>
 
-          <button
-            onClick={handleStartAIRegionFill}
-            disabled={!profile || interactionDisabled}
-            className="button button-tonal"
-          >
-            {startingAIRegion ? '正在启动框选...' : 'AI 框选补填'}
-          </button>
+          <div className="popup-support-actions">
+            <button
+              onClick={() => void handleOpenSidePanel()}
+              disabled={openingView}
+              className="button button-secondary"
+            >
+              {openingView ? '正在打开...' : '打开信息窗口'}
+            </button>
 
-          <button onClick={openOptions} className="button button-quiet">
-            设置个人信息
-          </button>
+            <button onClick={openOptions} className="button button-quiet popup-settings-action">
+              设置个人信息
+            </button>
+          </div>
         </div>
 
         {detectedFields === 0 && profile && (
