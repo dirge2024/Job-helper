@@ -1228,11 +1228,11 @@ textarea:focus {
 /* Resume profile management */
 .profile-manager { margin-top: 12px; margin-bottom: -14px; }
 .resume-menu { position: relative; width: 440px; max-width: 100%; }
-.resume-menu-trigger { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 8px; background: #fff; color: #1e293b; font-size: 14px; cursor: pointer; }
+.resume-menu-trigger { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 8px; background: #fff; color: #1e293b; font-family: inherit; font-size: 16px; font-weight: 650; cursor: pointer; }
 .resume-menu-popover { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: 100%; max-width: calc(100vw - 48px); padding: 6px; border: 1px solid var(--color-border); border-radius: 10px; background: #fff; box-shadow: 0 14px 34px rgba(15,23,42,.14); }
 .resume-menu-row { display: flex; align-items: center; gap: 12px; border-radius: 7px; }
 .resume-menu-row:hover, .resume-menu-row.active { background: #f8fafc; }
-.resume-menu-name { flex: 1; min-width: 0; display: flex; gap: 8px; padding: 10px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.resume-menu-name { flex: 1; min-width: 0; display: flex; gap: 8px; padding: 10px; border: 0; background: transparent; font-family: inherit; font-size: 16px; font-weight: 600; text-align: left; cursor: pointer; }
 .resume-menu-name span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .resume-menu-row-actions { display: flex; flex: 0 0 auto; gap: 2px; margin-left: 12px; padding-right: 6px; }
 .resume-menu-row-actions button, .resume-menu-create { border: 0; background: transparent; color: #64748b; padding: 7px 8px; cursor: pointer; }

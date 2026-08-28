@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -94,3 +95,10 @@ test('重命名失败时保留对话框供用户修正或重试', async () => {
 });
 
 
+
+
+test('简历下拉框使用标题字体并提高简历名称字号', () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(css, /\.resume-menu-trigger\s*\{[^}]*font-family:\s*inherit;[^}]*font-size:\s*16px;/s);
+  assert.match(css, /\.resume-menu-name\s*\{[^}]*font-family:\s*inherit;[^}]*font-size:\s*16px;/s);
+});
