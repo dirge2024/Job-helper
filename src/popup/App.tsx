@@ -372,34 +372,35 @@ function App() {
 
       <div className="popup-content">
         {popupLoadError && <p className="resume-profile-selector-error" role="alert">{popupLoadError}</p>}
-        <ResumeProfileSelector
-          profiles={resumeProfiles?.profiles ?? []}
-          activeProfileId={resumeProfiles?.activeProfileId ?? ''}
-          disabled={interactionDisabled}
-          onSwitch={id => void handleProfileSwitch(id)}
-        />
-        {profileSwitchError && <p className="resume-profile-selector-error" role="alert">{profileSwitchError}</p>}
-        <div className="profile-section">
-          <div className="popup-metrics-strip">
-            {profile && (
-              <>
-                <div className="popup-metric">
-                  <div className="popup-metric-value">{detectedFields}</div>
-                  <div className="popup-metric-label">可填字段</div>
-                </div>
-                <div className="popup-metric">
-                  <div className="popup-metric-value">{profile.education.length}</div>
-                  <div className="popup-metric-label">教育经历</div>
-                </div>
-                <div className="popup-metric">
-                  <div className="popup-metric-value">{profile.experience.length}</div>
-                  <div className="popup-metric-label">工作经历</div>
-                </div>
-              </>
-            )}
+        {resumeProfiles && (
+          <>
+            <ResumeProfileSelector
+              profiles={resumeProfiles.profiles}
+              activeProfileId={resumeProfiles.activeProfileId}
+              disabled={interactionDisabled}
+              onSwitch={id => void handleProfileSwitch(id)}
+            />
+            {profileSwitchError && <p className="resume-profile-selector-error" role="alert">{profileSwitchError}</p>}
+          </>
+        )}
+        {profile ? (
+          <div className="profile-section">
+            <div className="popup-metrics-strip">
+              <div className="popup-metric">
+                <div className="popup-metric-value">{detectedFields}</div>
+                <div className="popup-metric-label">可填字段</div>
+              </div>
+              <div className="popup-metric">
+                <div className="popup-metric-value">{profile.education.length}</div>
+                <div className="popup-metric-label">教育经历</div>
+              </div>
+              <div className="popup-metric">
+                <div className="popup-metric-value">{profile.experience.length}</div>
+                <div className="popup-metric-label">工作经历</div>
+              </div>
+            </div>
           </div>
-        </div>
-        {!profile && (
+        ) : (
           <div className="popup-empty-state">
             <svg
               width="64"

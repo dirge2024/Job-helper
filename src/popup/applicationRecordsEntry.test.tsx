@@ -8,7 +8,6 @@ test('popup 视觉重构保留全部现有入口且不引入额外功能', async
   const popupModule = await import('./App.tsx');
   const html = renderToStaticMarkup(React.createElement(popupModule.default));
   assert.match(html, /popup-record-actions/);
-  assert.match(html, /popup-metrics-strip/);
   assert.match(html, /popup-primary-action/);
   assert.match(html, /popup-ai-actions/);
   assert.match(html, /popup-support-actions/);
@@ -20,7 +19,6 @@ test('popup 视觉重构保留全部现有入口且不引入额外功能', async
     'AI 扫描填充',
     'AI 框选补填',
     '设置个人信息',
-    '当前简历',
   ]) assert.match(html, new RegExp(label));
   assert.match(html, /icons\/icon128\.png/);
   assert.doesNotMatch(html, /复制全部信息|清空表单/);
