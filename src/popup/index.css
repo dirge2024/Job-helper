@@ -179,9 +179,31 @@ button { font: inherit; }
 
 .header-action-button:disabled,
 .button:disabled {
-  opacity: .58;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+}
+
+.header-action-button:disabled,
+.button-ai:disabled {
+  border-color: #d5deeb;
+  background: #eef2f8;
+  color: #5f6f89;
+}
+
+.header-action-button-secondary:disabled,
+.button-tonal:disabled,
+.button-secondary:disabled,
+.button-quiet:disabled {
+  border-color: #d9e0ea;
+  background: #f4f6f9;
+  color: #657087;
+}
+
+.button-primary:disabled {
+  border-color: #526b9f;
+  background: #526b9f;
+  color: #ffffff;
 }
 
 .resume-profile-selector select:disabled {
