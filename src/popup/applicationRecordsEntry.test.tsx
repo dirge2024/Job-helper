@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -11,6 +12,8 @@ test('popup 视觉重构保留全部现有入口且不引入额外功能', async
   assert.match(html, /popup-primary-action/);
   assert.match(html, /popup-ai-actions/);
   assert.match(html, /popup-support-actions/);
+  const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  assert.match(appSource, /className="popup-metrics-strip"/);
   for (const label of [
     '新建投递记录',
     '打开投递记录',
