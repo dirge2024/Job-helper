@@ -55,3 +55,10 @@ test('打开投递记录入口打开带 query 的设置页标签', async () => {
     (globalThis as { chrome?: unknown }).chrome = originalChrome;
   }
 });
+
+
+test('popup 保持浏览器扩展所需的固定基础宽度', () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(css, /body\s*\{[^}]*min-width:\s*360px/s);
+  assert.match(css, /\.popup-shell\s*\{[^}]*width:\s*360px/s);
+});
