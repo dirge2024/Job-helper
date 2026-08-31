@@ -48,6 +48,23 @@ test('读取时把旧 userProfile 迁移并写回资料库', async () => {
   assert.deepEqual(mock.values.userProfile, createProfile('张三'));
 });
 
+test('getUserProfile 只读取资料库当前活动简历并随切换返回新 awards', async () => {
+  const legacy = createProfile('旧键资料');
+  const library = makeTwoProfileLibrary();
+  library.profiles[0].profile.personal.name = '第一份活动资料';
+  library.profiles[0].profile.awards = [{ id: 'award-1', name: '第一份奖项', role: '', date: '', description: '' }];
+  library.profiles[1].profile.personal.name = '第二份活动资料';
+  library.profiles[1].profile.awards = [{ id: 'award-2', name: '第二份奖项', role: '负责人', date: '2026-08', description: '新奖项' }];
+  const mock = installChromeStorageMock({ resumeProfileLibrary: library, userProfile: legacy });
+
+  assert.deepEqual(await StorageService.getUserProfile(), library.profiles[0].profile);
+
+  const switched = switchResumeProfile(library, library.profiles[1].id);
+  mock.values.resumeProfileLibrary = structuredClone(switched);
+  assert.deepEqual(await StorageService.getUserProfile(), switched.profiles[1].profile);
+  assert.deepEqual(mock.values.userProfile, legacy);
+});
+
 test('读取无数据存储时初始化并持久化默认资料库', async () => {
   const mock = installChromeStorageMock();
   const library = await StorageService.getResumeProfileLibrary();

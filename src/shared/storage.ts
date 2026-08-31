@@ -78,9 +78,8 @@ export class StorageService {
   // 获取用户资料
   static async getUserProfile(): Promise<UserProfile | null> {
     try {
-      const result = await chrome.storage.local.get(STORAGE_KEYS.USER_PROFILE);
-      const profile = (result[STORAGE_KEYS.USER_PROFILE] as UserProfile) || null;
-      return profile ? normalizeUserProfile(profile) : null;
+      const library = await this.getResumeProfileLibrary();
+      return library.profiles.find(profile => profile.id === library.activeProfileId)?.profile ?? null;
     } catch (error) {
       console.error('Failed to get user profile:', error);
       return null;

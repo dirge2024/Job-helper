@@ -225,7 +225,18 @@ test('background index 收到 CANCEL_AI_FILL 时会真正中断视觉链路中�
     storage: {
       local: {
         get: async (key: string | string[]) => {
-          if (Array.isArray(key)) return {};
+          if (Array.isArray(key)) {
+            const active = createProfile();
+            active.awards = [{ id: 'award-active', name: '活动简历奖项', role: '', date: '', description: '' }];
+            return {
+              resumeProfileLibrary: {
+                schemaVersion: 1,
+                activeProfileId: 'active',
+                profiles: [{ id: 'active', name: '活动简历', createdAt: '2026-01-01', updatedAt: '2026-01-01', profile: active }],
+              },
+              userProfile: { ...createProfile(), personal: { ...createProfile().personal, name: '旧键资料' } },
+            };
+          }
           if (key === 'llmConfig') {
             return {
               llmConfig: {
@@ -320,7 +331,18 @@ test('background index 会为无图请求补截图后再进入 AI_FILL_VISUAL_RE
     storage: {
       local: {
         get: async (key: string | string[]) => {
-          if (Array.isArray(key)) return {};
+          if (Array.isArray(key)) {
+            const active = createProfile();
+            active.awards = [{ id: 'award-active', name: '活动简历奖项', role: '', date: '', description: '' }];
+            return {
+              resumeProfileLibrary: {
+                schemaVersion: 1,
+                activeProfileId: 'active',
+                profiles: [{ id: 'active', name: '活动简历', createdAt: '2026-01-01', updatedAt: '2026-01-01', profile: active }],
+              },
+              userProfile: { ...createProfile(), personal: { ...createProfile().personal, name: '旧键资料' } },
+            };
+          }
           if (key === 'llmConfig') {
             return {
               llmConfig: {
