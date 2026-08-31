@@ -346,13 +346,33 @@ export class FormFiller {
 
     let current: Element | null = element.parentElement;
     while (current && current !== module) {
-      const containedFieldCount = awardElements
-        .filter(candidate => current?.contains(candidate))
-        .length;
-      if (containedFieldCount >= 2) return current;
+      const containedFields = awardElements.filter(candidate => current?.contains(candidate));
+      if (containedFields.length >= 2) {
+        const fieldBearingChildren = Array.from(current.children)
+          .filter(child => containedFields.some(candidate => child.contains(candidate)));
+        if (fieldBearingChildren.length >= 2
+          && !fieldBearingChildren.every(child => this.isAwardFieldWrapper(child))) {
+          return fieldBearingChildren.find(child => child.contains(element)) || null;
+        }
+        return current;
+      }
       current = current.parentElement;
     }
-    return null;
+
+    const moduleRows = Array.from(module.children)
+      .filter(child => awardElements.some(candidate => child.contains(candidate)));
+    return moduleRows.length >= 2
+      ? moduleRows.find(child => child.contains(element)) || null
+      : null;
+  }
+
+  private isAwardFieldWrapper(element: Element): boolean {
+    return [
+      'data-index',
+      'data-form-field-id',
+      'data-form-field-name',
+      'data-form-field-i18n-name',
+    ].some(attribute => element.hasAttribute(attribute));
   }
 
   private isAwardModule(module: HTMLElement): boolean {

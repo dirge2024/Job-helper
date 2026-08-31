@@ -119,6 +119,7 @@ type AwardTreeNode = {
   id?: string;
   attrs: Record<string, string>;
   getAttribute(name: string): string | null;
+  hasAttribute(name: string): boolean;
   querySelector(selector: string): AwardTreeNode | null;
   contains(node: AwardTreeNode): boolean;
 };
@@ -127,6 +128,7 @@ function createAwardTreeNode(attrs: Record<string, string> = {}, id?: string): A
   return {
     parentElement: null, children: [], attrs, id,
     getAttribute(name) { return this.attrs[name] ?? null; },
+    hasAttribute(name) { return name in this.attrs; },
     querySelector() { return null; },
     contains(target) {
       let current: AwardTreeNode | null = target;
@@ -225,5 +227,26 @@ test('award rows directly under module keep separate shared indexes', async () =
     ['row1-role', '负责人'],
     ['row2-name', '二等奖'],
     ['row2-role', '核心成员'],
+  ]);
+});
+
+test('sparse sibling award rows keep indexes when each has one detected field', async () => {
+  const module = createAwardTreeNode({ 'data-form-module': 'awards' });
+  const list = appendAwardNode(module, createAwardTreeNode());
+  const row1 = appendAwardNode(list, createAwardTreeNode());
+  const row2 = appendAwardNode(list, createAwardTreeNode());
+  const fields = [
+    { element: createAwardControl(module, row1, 'sparse-row1-name', '0'), fieldType: FieldType.AWARD_NAME, confidence: 1 },
+    { element: createAwardControl(module, row2, 'sparse-row2-role', '0'), fieldType: FieldType.AWARD_ROLE, confidence: 1 },
+  ];
+
+  const calls = await captureAwardFill(fields, [
+    { id: 'a1', name: '一等奖', role: '', date: '', description: '' },
+    { id: 'a2', name: '二等奖', role: '核心成员', date: '', description: '' },
+  ]);
+
+  assert.deepEqual(calls, [
+    ['sparse-row1-name', '一等奖'],
+    ['sparse-row2-role', '核心成员'],
   ]);
 });
