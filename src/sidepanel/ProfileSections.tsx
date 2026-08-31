@@ -1,5 +1,6 @@
 import React from 'react';
 import type {
+  AwardInfo,
   CustomInformation,
   EducationInfo,
   ExperienceInfo,
@@ -32,7 +33,13 @@ const experienceFields: FieldSpec<ExperienceInfo>[] = [
   { key: 'startDate', label: '开始时间' },
   { key: 'endDate', label: '结束时间' },
   { key: 'description', label: '工作内容' },
-  { key: 'achievements', label: '成果' },
+];
+
+const awardFields: FieldSpec<AwardInfo>[] = [
+  { key: 'name', label: '名称' },
+  { key: 'role', label: '担任角色' },
+  { key: 'date', label: '获取时间' },
+  { key: 'description', label: '详细描述' },
 ];
 
 const projectFields: FieldSpec<ProjectInfo>[] = [
@@ -41,8 +48,6 @@ const projectFields: FieldSpec<ProjectInfo>[] = [
   { key: 'startDate', label: '开始时间' },
   { key: 'endDate', label: '结束时间' },
   { key: 'description', label: '项目描述' },
-  { key: 'achievements', label: '成果' },
-  { key: 'technologies', label: '技术栈' },
 ];
 
 type ProfileSectionsProps = {
@@ -87,6 +92,17 @@ export function ProfileSections({
         onFieldClick={onFieldClick}
         getTitle={(record, index) => record.name || `项目经历 ${index + 1}`}
       />
+      {profile.awards.length > 0 && (
+        <RecordSection
+          title="奖项 / 荣誉"
+          records={profile.awards}
+          fields={awardFields}
+          workingKey={workingKey}
+          onFieldClick={onFieldClick}
+          getTitle={(record, index) => record.name || `奖项 / 荣誉 ${index + 1}`}
+          hideEmptyFields
+        />
+      )}
       <CustomInformationSection
         records={profile.customInformation || []}
         workingKey={workingKey}
@@ -146,6 +162,7 @@ function RecordSection<T extends { id: string }>({
   workingKey,
   onFieldClick,
   getTitle,
+  hideEmptyFields = false,
 }: {
   title: string;
   records: T[];
@@ -153,6 +170,7 @@ function RecordSection<T extends { id: string }>({
   workingKey: string | null;
   onFieldClick: (key: string, value: string) => void;
   getTitle: (record: T, index: number) => string;
+  hideEmptyFields?: boolean;
 }): React.JSX.Element {
   return (
     <details className="record-section" open>
@@ -165,7 +183,12 @@ function RecordSection<T extends { id: string }>({
             <article className="record-card" key={record.id}>
               <h2>{getTitle(record, recordIndex)}</h2>
               <div className="field-list">
-                {fields.map((field) => {
+                {fields
+                  .filter(
+                    (field) =>
+                      !hideEmptyFields || String(record[field.key] ?? '').trim() !== '',
+                  )
+                  .map((field) => {
                   const value = String(record[field.key] ?? '');
                   const key = `${title}-${record.id}-${String(field.key)}`;
                   const empty = value.trim() === '';
@@ -184,7 +207,7 @@ function RecordSection<T extends { id: string }>({
                       {workingKey === key && <span className="field-working">写入中</span>}
                     </button>
                   );
-                })}
+                  })}
               </div>
             </article>
           ))}

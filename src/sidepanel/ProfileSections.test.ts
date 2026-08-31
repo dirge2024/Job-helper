@@ -16,6 +16,7 @@ const profile: UserProfile = {
     selfEvaluation: '具备扎实的软件开发基础和完整的项目实践经历，重视代码可读性。',
   },
   education: [],
+  awards: [],
   experience: [],
   projects: [],
   customInformation: [],
@@ -86,7 +87,6 @@ test('各模块标题行右侧都有折叠箭头图标', () => {
           startDate: '',
           endDate: '',
           description: '',
-          achievements: '',
         }],
         projects: [{
           id: 'proj-1',
@@ -95,8 +95,6 @@ test('各模块标题行右侧都有折叠箭头图标', () => {
           startDate: '',
           endDate: '',
           description: '',
-          achievements: '',
-          technologies: '',
         }],
         customInformation: [{
           id: 'custom-1',
@@ -125,4 +123,77 @@ test('资料库变化会触发信息窗口重新加载', () => {
   assert.equal(shouldReloadProfile({ resumeProfileLibrary: { oldValue, newValue } }, 'local'), true);
   assert.equal(shouldReloadProfile({ userProfile: { oldValue, newValue } }, 'local'), false);
   assert.equal(shouldReloadProfile({ resumeProfileLibrary: { oldValue, newValue } }, 'sync'), false);
+});
+
+test('有奖项时展示全部非空字段并移除经历废弃字段', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ProfileSections, {
+      profile: {
+        ...profile,
+        awards: [{
+          id: 'award-1',
+          name: '全国大学生创新奖',
+          role: '负责人',
+          date: '2026-06',
+          description: '负责方案设计与落地',
+        }],
+        experience: [{
+          id: 'exp-1',
+          company: '某公司',
+          position: '实习生',
+          startDate: '2025-01',
+          endDate: '2025-06',
+          description: '开发业务功能',
+        }],
+        projects: [{
+          id: 'proj-1',
+          name: '某项目',
+          role: '开发者',
+          startDate: '2025-07',
+          endDate: '2025-12',
+          description: '项目描述',
+        }],
+      },
+      workingKey: null,
+      onFieldClick: () => {},
+    })
+  );
+
+  assert.match(html, /奖项 \/ 荣誉/);
+  assert.match(html, /名称/);
+  assert.match(html, /全国大学生创新奖/);
+  assert.match(html, /担任角色/);
+  assert.match(html, /负责人/);
+  assert.match(html, /获取时间/);
+  assert.match(html, /2026-06/);
+  assert.match(html, /详细描述/);
+  assert.match(html, /负责方案设计与落地/);
+  assert.doesNotMatch(html, />成果</);
+  assert.doesNotMatch(html, />技术栈</);
+});
+
+test('奖项可选字段为空时不生成空行', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ProfileSections, {
+      profile: {
+        ...profile,
+        awards: [{ id: 'award-1', name: '优秀毕业生', role: '', date: '', description: '' }],
+      },
+      workingKey: null,
+      onFieldClick: () => {},
+    })
+  );
+
+  assert.match(html, /优秀毕业生/);
+  assert.doesNotMatch(html, /担任角色/);
+  assert.doesNotMatch(html, /获取时间/);
+  assert.doesNotMatch(html, /详细描述/);
+});
+
+test('没有奖项时不显示奖项分区', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ProfileSections, { profile, workingKey: null, onFieldClick: () => {} })
+  );
+
+  assert.doesNotMatch(html, /奖项 \/ 荣誉/);
 });
