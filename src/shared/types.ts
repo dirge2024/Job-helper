@@ -4,6 +4,7 @@ export interface UserProfile {
   education: EducationInfo[];
   experience: ExperienceInfo[];
   projects: ProjectInfo[];
+  awards: AwardInfo[];
   customInformation: CustomInformation[];
   skills: string[];
   certifications: CertificationInfo[];
@@ -51,7 +52,6 @@ export interface ExperienceInfo {
   startDate: string;
   endDate: string;
   description: string;
-  achievements?: string;
 }
 
 export interface ProjectInfo {
@@ -61,8 +61,14 @@ export interface ProjectInfo {
   startDate: string;
   endDate: string;
   description: string;
-  achievements: string;
-  technologies?: string;
+}
+
+export interface AwardInfo {
+  id: string;
+  name: string;
+  role: string;
+  date: string;
+  description: string;
 }
 
 export interface CertificationInfo {

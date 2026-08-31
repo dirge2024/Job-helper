@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { UserProfile } from '../shared/types';
 import { applyLoadedProfile, getExternalProfileChangeAction, isProfileDirty, reloadAfterActiveProfileChange } from './profileState';
 
-const oldProfile = { personal: { name: '旧资料' }, education: [], experience: [], projects: [], customInformation: [], skills: [], certifications: [] } as UserProfile;
+const oldProfile = { personal: { name: '旧资料' }, education: [], experience: [], projects: [], awards: [], customInformation: [], skills: [], certifications: [] } as UserProfile;
 const newProfile = { ...oldProfile, personal: { name: '新资料' } } as UserProfile;
 
 test('活动 ID 成功变化后重载当前资料、递增 revision 并清除 dirty', async () => {

@@ -8,6 +8,7 @@ export function createEmptyUserProfile(): UserProfile {
     education: [],
     experience: [],
     projects: [],
+    awards: [],
     customInformation: [],
     skills: [],
     certifications: [],
@@ -47,6 +48,10 @@ function hasStrings(value: Record<string, unknown>, required: string[], optional
     && optional.every(key => value[key] === undefined || typeof value[key] === 'string');
 }
 
+function hasOnlyKeys(value: Record<string, unknown>, keys: string[]): boolean {
+  return Object.keys(value).every(key => keys.includes(key));
+}
+
 function isObjectArray(value: unknown, required: string[], optional: string[] = []): boolean {
   return Array.isArray(value)
     && value.every(item => isRecord(item) && hasStrings(item, required, optional));
@@ -60,8 +65,9 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
     ['wechat', 'idCard', 'politicalStatus', 'ethnicity', 'hometown', 'currentAddress', 'selfEvaluation'],
   )) return false;
   if (!isObjectArray(value.education, ['id', 'school', 'major', 'degree', 'startDate', 'endDate'], ['college', 'educationType', 'gpa', 'ranking'])) return false;
-  if (!isObjectArray(value.experience, ['id', 'company', 'position', 'startDate', 'endDate', 'description'], ['achievements'])) return false;
-  if (!isObjectArray(value.projects, ['id', 'name', 'role', 'startDate', 'endDate', 'description', 'achievements'], ['technologies'])) return false;
+  if (!isObjectArray(value.experience, ['id', 'company', 'position'], ['startDate', 'endDate', 'description', 'achievements'])) return false;
+  if (!isObjectArray(value.projects, ['id', 'name', 'role'], ['startDate', 'endDate', 'description', 'achievements', 'technologies'])) return false;
+  if (value.awards !== undefined && !isObjectArray(value.awards, ['name'], ['id', 'role', 'date', 'description'])) return false;
   if (!isObjectArray(value.customInformation, ['id', 'name', 'content'])) return false;
   if (!Array.isArray(value.skills) || !value.skills.every(item => typeof item === 'string')) return false;
   if (!isObjectArray(value.certifications, ['id', 'name', 'issuer', 'date'], ['credentialId'])) return false;
@@ -69,6 +75,30 @@ export function isValidUserProfile(value: unknown): value is UserProfile {
     if (!isRecord(value.resume) || !hasStrings(value.resume, ['fileName', 'fileData', 'fileType', 'uploadDate'], ['parsedText'])) return false;
   }
   return true;
+}
+
+export function normalizeUserProfileData(profile: UserProfile): UserProfile {
+  return {
+    ...structuredClone(profile),
+    experience: (profile.experience || []).map(item => ({
+      id: item.id, company: item.company, position: item.position,
+      startDate: item.startDate || '', endDate: item.endDate || '', description: item.description || '',
+    })),
+    projects: (profile.projects || []).map(item => ({
+      id: item.id, name: item.name, role: item.role,
+      startDate: item.startDate || '', endDate: item.endDate || '', description: item.description || '',
+    })),
+    awards: ((profile as UserProfile & { awards?: unknown[] }).awards || []).map(item => {
+      const award: Record<string, unknown> = isRecord(item) ? item : {};
+      return {
+        id: typeof award.id === 'string' ? award.id : '',
+        name: typeof award.name === 'string' ? award.name : '',
+        role: typeof award.role === 'string' ? award.role : '',
+        date: typeof award.date === 'string' ? award.date : '',
+        description: typeof award.description === 'string' ? award.description : '',
+      };
+    }),
+  };
 }
 
 function isValidTimestamp(value: unknown): value is string {
@@ -100,7 +130,11 @@ function validateLibrary(value: unknown): ResumeProfileLibrary {
 export function isCanonicalResumeProfileLibrary(value: unknown): value is ResumeProfileLibrary {
   try {
     const library = validateLibrary(value);
-    return library.profiles.every(profile => profile.name === profile.name.trim())
+    return library.profiles.every(profile => profile.name === profile.name.trim()
+      && Array.isArray(profile.profile.awards)
+      && profile.profile.experience.every(item => hasOnlyKeys(item as unknown as Record<string, unknown>, ['id', 'company', 'position', 'startDate', 'endDate', 'description']))
+      && profile.profile.projects.every(item => hasOnlyKeys(item as unknown as Record<string, unknown>, ['id', 'name', 'role', 'startDate', 'endDate', 'description']))
+      && profile.profile.awards.every(item => hasOnlyKeys(item as unknown as Record<string, unknown>, ['id', 'name', 'role', 'date', 'description'])))
       && library.profiles.some(profile => profile.id === library.activeProfileId);
   } catch {
     return false;
@@ -110,13 +144,14 @@ export function isCanonicalResumeProfileLibrary(value: unknown): value is Resume
 export function normalizeResumeProfileLibrary(value: unknown, legacyProfile?: UserProfile): ResumeProfileLibrary {
   if (value == null) {
     const now = new Date().toISOString();
-    const profile = newProfile('默认简历', legacyProfile ?? createEmptyUserProfile(), now);
+    const profile = newProfile('默认简历', normalizeUserProfileData(legacyProfile ?? createEmptyUserProfile()), now);
     return { schemaVersion: 1, activeProfileId: profile.id, profiles: [profile] };
   }
   const library = validateLibrary(value);
   const profiles = library.profiles.map(profile => ({
     ...structuredClone(profile),
     name: profile.name.trim(),
+    profile: normalizeUserProfileData(profile.profile),
   }));
   const activeProfileId = profiles.some(profile => profile.id === library.activeProfileId)
     ? library.activeProfileId
@@ -183,7 +218,7 @@ export function updateActiveUserProfile(library: ResumeProfileLibrary, profile: 
   return {
     ...library,
     profiles: library.profiles.map(item => item.id === library.activeProfileId
-      ? { ...item, profile: structuredClone(profile), updatedAt: now }
+      ? { ...item, profile: normalizeUserProfileData(profile), updatedAt: now }
       : item),
   };
 }

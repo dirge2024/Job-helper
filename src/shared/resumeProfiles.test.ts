@@ -16,7 +16,7 @@ test.afterEach(() => {
   else delete (globalThis as { chrome?: unknown }).chrome;
 });
 function createProfile(name: string): UserProfile {
-  return { personal: { name, gender: '', birthDate: '', phone: '', email: '' }, education: [], experience: [], projects: [], customInformation: [], skills: [], certifications: [] };
+  return { personal: { name, gender: '', birthDate: '', phone: '', email: '' }, education: [], experience: [], projects: [], awards: [], customInformation: [], skills: [], certifications: [] };
 }
 function makeTwoProfileLibrary() {
   const library = createResumeProfile(normalizeResumeProfileLibrary(undefined, createProfile('张三')), '第二份', NOW);
@@ -239,4 +239,32 @@ test('删除当前项按原位置优先下一项、末项回退上一项', () =>
   assert.equal(deleteResumeProfile({ ...library, activeProfileId: first.id }, first.id).activeProfileId, middle.id);
   assert.equal(deleteResumeProfile({ ...library, activeProfileId: middle.id }, middle.id).activeProfileId, last.id);
   assert.equal(deleteResumeProfile({ ...library, activeProfileId: last.id }, last.id).activeProfileId, middle.id);
+});
+
+
+test('空资料包含 awards，旧字段被静默丢弃且其他内容保留', () => {
+  const legacy = {
+    ...createEmptyUserProfile(),
+    experience: [{ id: 'e1', company: 'A', position: '实习生', startDate: '2025-01', endDate: '2025-02', description: '实习描述', achievements: '旧成果' }],
+    projects: [{ id: 'p1', name: '项目', role: '负责人', startDate: '2025-03', endDate: '2025-04', description: '项目描述', achievements: '旧成果', technologies: 'TS' }],
+  };
+  const normalized = normalizeResumeProfileLibrary({ schemaVersion: 1, activeProfileId: 'r1', profiles: [{ id: 'r1', name: '默认简历', createdAt: NOW, updatedAt: NOW, profile: legacy }] });
+  assert.deepEqual(createEmptyUserProfile().awards, []);
+  assert.deepEqual(normalized.profiles[0].profile.awards, []);
+  assert.deepEqual(normalized.profiles[0].profile.experience[0], { id: 'e1', company: 'A', position: '实习生', startDate: '2025-01', endDate: '2025-02', description: '实习描述' });
+  assert.deepEqual(normalized.profiles[0].profile.projects[0], { id: 'p1', name: '项目', role: '负责人', startDate: '2025-03', endDate: '2025-04', description: '项目描述' });
+});
+
+test('完整奖项和仅名称奖项经规范化后补全并深拷贝保存', () => {
+  const source = createEmptyUserProfile() as UserProfile & { awards: Array<Record<string, string>> };
+  source.awards = [
+    { id: 'a1', name: '一等奖', role: '负责人', date: '2026-06', description: '竞赛' },
+    { name: '校级荣誉' },
+  ];
+  const normalized = normalizeResumeProfileLibrary({ schemaVersion: 1, activeProfileId: 'r1', profiles: [{ id: 'r1', name: '默认简历', createdAt: NOW, updatedAt: NOW, profile: source }] });
+  source.awards[0].name = '已修改';
+  assert.deepEqual(normalized.profiles[0].profile.awards, [
+    { id: 'a1', name: '一等奖', role: '负责人', date: '2026-06', description: '竞赛' },
+    { id: '', name: '校级荣誉', role: '', date: '', description: '' },
+  ]);
 });

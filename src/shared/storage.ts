@@ -9,7 +9,7 @@ import type {
 } from './types';
 import type { LLMConfig } from '../services/llm/types';
 import { normalizeApplicationRecords } from './applicationRecords.ts';
-import { isCanonicalResumeProfileLibrary, isValidUserProfile, normalizeResumeProfileLibrary, updateActiveUserProfile } from './resumeProfiles.ts';
+import { isCanonicalResumeProfileLibrary, isValidUserProfile, normalizeResumeProfileLibrary, normalizeUserProfileData, updateActiveUserProfile } from './resumeProfiles.ts';
 import { withResumeProfileMutation } from './resumeProfileRepository.ts';
 import { normalizeWebDAVServerUrl } from '../services/webdav.ts';
 
@@ -24,19 +24,18 @@ export const STORAGE_KEYS = {
 } as const;
 
 export function normalizeUserProfile(profile: UserProfile): UserProfile {
+  const normalized = normalizeUserProfileData(profile);
   return {
-    ...profile,
-    personal: profile.personal || {},
-    customInformation: profile.customInformation || [],
-    education: (profile.education || []).map(education => ({
+    ...normalized,
+    personal: normalized.personal || {},
+    customInformation: normalized.customInformation || [],
+    education: (normalized.education || []).map(education => ({
       ...education,
       college: education.college || inferCollegeForKnownMockData(education.school, education.major),
       educationType: education.educationType || '统招全日制',
     })),
-    experience: profile.experience || [],
-    projects: profile.projects || [],
-    skills: profile.skills || [],
-    certifications: profile.certifications || [],
+    skills: normalized.skills || [],
+    certifications: normalized.certifications || [],
   } as UserProfile;
 }
 
