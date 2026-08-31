@@ -89,3 +89,35 @@ npx tsx --test src/shared/backup-sync.test.ts src/shared/resumeProfiles.test.ts 
 a49f9b71d1cc8b3b318aa31f37af46e8640953aa
 
 
+
+
+---
+
+# 修复轮次 2
+
+## 验证
+
+命令：
+
+```bash
+npx tsx --test src/shared/backup-sync.test.ts src/shared/resumeProfiles.test.ts src/options/profileState.test.ts
+```
+
+结果：93/93 通过，0 失败。
+
+## 修复内容
+
+- 将 V1 备份兼容校验改为 `validateUserProfileInput(value): boolean`，不再错误声明兼容输入已经是完整 `UserProfile`。
+- `normalizeUserProfile` 与底层统一规范化入口接收 `unknown`，只有规范化重建并补齐必需字段后才返回 `UserProfile`。
+- V1 调用点移除 `as UserProfile`，严格执行“先校验兼容输入，再规范化得到完整类型”。
+- 增加 V1 experience/projects/awards 缺失字符串字段的补全回归测试，以及这些字段出现非法类型时的拒绝测试。
+
+## 自审
+
+- `git diff --check` 通过。
+- 相关测试 93/93 通过。
+- `npm run build` 仅剩已知 UI 下游适配错误，本轮未处理。
+
+## 修复提交 SHA
+
+提交后填写。

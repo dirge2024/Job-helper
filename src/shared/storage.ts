@@ -23,7 +23,7 @@ export const STORAGE_KEYS = {
   APPLICATION_RECORDS: 'applicationRecords',
 } as const;
 
-export function normalizeUserProfile(profile: UserProfile): UserProfile {
+export function normalizeUserProfile(profile: unknown): UserProfile {
   const normalized = normalizeUserProfileData(profile);
   return {
     ...normalized,

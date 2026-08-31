@@ -952,3 +952,32 @@ test('V2 旧资料字段兼容导入并统一清理且保留其他内容', () =>
   assert.deepEqual(profile.projects[0], { id: 'p1', name: '项目', role: '负责人', startDate: '2025-03', endDate: '2025-04', description: '项目描述' });
   assert.deepEqual(profile.skills, legacyUserProfile.skills);
 });
+
+
+test('V1 兼容资料条目缺失字符串并在导入后补全', () => {
+  const document = JSON.parse(validJson());
+  document.data.userProfile.experience = [{ id: 'e1', company: 'A', position: '实习生' }];
+  document.data.userProfile.projects = [{ id: 'p1', name: '项目', role: '' }];
+  document.data.userProfile.awards = [{ name: '校级荣誉' }];
+  const result = parseAndValidateBackup(JSON.stringify(document));
+  assert.ok(result.success);
+  if (!result.success) return;
+  const profile = result.document.data.resumeProfileLibrary.profiles[0]!.profile;
+  assert.deepEqual(profile.experience[0], { id: 'e1', company: 'A', position: '实习生', startDate: '', endDate: '', description: '' });
+  assert.deepEqual(profile.projects[0], { id: 'p1', name: '项目', role: '', startDate: '', endDate: '', description: '' });
+  assert.deepEqual(profile.awards[0], { id: '', name: '校级荣誉', role: '', date: '', description: '' });
+});
+
+test('V1 拒绝兼容资料中的非法字段类型', () => {
+  for (const mutate of [
+    (profile: Record<string, any>) => { profile.experience = [{ id: 'e1', company: 'A', position: 42 }]; },
+    (profile: Record<string, any>) => { profile.projects = [{ id: 'p1', name: '项目', role: '', description: false }]; },
+    (profile: Record<string, any>) => { profile.awards = [{ name: '奖项', date: 2026 }]; },
+  ]) {
+    const document = JSON.parse(validJson());
+    mutate(document.data.userProfile);
+    const result = parseAndValidateBackup(JSON.stringify(document));
+    assert.equal(result.success, false);
+    if (!result.success) assert.equal(result.error.code, 'INVALID_USER_PROFILE');
+  }
+});

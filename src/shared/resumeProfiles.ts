@@ -83,18 +83,32 @@ export function isValidUserProfileInput(value: unknown): boolean {
   return true;
 }
 
-export function normalizeUserProfileData(profile: UserProfile): UserProfile {
+export function normalizeUserProfileData(profile: unknown): UserProfile {
+  const source = profile as Partial<UserProfile> & { awards?: unknown[] };
+  const personal = (source.personal || {}) as Partial<UserProfile['personal']>;
+  const optionalPersonal = (key: keyof UserProfile['personal']): string | undefined =>
+    typeof personal[key] === 'string' ? personal[key] : undefined;
+  const normalizedPersonal: UserProfile['personal'] = {
+    name: optionalPersonal('name') || '', gender: optionalPersonal('gender') || '',
+    birthDate: optionalPersonal('birthDate') || '', phone: optionalPersonal('phone') || '',
+    email: optionalPersonal('email') || '',
+  };
+  for (const key of ['wechat', 'idCard', 'politicalStatus', 'ethnicity', 'hometown', 'currentAddress', 'selfEvaluation'] as const) {
+    const value = optionalPersonal(key);
+    if (value !== undefined) normalizedPersonal[key] = value;
+  }
   return {
-    ...structuredClone(profile),
-    experience: (profile.experience || []).map(item => ({
+    personal: normalizedPersonal,
+    education: structuredClone(source.education || []),
+    experience: (source.experience || []).map(item => ({
       id: item.id, company: item.company, position: item.position,
       startDate: item.startDate || '', endDate: item.endDate || '', description: item.description || '',
     })),
-    projects: (profile.projects || []).map(item => ({
+    projects: (source.projects || []).map(item => ({
       id: item.id, name: item.name, role: item.role,
       startDate: item.startDate || '', endDate: item.endDate || '', description: item.description || '',
     })),
-    awards: ((profile as UserProfile & { awards?: unknown[] }).awards || []).map(item => {
+    awards: (source.awards || []).map(item => {
       const award: Record<string, unknown> = isRecord(item) ? item : {};
       return {
         id: typeof award.id === 'string' ? award.id : '',
@@ -104,6 +118,10 @@ export function normalizeUserProfileData(profile: UserProfile): UserProfile {
         description: typeof award.description === 'string' ? award.description : '',
       };
     }),
+    customInformation: structuredClone(source.customInformation || []),
+    skills: structuredClone(source.skills || []),
+    certifications: structuredClone(source.certifications || []),
+    ...(source.resume ? { resume: structuredClone(source.resume) } : {}),
   };
 }
 

@@ -46,7 +46,7 @@ function validateOptionalObjectArray(value: unknown, fields: string[]): boolean 
   return value === undefined || validateObjectArray(value, fields);
 }
 
-function validateUserProfile(value: unknown): value is UserProfile {
+function validateUserProfileInput(value: unknown): boolean {
   if (!isPlainObject(value) || !isPlainObject(value.personal)) return false;
   if (!hasOnlyStringFields(value.personal, [
     'name', 'gender', 'birthDate', 'phone', 'email', 'wechat', 'idCard',
@@ -168,10 +168,10 @@ function validateV1(value: PlainObject): BackupParseResult {
   const data = value.data as PlainObject;
   const sharedError = validateSharedData(data) || optionalWebDAV(value);
   if (sharedError) return sharedError;
-  if (data.userProfile !== null && !validateUserProfile(data.userProfile)) {
+  if (data.userProfile !== null && !validateUserProfileInput(data.userProfile)) {
     return failure('INVALID_USER_PROFILE', '个人资料结构无效');
   }
-  const profile = data.userProfile ? normalizeUserProfile(data.userProfile as UserProfile) : normalizeUserProfile({ personal: {} } as UserProfile);
+  const profile = data.userProfile ? normalizeUserProfile(data.userProfile) : normalizeUserProfile({ personal: {} } as UserProfile);
   const id = 'default-resume';
   const library: ResumeProfileLibrary = {
     schemaVersion: 1,
