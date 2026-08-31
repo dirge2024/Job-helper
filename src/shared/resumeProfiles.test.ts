@@ -268,3 +268,18 @@ test('完整奖项和仅名称奖项经规范化后补全并深拷贝保存', ()
     { id: '', name: '校级荣誉', role: '', date: '', description: '' },
   ]);
 });
+
+
+test('存储读取不会让缺失规范字符串的资料绕过补全', async () => {
+  const library = normalizeResumeProfileLibrary(undefined);
+  const incomplete = structuredClone(library) as unknown as Record<string, any>;
+  incomplete.profiles[0].profile.experience = [{ id: 'e1', company: 'A', position: '实习生' }];
+  incomplete.profiles[0].profile.projects = [{ id: 'p1', name: '项目', role: '' }];
+  incomplete.profiles[0].profile.awards = [{ name: '校级荣誉' }];
+  const mock = installChromeStorageMock({ resumeProfileLibrary: incomplete });
+  const loaded = await StorageService.getResumeProfileLibrary();
+  assert.deepEqual(loaded.profiles[0].profile.experience[0], { id: 'e1', company: 'A', position: '实习生', startDate: '', endDate: '', description: '' });
+  assert.deepEqual(loaded.profiles[0].profile.projects[0], { id: 'p1', name: '项目', role: '', startDate: '', endDate: '', description: '' });
+  assert.deepEqual(loaded.profiles[0].profile.awards[0], { id: '', name: '校级荣誉', role: '', date: '', description: '' });
+  assert.deepEqual(mock.values.resumeProfileLibrary, loaded);
+});

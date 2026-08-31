@@ -879,7 +879,10 @@ test('V2 往返保留全部简历及当前 ID', () => {
   const data = { ...completeData, userProfile: undefined, resumeProfileLibrary: library } as never;
   const parsed = parseAndValidateBackup(serializeBackup(createBackupDocument(data, '2.0.0')));
   assert.ok(parsed.success);
-  if (parsed.success) assert.deepEqual(parsed.document.data.resumeProfileLibrary, library);
+  if (parsed.success) {
+    assert.equal(parsed.document.data.resumeProfileLibrary.activeProfileId, library.activeProfileId);
+    assert.deepEqual(parsed.document.data.resumeProfileLibrary.profiles.map(profile => profile.profile.awards), [[], []]);
+  }
 });
 
 for (const [name, mutate] of [
@@ -924,4 +927,28 @@ test('V2 导入替换资料库且缺少投递记录时保留现有记录', async
   } finally {
     mock.restore();
   }
+});
+
+
+test('V2 旧资料字段兼容导入并统一清理且保留其他内容', () => {
+  const library = profileLibrary();
+  library.profiles[0]!.profile.experience = [{
+    id: 'e1', company: 'A', position: '实习生', startDate: '2025-01', endDate: '2025-02', description: '描述', achievements: '旧成果',
+  }] as never;
+  library.profiles[0]!.profile.projects = [{
+    id: 'p1', name: '项目', role: '负责人', startDate: '2025-03', endDate: '2025-04', description: '项目描述', achievements: '旧成果', technologies: 'TS',
+  }] as never;
+  const raw = JSON.stringify({
+    schemaVersion: 2,
+    exportedAt: '2026-01-01T00:00:00.000Z',
+    source: { extensionVersion: '2.0.0' },
+    data: { resumeProfileLibrary: library, llmConfig: null, settings: null },
+  });
+  const result = parseAndValidateBackup(raw);
+  assert.ok(result.success);
+  if (!result.success) return;
+  const profile = result.document.data.resumeProfileLibrary.profiles[0]!.profile;
+  assert.deepEqual(profile.experience[0], { id: 'e1', company: 'A', position: '实习生', startDate: '2025-01', endDate: '2025-02', description: '描述' });
+  assert.deepEqual(profile.projects[0], { id: 'p1', name: '项目', role: '负责人', startDate: '2025-03', endDate: '2025-04', description: '项目描述' });
+  assert.deepEqual(profile.skills, legacyUserProfile.skills);
 });

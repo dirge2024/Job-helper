@@ -44,3 +44,46 @@ npx tsx --test src/shared/resumeProfiles.test.ts src/options/profileState.test.t
 ## SHA
 
 实现提交：dd08450b605a4f61a64af744664d75c7f0bb9c3d。
+
+
+---
+
+# 修复轮次 1
+
+## RED
+
+命令：
+
+```bash
+npx tsx --test src/shared/backup-sync.test.ts src/shared/resumeProfiles.test.ts src/options/profileState.test.ts
+```
+
+结果：91 项中 82 项通过、9 项失败；新增 V2 旧字段兼容测试与 Storage 缺失字段补全测试按预期失败，同时暴露既有 V2 备份均被过严 canonical 判定拒绝。
+
+## GREEN
+
+命令：
+
+```bash
+npx tsx --test src/shared/backup-sync.test.ts src/shared/resumeProfiles.test.ts src/options/profileState.test.ts
+```
+
+结果：91/91 通过，0 失败。
+
+## 修复内容
+
+- V2 导入先保持严格资料库结构校验，再调用统一规范化；兼容三个废弃字段并在导入结果中清理，同时保留其他资料字段。
+- V2 仍拒绝空列表、重复 ID、trim 后重名、非法 active ID 和字段类型非法的数据。
+- canonical 快速路径现在要求 experience、projects、awards 的允许键和值全部完整，缺失字符串或奖项 id 时强制进入规范化并写回。
+- 将不健全的 `isValidUserProfile(): value is UserProfile` 改为仅返回 boolean 的 `isValidUserProfileInput`，避免把兼容输入错误收窄成完整 `UserProfile`。
+- 同步业务 hash 对合法资料库先规范化，避免旧/新等价数据因 awards 默认值差异产生伪冲突；无效输入仍由导入边界拒绝。
+
+## 自审
+
+- `git diff --check` 通过。
+- 相关测试 91/91 通过。
+- `npm run build` 仅保留已知 Task 1 范围外 UI 下游适配错误；本轮未处理这些文件。
+
+## 修复提交 SHA
+
+提交后填写。

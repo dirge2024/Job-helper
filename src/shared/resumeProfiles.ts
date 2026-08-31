@@ -52,12 +52,18 @@ function hasOnlyKeys(value: Record<string, unknown>, keys: string[]): boolean {
   return Object.keys(value).every(key => keys.includes(key));
 }
 
+function isCanonicalObjectArray(value: unknown, fields: string[]): boolean {
+  return Array.isArray(value) && value.every(item => isRecord(item)
+    && hasStrings(item, fields)
+    && hasOnlyKeys(item, fields));
+}
+
 function isObjectArray(value: unknown, required: string[], optional: string[] = []): boolean {
   return Array.isArray(value)
     && value.every(item => isRecord(item) && hasStrings(item, required, optional));
 }
 
-export function isValidUserProfile(value: unknown): value is UserProfile {
+export function isValidUserProfileInput(value: unknown): boolean {
   if (!isRecord(value) || !isRecord(value.personal)) return false;
   if (!hasStrings(
     value.personal,
@@ -117,7 +123,7 @@ function validateLibrary(value: unknown): ResumeProfileLibrary {
     if (typeof entry.name !== 'string' || entry.name.trim() === '') throw new Error('简历名称必须是非空字符串');
     if (!isValidTimestamp(entry.createdAt)) throw new Error('简历创建时间必须是有效字符串');
     if (!isValidTimestamp(entry.updatedAt)) throw new Error('简历更新时间必须是有效字符串');
-    if (!isValidUserProfile(entry.profile)) throw new Error('用户资料格式无效');
+    if (!isValidUserProfileInput(entry.profile)) throw new Error('用户资料格式无效');
   }
   const typedProfiles = profiles as unknown as ResumeProfile[];
   const ids = typedProfiles.map(profile => profile.id);
@@ -131,10 +137,9 @@ export function isCanonicalResumeProfileLibrary(value: unknown): value is Resume
   try {
     const library = validateLibrary(value);
     return library.profiles.every(profile => profile.name === profile.name.trim()
-      && Array.isArray(profile.profile.awards)
-      && profile.profile.experience.every(item => hasOnlyKeys(item as unknown as Record<string, unknown>, ['id', 'company', 'position', 'startDate', 'endDate', 'description']))
-      && profile.profile.projects.every(item => hasOnlyKeys(item as unknown as Record<string, unknown>, ['id', 'name', 'role', 'startDate', 'endDate', 'description']))
-      && profile.profile.awards.every(item => hasOnlyKeys(item as unknown as Record<string, unknown>, ['id', 'name', 'role', 'date', 'description'])))
+      && isCanonicalObjectArray(profile.profile.experience, ['id', 'company', 'position', 'startDate', 'endDate', 'description'])
+      && isCanonicalObjectArray(profile.profile.projects, ['id', 'name', 'role', 'startDate', 'endDate', 'description'])
+      && isCanonicalObjectArray(profile.profile.awards, ['id', 'name', 'role', 'date', 'description']))
       && library.profiles.some(profile => profile.id === library.activeProfileId);
   } catch {
     return false;

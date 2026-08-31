@@ -9,7 +9,7 @@ import type {
 } from './types';
 import type { LLMConfig } from '../services/llm/types';
 import { normalizeApplicationRecords } from './applicationRecords.ts';
-import { isCanonicalResumeProfileLibrary, isValidUserProfile, normalizeResumeProfileLibrary, normalizeUserProfileData, updateActiveUserProfile } from './resumeProfiles.ts';
+import { isCanonicalResumeProfileLibrary, isValidUserProfileInput, normalizeResumeProfileLibrary, normalizeUserProfileData, updateActiveUserProfile } from './resumeProfiles.ts';
 import { withResumeProfileMutation } from './resumeProfileRepository.ts';
 import { normalizeWebDAVServerUrl } from '../services/webdav.ts';
 
@@ -62,7 +62,7 @@ export class StorageService {
     try {
       library = normalizeResumeProfileLibrary(storedLibrary, legacyProfile);
     } catch (error) {
-      if (!isValidUserProfile(legacyProfile)) {
+      if (!isValidUserProfileInput(legacyProfile)) {
         throw new Error(`简历资料库已损坏且无法从旧版资料恢复：${error instanceof Error ? error.message : '格式无效'}`);
       }
       library = normalizeResumeProfileLibrary(undefined, legacyProfile);

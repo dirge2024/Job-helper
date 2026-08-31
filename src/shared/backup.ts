@@ -12,7 +12,7 @@ import type {
 } from './types';
 import type { LLMConfig } from '../services/llm/types';
 import { normalizeUserProfile } from './storage.ts';
-import { isCanonicalResumeProfileLibrary } from './resumeProfiles.ts';
+import { normalizeResumeProfileLibrary } from './resumeProfiles.ts';
 
 export const BACKUP_SCHEMA_VERSION = 2;
 export const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
@@ -63,6 +63,7 @@ function validateUserProfile(value: unknown): value is UserProfile {
   if (!validateOptionalObjectArray(value.projects, [
     'id', 'name', 'role', 'startDate', 'endDate', 'description', 'achievements', 'technologies',
   ])) return false;
+  if (!validateOptionalObjectArray(value.awards, ['id', 'name', 'role', 'date', 'description'])) return false;
   if (!validateOptionalObjectArray(value.customInformation, ['id', 'name', 'content'])) return false;
   if (!validateOptionalObjectArray(value.certifications, ['id', 'name', 'issuer', 'date', 'credentialId'])) {
     return false;
@@ -193,7 +194,18 @@ function validateV2(value: PlainObject): BackupParseResult {
   const data = value.data as PlainObject;
   const sharedError = validateSharedData(data) || optionalWebDAV(value);
   if (sharedError) return sharedError;
-  if (!isCanonicalResumeProfileLibrary(data.resumeProfileLibrary)) {
+  const rawLibrary = data.resumeProfileLibrary;
+  if (!isPlainObject(rawLibrary) || !Array.isArray(rawLibrary.profiles)
+    || !rawLibrary.profiles.some(entry => isPlainObject(entry) && entry.id === rawLibrary.activeProfileId)) {
+    return failure('INVALID_RESUME_PROFILE_LIBRARY', '简历资料库结构无效');
+  }
+  let resumeProfileLibrary: ResumeProfileLibrary;
+  try {
+    resumeProfileLibrary = normalizeResumeProfileLibrary(data.resumeProfileLibrary);
+  } catch {
+    return failure('INVALID_RESUME_PROFILE_LIBRARY', '简历资料库结构无效');
+  }
+  if (!resumeProfileLibrary.profiles.some(profile => profile.id === resumeProfileLibrary.activeProfileId)) {
     return failure('INVALID_RESUME_PROFILE_LIBRARY', '简历资料库结构无效');
   }
   const document: BackupDocumentV2 = {
@@ -201,7 +213,7 @@ function validateV2(value: PlainObject): BackupParseResult {
     exportedAt: value.exportedAt as string,
     source: { extensionVersion: (value.source as PlainObject).extensionVersion as string },
     data: {
-      resumeProfileLibrary: structuredClone(data.resumeProfileLibrary),
+      resumeProfileLibrary,
       llmConfig: data.llmConfig as LLMConfig | null,
       settings: data.settings as Record<string, unknown> | null,
     },

@@ -9,6 +9,7 @@ import type {
 import { serializeApplicationRecordsCsv } from './applicationRecords.ts';
 import { createBackupDocument, createBackupSummary, parseAndValidateBackup, serializeBackup } from './backup.ts';
 import { StorageService } from './storage.ts';
+import { normalizeResumeProfileLibrary } from './resumeProfiles.ts';
 import {
   getRemoteDocument,
   putRemoteApplicationRecordsCsv,
@@ -31,8 +32,17 @@ function sortedValue(value: unknown): unknown {
 }
 
 function normalizeBusinessData(data: BackupData): BackupData {
+  let resumeProfileLibrary = data.resumeProfileLibrary;
+  try {
+    if (data.resumeProfileLibrary?.schemaVersion === 1 && Array.isArray(data.resumeProfileLibrary.profiles)) {
+      resumeProfileLibrary = normalizeResumeProfileLibrary(data.resumeProfileLibrary);
+    }
+  } catch {
+    // 序列化工具仍需对无效输入保持稳定；导入边界会单独拒绝该结构。
+  }
   return {
     ...data,
+    resumeProfileLibrary,
     applicationRecords: data.applicationRecords ?? [],
   };
 }
