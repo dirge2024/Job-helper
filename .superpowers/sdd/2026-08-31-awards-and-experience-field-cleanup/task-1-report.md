@@ -156,4 +156,4 @@ npx tsx --test src/shared/backup-sync.test.ts src/shared/resumeProfiles.test.ts 
 
 ## 修复提交 SHA
 
-提交后填写。
+b1a6c17296c0c3011175cf8a17614ee18bad1a03
