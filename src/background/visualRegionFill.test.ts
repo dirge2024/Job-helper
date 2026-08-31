@@ -25,6 +25,7 @@ function createProfile(): UserProfile {
     }],
     experience: [],
     projects: [],
+    awards: [],
     customInformation: [],
     skills: [],
     certifications: [],

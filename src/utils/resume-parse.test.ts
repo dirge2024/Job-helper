@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NLPHelper } from './nlpHelper.ts';
+import { parseResumeJSON } from '../parsers/jsonParser.ts';
 
 /**
  * 取自真实简历（Canva 导出 PDF）的文本结构：
@@ -149,4 +150,36 @@ test('无章节标题的简历回退到全文扫描', () => {
   assert.equal(parsed.experience?.[0].company, '腾讯科技有限公司');
   assert.equal(parsed.experience?.[0].position, '后端工程师');
   assert.equal(parsed.experience?.[0].endDate, '至今');
+});
+
+
+test('解析奖项/荣誉章节并生成稳定 id', () => {
+  for (const heading of ['奖项', '荣誉', '获奖经历', '荣誉奖励']) {
+    const parsed = NLPHelper.parseResumeText([
+      heading,
+      '优秀毕业生 | 负责人 | 2026-06',
+      '详细描述',
+    ].join('\n'));
+
+    assert.deepEqual(parsed.awards, [{
+      id: 'award-0',
+      name: '优秀毕业生',
+      role: '负责人',
+      date: '2026-06',
+      description: '详细描述',
+    }]);
+  }
+});
+
+test('JSON 解析奖项并忽略废弃字段', () => {
+  const parsed = parseResumeJSON(JSON.stringify({
+    experience: [{ company: 'A', achievements: '旧工作成果' }],
+    projects: [{ name: 'P', achievements: '旧项目成果', technologies: '旧技术栈' }],
+    awards: [{ name: '优秀毕业生', role: '负责人', date: '2026-06', description: '详细描述' }],
+  }));
+
+  assert.equal(parsed.awards?.[0].name, '优秀毕业生');
+  assert.equal('achievements' in parsed.experience![0], false);
+  assert.equal('achievements' in parsed.projects![0], false);
+  assert.equal('technologies' in parsed.projects![0], false);
 });

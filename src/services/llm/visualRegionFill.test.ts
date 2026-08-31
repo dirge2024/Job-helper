@@ -6,7 +6,7 @@ import type {
   VisualRegionFillResult,
   UserProfile,
 } from '../../shared/types.ts';
-import { buildVisualRegionFillPrompt } from './prompts.ts';
+import { buildResumeParsingPrompt, buildVisualRegionFillPrompt } from './prompts.ts';
 import {
   parseVisualRegionFillResponse,
   validateVisualRegionMappings,
@@ -54,6 +54,7 @@ function createProfile(): UserProfile {
     }],
     experience: [],
     projects: [],
+    awards: [{ id: 'award-1', name: '优秀毕业生', role: '负责人', date: '2026-06', description: '详细描述' }],
     customInformation: [],
     skills: [],
     certifications: [],
@@ -152,4 +153,16 @@ test('旧的聚焦字段结果协议仍要求 value', () => {
   };
 
   assert.equal(legacyResult.value, '硕士');
+});
+
+
+test('AI prompt 输出 awards schema 且不含废弃字段', () => {
+  const prompt = buildResumeParsingPrompt('简历原文');
+
+  assert.match(prompt.system, /awards/);
+  assert.match(prompt.system, /名称/);
+  assert.match(prompt.system, /角色/);
+  assert.match(prompt.system, /时间/);
+  assert.match(prompt.system, /描述/);
+  assert.doesNotMatch(prompt.system, /achievements|technologies/);
 });

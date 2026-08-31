@@ -99,8 +99,7 @@ export function buildResumeParsingPrompt(rawText: string): { system: string; use
       "position": "职位",
       "startDate": "YYYY-MM",
       "endDate": "YYYY-MM",
-      "description": "工作描述",
-      "achievements": "工作成果"
+      "description": "工作描述"
     }
   ],
   "projects": [
@@ -109,9 +108,15 @@ export function buildResumeParsingPrompt(rawText: string): { system: string; use
       "role": "角色",
       "startDate": "YYYY-MM",
       "endDate": "YYYY-MM",
-      "description": "项目描述",
-      "achievements": "项目成果",
-      "technologies": "使用技术"
+      "description": "项目描述"
+    }
+  ],
+  "awards": [
+    {
+      "name": "奖项/荣誉名称（必填）",
+      "role": "担任角色",
+      "date": "获取时间 (YYYY-MM)",
+      "description": "详细描述"
     }
   ],
   "skills": ["技能1", "技能2"]

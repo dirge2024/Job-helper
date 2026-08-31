@@ -4,6 +4,7 @@ import type {
   EducationInfo,
   ExperienceInfo,
   ProjectInfo,
+  AwardInfo,
 } from '../shared/types';
 
 /** 简历章节类型 */
@@ -35,7 +36,7 @@ const SECTION_RULES: Array<[RegExp, SectionKind]> = [
   [/^(?:项目经历|项目经验|项目实践|科研经历|研究经历)$/, 'project'],
   [/^(?:实习经历|实习经验|工作经历|工作经验|职业经历|实践经历|工作履历)$/, 'experience'],
   [/^(?:校园经历|在校经历|校内经历|学生工作|社团经历|社会实践)$/, 'campus'],
-  [/^(?:获奖(?:情况|经历)?|荣誉奖项|奖励荣誉|证书|资格证书)$/, 'award'],
+  [/^(?:奖项|荣誉|获奖(?:情况|经历)?|荣誉(?:奖项|奖励)|奖励荣誉|证书|资格证书)$/, 'award'],
   [/^(?:基本信息|个人信息|个人资料|联系方式)$/, 'basic'],
 ];
 
@@ -354,6 +355,32 @@ export class NLPHelper {
   }
 
   /** 解析项目经历章节，规则与工作经历一致，仅字段名不同 */
+  static parseAwardSection(lines: string[]): Partial<AwardInfo>[] {
+    if (lines.length === 0) return [];
+
+    const header = lines[0];
+    const dateMatch = header.match(/\b(\d{4})[年./-](\d{1,2})月?\b/);
+    const date = dateMatch
+      ? `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}`
+      : '';
+    const parts = header
+      .replace(dateMatch?.[0] ?? '', '')
+      .split(/[|｜·，,、]/)
+      .map(part => part.trim())
+      .filter(Boolean);
+
+    const name = parts[0] || '';
+    if (!name) return [];
+
+    return [{
+      id: 'award-0',
+      name,
+      role: parts[1] || '',
+      date,
+      description: lines.slice(1).join('\n'),
+    }];
+  }
+
   static parseProjectSection(lines: string[]): Partial<ProjectInfo>[] {
     return NLPHelper.parseExperienceSection(lines).map((exp, index) => ({
       id: `proj-${index}`,
@@ -362,7 +389,6 @@ export class NLPHelper {
       startDate: exp.startDate || '',
       endDate: exp.endDate || '',
       description: exp.description || '',
-      achievements: '',
     }));
   }
 
@@ -562,6 +588,7 @@ export class NLPHelper {
     let education: Partial<EducationInfo>[] = [];
     let experience: Partial<ExperienceInfo>[] = [];
     let projects: Partial<ProjectInfo>[] = [];
+    let awards: Partial<AwardInfo>[] = [];
     let skills: string[] = [];
 
     for (const section of sections) {
@@ -574,6 +601,9 @@ export class NLPHelper {
           break;
         case 'project':
           projects.push(...this.parseProjectSection(section.lines));
+          break;
+        case 'award':
+          awards.push(...this.parseAwardSection(section.lines));
           break;
         case 'skills':
           skills.push(...this.parseSkillsSection(section.lines));
@@ -592,6 +622,7 @@ export class NLPHelper {
     education = education.map((e, i) => ({ ...e, id: `edu-${i}` }));
     experience = experience.map((e, i) => ({ ...e, id: `exp-${i}` }));
     projects = projects.map((p, i) => ({ ...p, id: `proj-${i}` }));
+    awards = awards.map((award, i) => ({ ...award, id: `award-${i}` }));
 
     // 没有章节标题的简历退回全文扫描。学校行同样带日期范围，
     // 若不先剔除会被工作经历解析器当成一条经历，故按行分流。
@@ -625,6 +656,7 @@ export class NLPHelper {
       education: education.length > 0 ? education : undefined,
       experience: experience.length > 0 ? experience : undefined,
       projects: projects.length > 0 ? projects : undefined,
+      awards: awards.length > 0 ? awards : undefined,
       skills: skills.length > 0 ? skills : undefined,
       rawText: text
     };

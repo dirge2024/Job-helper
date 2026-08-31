@@ -428,6 +428,7 @@ export interface ParsedResumeData {
   education?: Partial<EducationInfo>[];
   experience?: Partial<ExperienceInfo>[];
   projects?: Partial<ProjectInfo>[];
+  awards?: Partial<AwardInfo>[];
   skills?: string[];
   rawText: string;
 }

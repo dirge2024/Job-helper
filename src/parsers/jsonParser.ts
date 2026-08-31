@@ -130,11 +130,20 @@ export function parseResumeJSON(jsonText: string): ParsedResumeData {
         startDate,
         endDate,
         description,
-        achievements: '',
       };
     })
     // 完全空白的占位条目才丢弃
     .filter((p: any) => p.name || p.description);
+
+  const awards = (data.awards ?? [])
+    .map((award: any) => ({
+      id: award.id || crypto.randomUUID(),
+      name: award.name || '',
+      role: award.role || '',
+      date: award.date || '',
+      description: stripHtml(award.description || ''),
+    }))
+    .filter((award: any) => award.name);
 
   const skills = parseSkills(data.skillContent || '');
 
@@ -143,8 +152,9 @@ export function parseResumeJSON(jsonText: string): ParsedResumeData {
     education,
     experience,
     projects,
+    awards,
     skills,
-    rawText: buildRawText(data, personal, education, experience, projects, skills),
+    rawText: buildRawText(data, personal, education, experience, projects, awards, skills),
   };
 }
 
@@ -179,6 +189,7 @@ function buildRawText(
   education: any[],
   experience: any[],
   projects: any[],
+  awards: any[],
   skills: string[]
 ): string {
   const lines: string[] = [];
@@ -211,6 +222,14 @@ function buildRawText(
     for (const p of projects) {
       lines.push(`${p.startDate} - ${p.endDate} ${p.name} ${p.role}`.trim());
       if (p.description) lines.push(p.description);
+    }
+  }
+
+  if (awards.length) {
+    lines.push('', '【奖项 / 荣誉】');
+    for (const award of awards) {
+      lines.push(`${award.date} ${award.name} ${award.role}`.trim());
+      if (award.description) lines.push(award.description);
     }
   }
 

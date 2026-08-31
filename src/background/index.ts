@@ -546,6 +546,7 @@ async function handleParseResume(
         education: pickNonEmpty(parsedData.education, currentProfile.education) as any,
         experience: pickNonEmpty(parsedData.experience, currentProfile.experience) as any,
         projects: pickNonEmpty(parsedData.projects, currentProfile.projects) as any,
+        awards: pickNonEmpty(parsedData.awards, currentProfile.awards) as any,
         customInformation: currentProfile.customInformation || [],
         skills: pickNonEmpty(parsedData.skills, currentProfile.skills),
         certifications: currentProfile.certifications || [],
@@ -623,12 +624,27 @@ async function parseResumeWithLLM(
     education: (parsed.education || []).map((e: any, i: number) => ({
       id: `edu-${i}`, ...e
     })),
-    experience: (parsed.experience || []).map((e: any, i: number) => ({
-      id: `exp-${i}`, ...e
-    })),
-    projects: (parsed.projects || []).map((p: any, i: number) => ({
-      id: `proj-${i}`, ...p
-    })),
+    experience: (parsed.experience || []).map((e: any, i: number) => {
+      const { achievements: _achievements, ...experience } = e;
+      return { id: `exp-${i}`, ...experience };
+    }),
+    projects: (parsed.projects || []).map((p: any, i: number) => {
+      const {
+        achievements: _achievements,
+        technologies: _technologies,
+        ...project
+      } = p;
+      return { id: `proj-${i}`, ...project };
+    }),
+    awards: (parsed.awards || [])
+      .filter((award: any) => award.name)
+      .map((award: any, i: number) => ({
+        id: `award-${i}`,
+        name: award.name,
+        role: award.role || '',
+        date: award.date || '',
+        description: award.description || '',
+      })),
     skills: parsed.skills || [],
     rawText,
   };
