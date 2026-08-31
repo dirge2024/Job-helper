@@ -117,19 +117,31 @@ type AwardTreeNode = {
   parentElement: AwardTreeNode | null;
   children: AwardTreeNode[];
   id?: string;
+  tagName?: string;
   attrs: Record<string, string>;
   getAttribute(name: string): string | null;
   hasAttribute(name: string): boolean;
   querySelector(selector: string): AwardTreeNode | null;
+  querySelectorAll(selector: string): AwardTreeNode[];
   contains(node: AwardTreeNode): boolean;
 };
 
-function createAwardTreeNode(attrs: Record<string, string> = {}, id?: string): AwardTreeNode {
+function createAwardTreeNode(
+  attrs: Record<string, string> = {},
+  id?: string,
+  tagName?: string,
+): AwardTreeNode {
   return {
-    parentElement: null, children: [], attrs, id,
+    parentElement: null, children: [], attrs, id, tagName,
     getAttribute(name) { return this.attrs[name] ?? null; },
     hasAttribute(name) { return name in this.attrs; },
     querySelector() { return null; },
+    querySelectorAll() {
+      return this.children.flatMap(child => [
+        ...(child.tagName && ['INPUT', 'TEXTAREA', 'SELECT'].includes(child.tagName) ? [child] : []),
+        ...child.querySelectorAll(''),
+      ]);
+    },
     contains(target) {
       let current: AwardTreeNode | null = target;
       while (current) {
@@ -154,13 +166,32 @@ function createAwardControl(
   dataIndex: string,
 ): HTMLInputElement {
   const wrapper = appendAwardNode(row, createAwardTreeNode({ 'data-index': dataIndex }));
-  const control = appendAwardNode(wrapper, createAwardTreeNode({}, id));
+  const control = appendAwardNode(wrapper, createAwardTreeNode({}, id, 'INPUT'));
   return Object.assign(control, {
     closest(selector: string) {
       let current: AwardTreeNode | null = control;
       while (current) {
         if (selector.includes('data-form-module') && current.attrs['data-form-module']) return current;
         if (selector.includes('data-repeat-item') && 'data-repeat-item' in current.attrs) return current;
+        current = current.parentElement;
+      }
+      return null;
+    },
+  }) as unknown as HTMLInputElement;
+}
+
+function createPlainAwardControl(
+  module: AwardTreeNode,
+  row: AwardTreeNode,
+  id: string,
+): HTMLInputElement {
+  const wrapper = appendAwardNode(row, createAwardTreeNode({ class: 'form-group' }));
+  const control = appendAwardNode(wrapper, createAwardTreeNode({}, id, 'INPUT'));
+  return Object.assign(control, {
+    closest(selector: string) {
+      let current: AwardTreeNode | null = control;
+      while (current) {
+        if (selector.includes('data-form-module') && current.attrs['data-form-module']) return current;
         current = current.parentElement;
       }
       return null;
@@ -248,5 +279,50 @@ test('sparse sibling award rows keep indexes when each has one detected field', 
   assert.deepEqual(calls, [
     ['sparse-row1-name', '一等奖'],
     ['sparse-row2-role', '核心成员'],
+  ]);
+});
+
+
+test('plain form-group wrappers in one award row share index zero', async () => {
+  const module = createAwardTreeNode({ 'data-form-module': 'awards' });
+  const row = appendAwardNode(module, createAwardTreeNode({ class: 'award-record' }));
+  const fields = [
+    { element: createPlainAwardControl(module, row, 'plain-name'), fieldType: FieldType.AWARD_NAME, confidence: 1 },
+    { element: createPlainAwardControl(module, row, 'plain-role'), fieldType: FieldType.AWARD_ROLE, confidence: 1 },
+    { element: createPlainAwardControl(module, row, 'plain-date'), fieldType: FieldType.AWARD_DATE, confidence: 1 },
+    { element: createPlainAwardControl(module, row, 'plain-description'), fieldType: FieldType.AWARD_DESCRIPTION, confidence: 1 },
+  ];
+  const calls = await captureAwardFill(fields, [
+    { id: 'a1', name: '一等奖', role: '负责人', date: '2026-06', description: '详细描述' },
+  ]);
+
+  assert.deepEqual(calls, [
+    ['plain-name', '一等奖'],
+    ['plain-role', '负责人'],
+    ['plain-date', '2026-06'],
+    ['plain-description', '详细描述'],
+  ]);
+});
+
+test('two plain form-group award rows use indexes zero and one', async () => {
+  const module = createAwardTreeNode({ 'data-form-module': 'awards' });
+  const row1 = appendAwardNode(module, createAwardTreeNode({ class: 'award-record' }));
+  const row2 = appendAwardNode(module, createAwardTreeNode({ class: 'award-record' }));
+  const fields = [
+    { element: createPlainAwardControl(module, row1, 'plain-row1-name'), fieldType: FieldType.AWARD_NAME, confidence: 1 },
+    { element: createPlainAwardControl(module, row1, 'plain-row1-role'), fieldType: FieldType.AWARD_ROLE, confidence: 1 },
+    { element: createPlainAwardControl(module, row2, 'plain-row2-name'), fieldType: FieldType.AWARD_NAME, confidence: 1 },
+    { element: createPlainAwardControl(module, row2, 'plain-row2-role'), fieldType: FieldType.AWARD_ROLE, confidence: 1 },
+  ];
+  const calls = await captureAwardFill(fields, [
+    { id: 'a1', name: '一等奖', role: '负责人', date: '', description: '' },
+    { id: 'a2', name: '二等奖', role: '核心成员', date: '', description: '' },
+  ]);
+
+  assert.deepEqual(calls, [
+    ['plain-row1-name', '一等奖'],
+    ['plain-row1-role', '负责人'],
+    ['plain-row2-name', '二等奖'],
+    ['plain-row2-role', '核心成员'],
   ]);
 });

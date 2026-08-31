@@ -367,12 +367,25 @@ export class FormFiller {
   }
 
   private isAwardFieldWrapper(element: Element): boolean {
-    return [
+    const hasStableFieldAttribute = [
       'data-index',
       'data-form-field-id',
       'data-form-field-name',
       'data-form-field-i18n-name',
     ].some(attribute => element.hasAttribute(attribute));
+    if (hasStableFieldAttribute) return true;
+
+    const className = element.getAttribute('class') || '';
+    const hasFieldContainerClass = /(?:^|\s)(?:form[-_]?group|form[-_]?item|field(?:-wrapper)?)(?:\s|$)/i
+      .test(className);
+    const hasDirectLabel = Boolean(element.querySelector(
+      ':scope > label, :scope > [class*=label], :scope > [aria-label]'
+    ));
+    const controlCount = element.querySelectorAll(
+      'input:not([type="hidden"]), textarea, select, [role="combobox"]'
+    ).length;
+
+    return controlCount === 1 && (hasFieldContainerClass || hasDirectLabel);
   }
 
   private isAwardModule(module: HTMLElement): boolean {
