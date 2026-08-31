@@ -283,3 +283,27 @@ test('存储读取不会让缺失规范字符串的资料绕过补全', async ()
   assert.deepEqual(loaded.profiles[0].profile.awards[0], { id: '', name: '校级荣誉', role: '', date: '', description: '' });
   assert.deepEqual(mock.values.resumeProfileLibrary, loaded);
 });
+
+
+test('规范化保留未知顶层和 personal 扩展字段且只清理目标旧字段', () => {
+  const source = {
+    ...createEmptyUserProfile(),
+    extensionFlag: { enabled: true },
+    personal: { ...createEmptyUserProfile().personal, preferredName: '小星' },
+    experience: [{ id: 'e1', company: 'A', position: '实习生', startDate: '', endDate: '', description: '描述', achievements: '旧成果', extension: '删除' }],
+    projects: [{ id: 'p1', name: '项目', role: '', startDate: '', endDate: '', description: '项目描述', achievements: '旧成果', technologies: 'TS', extension: '删除' }],
+    awards: [{ id: 'a1', name: '一等奖', role: '', date: '', description: '', extension: '删除' }],
+  };
+  const normalized = normalizeResumeProfileLibrary({ schemaVersion: 1, activeProfileId: 'r1', profiles: [{ id: 'r1', name: '默认简历', createdAt: NOW, updatedAt: NOW, profile: source }] });
+  const profile = normalized.profiles[0].profile as UserProfile & { extensionFlag: { enabled: boolean }; personal: UserProfile['personal'] & { preferredName: string } };
+  source.extensionFlag.enabled = false;
+  source.personal.preferredName = '已修改';
+  assert.deepEqual(profile.extensionFlag, { enabled: true });
+  assert.equal(profile.personal.preferredName, '小星');
+  assert.equal('achievements' in profile.experience[0], false);
+  assert.equal('achievements' in profile.projects[0], false);
+  assert.equal('technologies' in profile.projects[0], false);
+  assert.equal('extension' in profile.experience[0], false);
+  assert.equal('extension' in profile.projects[0], false);
+  assert.equal('extension' in profile.awards[0], false);
+});

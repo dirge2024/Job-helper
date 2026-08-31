@@ -88,16 +88,14 @@ export function normalizeUserProfileData(profile: unknown): UserProfile {
   const personal = (source.personal || {}) as Partial<UserProfile['personal']>;
   const optionalPersonal = (key: keyof UserProfile['personal']): string | undefined =>
     typeof personal[key] === 'string' ? personal[key] : undefined;
-  const normalizedPersonal: UserProfile['personal'] = {
+  const normalizedPersonal = {
+    ...structuredClone(personal),
     name: optionalPersonal('name') || '', gender: optionalPersonal('gender') || '',
     birthDate: optionalPersonal('birthDate') || '', phone: optionalPersonal('phone') || '',
     email: optionalPersonal('email') || '',
-  };
-  for (const key of ['wechat', 'idCard', 'politicalStatus', 'ethnicity', 'hometown', 'currentAddress', 'selfEvaluation'] as const) {
-    const value = optionalPersonal(key);
-    if (value !== undefined) normalizedPersonal[key] = value;
-  }
+  } as UserProfile['personal'];
   return {
+    ...structuredClone(source),
     personal: normalizedPersonal,
     education: structuredClone(source.education || []),
     experience: (source.experience || []).map(item => ({

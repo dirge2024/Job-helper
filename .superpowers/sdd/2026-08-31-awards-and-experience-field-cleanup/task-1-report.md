@@ -121,3 +121,39 @@ npx tsx --test src/shared/backup-sync.test.ts src/shared/resumeProfiles.test.ts 
 ## 修复提交 SHA
 
 03fc94d66187d9b8651abcd1efc107a739aaa1a5
+
+
+---
+
+# 修复轮次 3
+
+## RED
+
+命令：
+
+```bash
+npx tsx --test src/shared/backup-sync.test.ts src/shared/resumeProfiles.test.ts src/options/profileState.test.ts
+```
+
+结果：94 项中 93 项通过、1 项失败；新增测试确认未知顶层扩展字段被过度删除。
+
+## GREEN
+
+同一命令结果：94/94 通过，0 失败。
+
+## 修复内容
+
+- `normalizeUserProfileData` 先深拷贝完整输入，保留未知顶层扩展字段。
+- personal 在补齐必需字段的同时保留并深拷贝未知扩展字段。
+- 仅 experience、projects、awards 按白名单重建；三个废弃字段及这些条目中的未知字段继续被清理。
+- 回归测试同时验证扩展字段保留、深拷贝隔离及废弃字段删除。
+
+## 自审
+
+- `git diff --check` 通过。
+- 相关测试 94/94 通过。
+- 未处理 UI 下游编译错误，未 push。
+
+## 修复提交 SHA
+
+提交后填写。
