@@ -43,4 +43,4 @@ npx tsx --test src/shared/resumeProfiles.test.ts src/options/profileState.test.t
 
 ## SHA
 
-提交后填写。
+实现提交：dd08450b605a4f61a64af744664d75c7f0bb9c3d。
