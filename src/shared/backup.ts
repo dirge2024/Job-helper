@@ -233,7 +233,7 @@ export function createBackupDocument(
     exportedAt,
     source: { extensionVersion },
     data: {
-      resumeProfileLibrary: structuredClone(data.resumeProfileLibrary),
+      resumeProfileLibrary: normalizeResumeProfileLibrary(data.resumeProfileLibrary),
       llmConfig: data.llmConfig,
       settings: data.settings,
       applicationRecords: data.applicationRecords ?? [],

@@ -624,18 +624,22 @@ async function parseResumeWithLLM(
     education: (parsed.education || []).map((e: any, i: number) => ({
       id: `edu-${i}`, ...e
     })),
-    experience: (parsed.experience || []).map((e: any, i: number) => {
-      const { achievements: _achievements, ...experience } = e;
-      return { id: `exp-${i}`, ...experience };
-    }),
-    projects: (parsed.projects || []).map((p: any, i: number) => {
-      const {
-        achievements: _achievements,
-        technologies: _technologies,
-        ...project
-      } = p;
-      return { id: `proj-${i}`, ...project };
-    }),
+    experience: (parsed.experience || []).map((entry: any, i: number) => ({
+      id: `exp-${i}`,
+      company: entry.company || '',
+      position: entry.position || '',
+      startDate: entry.startDate || '',
+      endDate: entry.endDate || '',
+      description: entry.description || '',
+    })),
+    projects: (parsed.projects || []).map((entry: any, i: number) => ({
+      id: `proj-${i}`,
+      name: entry.name || '',
+      role: entry.role || '',
+      startDate: entry.startDate || '',
+      endDate: entry.endDate || '',
+      description: entry.description || '',
+    })),
     awards: (parsed.awards || [])
       .filter((award: any) => award.name)
       .map((award: any, i: number) => ({

@@ -146,6 +146,7 @@ test('不再在 background 层根据视觉能力预检查阻断请求', async ()
       education: [],
       experience: [],
       projects: [],
+      awards: [],
       customInformation: [],
       skills: [],
       certifications: [],

@@ -38,6 +38,7 @@ const legacyUserProfile = {
     education: [],
     experience: [],
     projects: [],
+    awards: [],
     customInformation: [],
     skills: ['TypeScript'],
     certifications: [],
@@ -872,6 +873,40 @@ test('V1 导入迁移为单套默认简历', () => {
   if (!result.success) return;
   assert.equal(result.document.schemaVersion, 2);
   assert.equal(result.document.data.resumeProfileLibrary.profiles[0]?.name, '默认简历');
+});
+
+test('当前导出规范化资料并完整保留 awards 四字段', () => {
+  const library = profileLibrary();
+  library.profiles[0]!.profile = {
+    ...library.profiles[0]!.profile,
+    experience: [{ id: 'e1', company: 'A', position: '实习生', achievements: '旧成果' }] as never,
+    projects: [{ id: 'p1', name: '项目', role: '负责人', achievements: '旧成果', technologies: 'TS' }] as never,
+    awards: [{ id: 'a1', name: '优秀毕业生', role: '获奖人', date: '2026-06', description: '校级荣誉' }],
+  };
+
+  const document = createBackupDocument({ ...completeData, resumeProfileLibrary: library }, '2.0.0');
+  const profile = document.data.resumeProfileLibrary.profiles[0]!.profile;
+
+  assert.deepEqual(profile.awards, [{ id: 'a1', name: '优秀毕业生', role: '获奖人', date: '2026-06', description: '校级荣誉' }]);
+  assert.equal('achievements' in profile.experience[0]!, false);
+  assert.equal('achievements' in profile.projects[0]!, false);
+  assert.equal('technologies' in profile.projects[0]!, false);
+});
+
+test('V1 旧备份补 awards 并清理废弃字段', () => {
+  const document = JSON.parse(validJson());
+  document.data.userProfile.experience = [{ id: 'e1', company: 'A', position: '实习生', achievements: '旧成果' }];
+  document.data.userProfile.projects = [{ id: 'p1', name: '项目', role: '负责人', achievements: '旧成果', technologies: 'TS' }];
+  delete document.data.userProfile.awards;
+
+  const result = parseAndValidateBackup(JSON.stringify(document));
+  assert.ok(result.success);
+  if (!result.success) return;
+  const profile = result.document.data.resumeProfileLibrary.profiles[0]!.profile;
+  assert.deepEqual(profile.awards, []);
+  assert.equal('achievements' in profile.experience[0]!, false);
+  assert.equal('achievements' in profile.projects[0]!, false);
+  assert.equal('technologies' in profile.projects[0]!, false);
 });
 
 test('V2 往返保留全部简历及当前 ID', () => {

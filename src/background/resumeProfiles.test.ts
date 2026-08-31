@@ -40,7 +40,7 @@ function profile(id: string, name: string) {
     updatedAt: '2026-01-01T00:00:00.000Z',
     profile: {
       personal: { name, gender: '', birthDate: '', phone: '', email: '' },
-      education: [], experience: [], projects: [], customInformation: [], skills: [], certifications: [],
+      education: [], experience: [], projects: [], awards: [], customInformation: [], skills: [], certifications: [],
       resume: { fileName: 'large.pdf', fileData: 'base64-data', fileType: 'application/pdf', uploadDate: '2026-01-01' },
     },
   };
