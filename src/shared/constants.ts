@@ -84,6 +84,18 @@ export const FIELD_PATTERNS: Record<string, string[]> = {
     'description', 'desc', 'detail', 'content', 'experience',
     '描述', '详情', '工作内容', '项目描述', '职责描述', 'responsibility'
   ],
+  [FieldType.AWARD_NAME]: [
+    'awardname', 'award_name', '奖项名称', '荣誉名称', '获奖名称'
+  ],
+  [FieldType.AWARD_ROLE]: [
+    'awardrole', 'award_role', '获奖角色', '奖项角色', '担任角色'
+  ],
+  [FieldType.AWARD_DATE]: [
+    'awarddate', 'award_date', '获奖时间', '获奖日期', '奖项时间', '获取时间'
+  ],
+  [FieldType.AWARD_DESCRIPTION]: [
+    'awarddescription', 'award_description', '奖项描述', '获奖描述', '荣誉描述', '详细描述'
+  ],
   [FieldType.SKILLS]: [
     'skill', 'skills', 'ability', 'competency', 'expertise',
     '技能', '专业技能', '掌握技能', '能力', 'technical'

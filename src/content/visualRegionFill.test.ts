@@ -5,6 +5,9 @@ import {
   applyVisualRegionMappings,
   serializeVisualControls,
 } from './visualRegionFill.ts';
+import { FormFiller } from './formFiller.ts';
+import { FieldType } from '../shared/types.ts';
+import { createEmptyUserProfile } from '../shared/resumeProfiles.ts';
 
 test('只序列化选区内的空白可写控件，并保留 controlId 与 options', () => {
   const controls = serializeVisualControls([
@@ -84,4 +87,29 @@ test('只把存在于 controlsById 的映射交给写回层', async () => {
     values: [{ element: { id: 'phone-input' }, value: '13800000000' }],
     keepGoing: true,
   });
+});
+
+
+test('resolves each award field by its repeated-field index', () => {
+  const profile = createEmptyUserProfile();
+  profile.awards = [
+    { id: 'award-1', name: '一等奖', role: '负责人', date: '2025-06', description: '第一项描述' },
+    { id: 'award-2', name: '二等奖', role: '核心成员', date: '2026-07', description: '第二项描述' },
+  ];
+  const filler = new FormFiller();
+
+  assert.equal(filler.resolveFieldValue(FieldType.AWARD_NAME, profile, 0), '一等奖');
+  assert.equal(filler.resolveFieldValue(FieldType.AWARD_ROLE, profile, 1), '核心成员');
+  assert.equal(filler.resolveFieldValue(FieldType.AWARD_DATE, profile, 1), '2026-07');
+  assert.equal(filler.resolveFieldValue(FieldType.AWARD_DESCRIPTION, profile, 0), '第一项描述');
+});
+
+test('keeps generic experience description independent from award descriptions', () => {
+  const profile = createEmptyUserProfile();
+  profile.experience = [{ id: 'experience-1', company: '示例公司', position: '实习生', startDate: '', endDate: '', description: '通用实习描述' }];
+  profile.awards = [{ id: 'award-1', name: '一等奖', role: '', date: '', description: '奖项描述' }];
+  const filler = new FormFiller();
+
+  assert.equal(filler.resolveFieldValue(FieldType.DESCRIPTION, profile, 0), '通用实习描述');
+  assert.equal(filler.resolveFieldValue(FieldType.AWARD_DESCRIPTION, profile, 0), '奖项描述');
 });

@@ -417,6 +417,10 @@ export enum FieldType {
   START_DATE = 'startDate',
   END_DATE = 'endDate',
   DESCRIPTION = 'description',
+  AWARD_NAME = 'awardName',
+  AWARD_ROLE = 'awardRole',
+  AWARD_DATE = 'awardDate',
+  AWARD_DESCRIPTION = 'awardDescription',
   SKILLS = 'skills',
   RESUME_FILE = 'resumeFile',
   UNKNOWN = 'unknown'

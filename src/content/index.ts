@@ -273,6 +273,7 @@ function getElementSection(element: Element): FillSection | null {
   if (text.includes('教育经历')) return 'education';
   if (text.includes('实习经历')) return 'experience';
   if (text.includes('项目经历')) return 'projects';
+  if (/奖项|荣誉|获奖/.test(text)) return 'awards';
 
   return null;
 }
@@ -375,6 +376,7 @@ function getPageSectionName(section: PageScanSection): string {
     education: '教育经历',
     experience: '实习经历',
     projects: '项目经历',
+    awards: '奖项 / 荣誉',
     other: '其它表单',
   }[section];
 }

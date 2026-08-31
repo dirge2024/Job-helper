@@ -84,6 +84,22 @@ export class FieldMatcher {
       }
     }
 
+    const hasAwardContext = /奖项|获奖|荣誉|award|honou?r/.test(searchText);
+    if (hasAwardContext) {
+      if (/名称|名字|name|title/.test(searchText)) {
+        return { fieldType: FieldType.AWARD_NAME, confidence: 0.98 };
+      }
+      if (/角色|担任|role/.test(searchText)) {
+        return { fieldType: FieldType.AWARD_ROLE, confidence: 0.98 };
+      }
+      if (/时间|日期|date|time/.test(searchText)) {
+        return { fieldType: FieldType.AWARD_DATE, confidence: 0.98 };
+      }
+      if (/描述|详情|description|detail/.test(searchText)) {
+        return { fieldType: FieldType.AWARD_DESCRIPTION, confidence: 0.98 };
+      }
+    }
+
     // 遍历所有字段模式进行匹配
     let bestMatch = { fieldType: FieldType.UNKNOWN, confidence: 0 };
 

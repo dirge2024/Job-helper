@@ -2,7 +2,7 @@ import type { DetectedField, UserProfile } from '../shared/types';
 import { FieldType } from '../shared/types';
 import { GENDER_OPTIONS, DEGREE_OPTIONS } from '../shared/constants';
 
-export type FillSection = 'all' | 'personal' | 'education' | 'experience' | 'projects';
+export type FillSection = 'all' | 'personal' | 'education' | 'experience' | 'projects' | 'awards';
 
 const EDUCATION_FIELD_TYPES = new Set<FieldType>([
   FieldType.SCHOOL,
@@ -13,6 +13,13 @@ const EDUCATION_FIELD_TYPES = new Set<FieldType>([
   FieldType.GPA,
   FieldType.EDUCATION_START_DATE,
   FieldType.GRADUATION_DATE,
+]);
+
+const AWARD_FIELD_TYPES = new Set<FieldType>([
+  FieldType.AWARD_NAME,
+  FieldType.AWARD_ROLE,
+  FieldType.AWARD_DATE,
+  FieldType.AWARD_DESCRIPTION,
 ]);
 
 const EXPERIENCE_FIELD_TYPES = new Set<FieldType>([
@@ -87,6 +94,7 @@ export class FormFiller {
 
     const educationIndexes: Partial<Record<FieldType, number>> = {};
     const experienceIndexes: Partial<Record<FieldType, number>> = {};
+    const awardIndexes: Partial<Record<FieldType, number>> = {};
     await this.fillDateRangeFields(fields, profile);
     const orderedFields = fields.filter(field => !this.isDateRangeField(field.fieldType as FieldType));
 
@@ -95,7 +103,8 @@ export class FormFiller {
         const fieldType = field.fieldType as FieldType;
         const educationIndex = this.getNextEducationIndex(fieldType, educationIndexes);
         const experienceIndex = this.getNextExperienceIndex(fieldType, experienceIndexes);
-        const value = this.getValueForField(fieldType, profile, educationIndex, experienceIndex);
+        const awardIndex = this.getNextAwardIndex(fieldType, awardIndexes);
+        const value = this.getValueForField(fieldType, profile, educationIndex, experienceIndex, awardIndex);
         if (value !== null && value !== undefined) {
           await this.fillField(field.element, value);
         }
@@ -291,15 +300,32 @@ export class FormFiller {
     return index;
   }
 
+  private getNextAwardIndex(
+    fieldType: FieldType,
+    awardIndexes: Partial<Record<FieldType, number>>
+  ): number | undefined {
+    if (!AWARD_FIELD_TYPES.has(fieldType)) return undefined;
+
+    const index = awardIndexes[fieldType] ?? 0;
+    awardIndexes[fieldType] = index + 1;
+    return index;
+  }
+
+  resolveFieldValue(fieldType: FieldType, profile: UserProfile, awardIndex = 0): string | null {
+    return this.getValueForField(fieldType, profile, 0, 0, awardIndex);
+  }
+
   // 根据字段类型获取对应的值
   private getValueForField(
     fieldType: FieldType,
     profile: UserProfile,
     educationIndex = 0,
-    experienceIndex = 0
+    experienceIndex = 0,
+    awardIndex = 0
   ): string | null {
     const education = profile.education[educationIndex];
     const experience = profile.experience[experienceIndex];
+    const award = profile.awards[awardIndex];
     const educationDates = this.getOrderedDateRange(education?.startDate, education?.endDate);
     const experienceDates = this.getOrderedDateRange(experience?.startDate, experience?.endDate);
 
@@ -366,6 +392,18 @@ export class FormFiller {
 
       case FieldType.DESCRIPTION:
         return experience?.description || null;
+
+      case FieldType.AWARD_NAME:
+        return award?.name || null;
+
+      case FieldType.AWARD_ROLE:
+        return award?.role || null;
+
+      case FieldType.AWARD_DATE:
+        return award?.date || null;
+
+      case FieldType.AWARD_DESCRIPTION:
+        return award?.description || null;
 
       case FieldType.SKILLS:
         return profile.skills.join(', ') || null;

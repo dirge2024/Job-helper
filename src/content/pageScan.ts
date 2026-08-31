@@ -1,4 +1,4 @@
-export type PageScanSection = 'personal' | 'education' | 'experience' | 'projects' | 'other';
+export type PageScanSection = 'personal' | 'education' | 'experience' | 'projects' | 'awards' | 'other';
 
 export interface PageScanField {
   index: number;
@@ -21,6 +21,7 @@ const SECTION_ORDER: PageScanSection[] = [
   'education',
   'experience',
   'projects',
+  'awards',
   'other',
 ];
 
