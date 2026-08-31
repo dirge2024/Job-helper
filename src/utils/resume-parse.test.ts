@@ -183,3 +183,47 @@ test('JSON 解析奖项并忽略废弃字段', () => {
   assert.equal('achievements' in parsed.projects![0], false);
   assert.equal('technologies' in parsed.projects![0], false);
 });
+
+
+test('同一奖项章节解析多条并分别归属描述', () => {
+  const parsed = NLPHelper.parseResumeText([
+    '奖项',
+    '优秀毕业生 | 负责人 | 2026-06',
+    '第一项详细描述',
+    '一等奖 | 核心成员',
+    '第二项第一行描述',
+    '第二项第二行描述',
+  ].join('\n'));
+
+  assert.deepEqual(parsed.awards, [
+    {
+      id: 'award-0',
+      name: '优秀毕业生',
+      role: '负责人',
+      date: '2026-06',
+      description: '第一项详细描述',
+    },
+    {
+      id: 'award-1',
+      name: '一等奖',
+      role: '核心成员',
+      date: '',
+      description: '第二项第一行描述\n第二项第二行描述',
+    },
+  ]);
+});
+
+test('章节标题不会被推断为姓名', () => {
+  for (const heading of ['奖项', '教育经历', '项目经历', '专业技能']) {
+    const parsed = NLPHelper.parseResumeText(`${heading}\n内容`);
+    assert.notEqual(parsed.personal?.name, heading, `${heading} 不应被识别为姓名`);
+  }
+});
+
+test('证书类标题不解析为 awards', () => {
+  for (const heading of ['证书', '资格证书']) {
+    const sections = NLPHelper.splitSections(`${heading}\n英语六级`);
+    assert.equal(sections.some(section => section.kind === 'award'), false);
+    assert.equal(NLPHelper.parseResumeText(`${heading}\n英语六级`).awards, undefined);
+  }
+});
