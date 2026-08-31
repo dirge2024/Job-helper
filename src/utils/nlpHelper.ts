@@ -363,36 +363,52 @@ export class NLPHelper {
 
   /** 解析奖项章节，以结构化标题行划分条目并归属后续描述。 */
   static parseAwardSection(lines: string[]): Partial<AwardInfo>[] {
-    if (lines.length === 0) return [];
+    const contentLines = lines.filter(Boolean);
+    if (contentLines.length === 0) return [];
+
+    const titleLikePattern = /^(?=.{2,20}$)(?!.*(?:负责|参与|完成|推动|实现|开展|承担|协助|组织|通过|包含|主要|用于))[^。！？；;：:|｜·，,、\d]+$/;
+    const isPlainNameList = contentLines.length > 1
+      && contentLines.every(line => !/^•\s+/.test(line) && titleLikePattern.test(line));
+    if (isPlainNameList) {
+      return contentLines.map((name, index) => ({
+        id: `award-${index}`,
+        name,
+        role: '',
+        date: '',
+        description: '',
+      }));
+    }
 
     const entries: Partial<AwardInfo>[] = [];
     let descriptionLines: string[] = [];
 
     const flushDescription = () => {
       if (entries.length > 0) {
-        entries[entries.length - 1].description = descriptionLines.join('\n');
+        entries[entries.length - 1].description = descriptionLines
+          .join('\n')
+          .replace(/\n+$/, '');
       }
       descriptionLines = [];
     };
 
-    let afterBlankLine = false;
     for (const [index, line] of lines.entries()) {
       if (!line) {
-        afterBlankLine = true;
+        if (descriptionLines.length > 0) descriptionLines.push('');
         continue;
       }
 
       const hasListMarker = /^•\s+/.test(line);
-      const isHeader = index === 0 || hasListMarker || afterBlankLine;
-      afterBlankLine = false;
+      const header = line.replace(/^•\s+/, '');
+      const dateMatch = header.match(/\b(\d{4})[年./-](\d{1,2})月?\b/);
+      const separatorCount = header.match(/[|｜·]/g)?.length ?? 0;
+      const isStructuredHeader = Boolean(dateMatch && separatorCount >= 2);
+      const isHeader = index === 0 || hasListMarker || isStructuredHeader;
       if (!isHeader) {
         descriptionLines.push(line);
         continue;
       }
 
       flushDescription();
-      const header = line.replace(/^•\s+/, '');
-      const dateMatch = header.match(/\b(\d{4})[年./-](\d{1,2})月?\b/);
       const parts = header
         .replace(dateMatch?.[0] ?? '', '')
         .split(/[|｜·，,、]/)
