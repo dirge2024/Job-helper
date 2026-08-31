@@ -98,17 +98,24 @@ export class FormFiller {
     let fallbackAwardIndex = -1;
     await this.fillDateRangeFields(fields, profile);
     const orderedFields = fields.filter(field => !this.isDateRangeField(field.fieldType as FieldType));
+    const awardElements = orderedFields
+      .filter(field => AWARD_FIELD_TYPES.has(field.fieldType as FieldType))
+      .map(field => field.element);
+    const awardRows = new Map(awardElements.map(element => [
+      element,
+      this.getAwardRowContainer(element, awardElements),
+    ]));
 
     for (const field of orderedFields) {
       try {
         const fieldType = field.fieldType as FieldType;
         const educationIndex = this.getNextEducationIndex(fieldType, educationIndexes);
         const experienceIndex = this.getNextExperienceIndex(fieldType, experienceIndexes);
+        const awardRow = awardRows.get(field.element) || null;
         const awardIndex = AWARD_FIELD_TYPES.has(fieldType)
-          ? this.getAwardIndex(field.element, fieldType, awardRowIndexes, fallbackAwardIndex)
+          ? this.getAwardIndex(awardRow, fieldType, awardRowIndexes, fallbackAwardIndex)
           : undefined;
-        if (AWARD_FIELD_TYPES.has(fieldType) && !this.getAwardRowContainer(field.element)
-          && fieldType === FieldType.AWARD_NAME) {
+        if (AWARD_FIELD_TYPES.has(fieldType) && !awardRow && fieldType === FieldType.AWARD_NAME) {
           fallbackAwardIndex += 1;
         }
         const value = this.getValueForField(fieldType, profile, educationIndex, experienceIndex, awardIndex);
@@ -308,12 +315,11 @@ export class FormFiller {
   }
 
   private getAwardIndex(
-    element: Element,
+    row: Element | null,
     fieldType: FieldType,
     rowIndexes: Map<Element, number>,
     fallbackIndex: number
   ): number {
-    const row = this.getAwardRowContainer(element);
     if (row) {
       const existing = rowIndexes.get(row);
       if (existing !== undefined) return existing;
@@ -326,7 +332,10 @@ export class FormFiller {
     return fieldType === FieldType.AWARD_NAME ? fallbackIndex + 1 : Math.max(fallbackIndex, 0);
   }
 
-  private getAwardRowContainer(element: Element): Element | null {
+  private getAwardRowContainer(
+    element: Element,
+    awardElements: Element[]
+  ): Element | null {
     const module = element.closest<HTMLElement>(
       '[data-form-module], [data-section], [data-module], [class*=applyFormModuleWrapper]'
     );
@@ -336,13 +345,14 @@ export class FormFiller {
     if (markedRow && module.contains(markedRow)) return markedRow;
 
     let current: Element | null = element.parentElement;
-    let siblingRow: Element | null = null;
     while (current && current !== module) {
-      const parent: Element | null = current.parentElement;
-      if (parent && parent !== module && parent.children.length > 1) siblingRow = current;
-      current = parent;
+      const containedFieldCount = awardElements
+        .filter(candidate => current?.contains(candidate))
+        .length;
+      if (containedFieldCount >= 2) return current;
+      current = current.parentElement;
     }
-    return siblingRow;
+    return null;
   }
 
   private isAwardModule(module: HTMLElement): boolean {

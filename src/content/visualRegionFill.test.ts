@@ -113,62 +113,117 @@ test('keeps generic experience description independent from award descriptions',
   assert.equal(filler.resolveFieldValue(FieldType.AWARD_DESCRIPTION, profile, 0), '奖项描述');
 });
 
-test('nested controls with their own data-index share the containing award row', async () => {
-  type TreeNode = {
-    parentElement: TreeNode | null; children: TreeNode[]; id?: string; attrs: Record<string, string>;
-    getAttribute(name: string): string | null; querySelector(selector: string): TreeNode | null; contains(node: TreeNode): boolean;
-  };
-  const node = (attrs: Record<string, string> = {}, id?: string): TreeNode => ({
+type AwardTreeNode = {
+  parentElement: AwardTreeNode | null;
+  children: AwardTreeNode[];
+  id?: string;
+  attrs: Record<string, string>;
+  getAttribute(name: string): string | null;
+  querySelector(selector: string): AwardTreeNode | null;
+  contains(node: AwardTreeNode): boolean;
+};
+
+function createAwardTreeNode(attrs: Record<string, string> = {}, id?: string): AwardTreeNode {
+  return {
     parentElement: null, children: [], attrs, id,
     getAttribute(name) { return this.attrs[name] ?? null; },
     querySelector() { return null; },
     contains(target) {
-      let current: TreeNode | null = target;
-      while (current) { if (current === this) return true; current = current.parentElement; }
+      let current: AwardTreeNode | null = target;
+      while (current) {
+        if (current === this) return true;
+        current = current.parentElement;
+      }
       return false;
     },
-  });
-  const append = (parent: TreeNode, child: TreeNode) => { parent.children.push(child); child.parentElement = parent; return child; };
-  const module = node({ 'data-form-module': 'awards' });
-  const list = append(module, node());
-  const row1 = append(list, node());
-  const row2 = append(list, node());
-  const field = (row: TreeNode, id: string, dataIndex: string) => {
-    const wrapper = append(row, node({ 'data-index': dataIndex }));
-    const control = append(wrapper, node({}, id));
-    return Object.assign(control, {
-      closest(selector: string) {
-        let current: TreeNode | null = control;
-        while (current) {
-          if (selector.includes('applyFormModuleWrapper') && current === module) return current;
-          if (selector.includes('data-form-module') && current.attrs['data-form-module']) return current;
-          if (selector.includes('data-repeat-item') && 'data-repeat-item' in current.attrs) return current;
-          if (selector.includes('data-index') && 'data-index' in current.attrs) return current;
-          current = current.parentElement;
-        }
-        return null;
-      },
-      getAttribute(name: string) { return this.attrs[name] ?? null; },
-    }) as unknown as HTMLInputElement;
   };
-  const firstName = field(row1, 'first-name-nested', '0');
-  const secondRole = field(row2, 'second-role-nested', '1');
+}
+
+function appendAwardNode(parent: AwardTreeNode, child: AwardTreeNode): AwardTreeNode {
+  parent.children.push(child);
+  child.parentElement = parent;
+  return child;
+}
+
+function createAwardControl(
+  module: AwardTreeNode,
+  row: AwardTreeNode,
+  id: string,
+  dataIndex: string,
+): HTMLInputElement {
+  const wrapper = appendAwardNode(row, createAwardTreeNode({ 'data-index': dataIndex }));
+  const control = appendAwardNode(wrapper, createAwardTreeNode({}, id));
+  return Object.assign(control, {
+    closest(selector: string) {
+      let current: AwardTreeNode | null = control;
+      while (current) {
+        if (selector.includes('data-form-module') && current.attrs['data-form-module']) return current;
+        if (selector.includes('data-repeat-item') && 'data-repeat-item' in current.attrs) return current;
+        current = current.parentElement;
+      }
+      return null;
+    },
+  }) as unknown as HTMLInputElement;
+}
+
+async function captureAwardFill(
+  fields: Array<{ element: HTMLInputElement; fieldType: FieldType; confidence: number }>,
+  awards: ReturnType<typeof createEmptyUserProfile>['awards'],
+): Promise<Array<[string, string]>> {
   const profile = createEmptyUserProfile();
-  profile.awards = [
-    { id: 'a1', name: '一等奖', role: '', date: '', description: '' },
-    { id: 'a2', name: '二等奖', role: '核心成员', date: '', description: '' },
-  ];
+  profile.awards = awards;
   const calls: Array<[string, string]> = [];
   const filler = new FormFiller();
-  (filler as unknown as { fillField: (element: HTMLInputElement, value: string) => Promise<void> }).fillField = async (element, value) => { calls.push([element.id, value]); };
+  (filler as unknown as { fillField: (element: HTMLInputElement, value: string) => Promise<void> }).fillField = async (element, value) => {
+    calls.push([element.id, value]);
+  };
+  await filler.fillForm(fields, profile);
+  return calls;
+}
 
-  await filler.fillForm([
-    { element: firstName, fieldType: FieldType.AWARD_NAME, confidence: 1 },
-    { element: secondRole, fieldType: FieldType.AWARD_ROLE, confidence: 1 },
-  ], profile);
+test('single award row shares one index across four field wrappers', async () => {
+  const module = createAwardTreeNode({ 'data-form-module': 'awards' });
+  const list = appendAwardNode(module, createAwardTreeNode());
+  const row = appendAwardNode(list, createAwardTreeNode());
+  const fields = [
+    { element: createAwardControl(module, row, 'single-name', '0'), fieldType: FieldType.AWARD_NAME, confidence: 1 },
+    { element: createAwardControl(module, row, 'single-role', '1'), fieldType: FieldType.AWARD_ROLE, confidence: 1 },
+    { element: createAwardControl(module, row, 'single-date', '2'), fieldType: FieldType.AWARD_DATE, confidence: 1 },
+    { element: createAwardControl(module, row, 'single-description', '3'), fieldType: FieldType.AWARD_DESCRIPTION, confidence: 1 },
+  ];
+
+  const calls = await captureAwardFill(fields, [
+    { id: 'a1', name: '一等奖', role: '负责人', date: '2026-06', description: '详细描述' },
+  ]);
 
   assert.deepEqual(calls, [
-    ['first-name-nested', '一等奖'],
-    ['second-role-nested', '核心成员'],
+    ['single-name', '一等奖'],
+    ['single-role', '负责人'],
+    ['single-date', '2026-06'],
+    ['single-description', '详细描述'],
+  ]);
+});
+
+test('award rows directly under module keep separate shared indexes', async () => {
+  const module = createAwardTreeNode({ 'data-form-module': 'awards' });
+  const row1 = appendAwardNode(module, createAwardTreeNode());
+  const row2 = appendAwardNode(module, createAwardTreeNode());
+  const fields = [
+    { element: createAwardControl(module, row1, 'row1-name', '0'), fieldType: FieldType.AWARD_NAME, confidence: 1 },
+    { element: createAwardControl(module, row1, 'row1-role', '1'), fieldType: FieldType.AWARD_ROLE, confidence: 1 },
+    { element: createAwardControl(module, row2, 'row2-name', '0'), fieldType: FieldType.AWARD_NAME, confidence: 1 },
+    { element: createAwardControl(module, row2, 'row2-role', '1'), fieldType: FieldType.AWARD_ROLE, confidence: 1 },
+  ];
+
+  const calls = await captureAwardFill(fields, [
+    { id: 'a1', name: '一等奖', role: '负责人', date: '', description: '' },
+    { id: 'a2', name: '二等奖', role: '核心成员', date: '', description: '' },
+  ]);
+
+  assert.deepEqual(calls, [
+    ['row1-name', '一等奖'],
+    ['row1-role', '负责人'],
+    ['row2-name', '二等奖'],
+    ['row2-role', '核心成员'],
   ]);
 });
