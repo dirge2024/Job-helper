@@ -62,10 +62,17 @@ export class NLPHelper {
     let current: ResumeSection = { kind: 'basic', title: '', lines: [] };
 
     for (const rawLine of text.split('\n')) {
-      // 去掉列表符号、下划线装饰与首尾空白
-      const line = rawLine.replace(/^[\s\-*•·|]+/, '').replace(/[\s_=—–-]+$/, '').trim();
-      if (!line) continue;
+      const trimmedLine = rawLine.trim();
+      if (!trimmedLine) {
+        if (current.kind === 'award' && current.lines.at(-1) !== '') {
+          current.lines.push('');
+        }
+        continue;
+      }
 
+      const hasListMarker = /^[\-*•·]\s*/.test(trimmedLine);
+      // 去掉列表符号、下划线装饰与首尾空白
+      const line = trimmedLine.replace(/^[\s\-*•·|]+/, '').replace(/[\s_=—–-]+$/, '').trim();
       const heading = line.replace(/^#+\s*/, '').replace(/[:：]$/, '').replace(/\s+/g, '');
       const matched = heading.length <= 12
         ? SECTION_RULES.find(([pattern]) => pattern.test(heading))
@@ -77,7 +84,7 @@ export class NLPHelper {
         continue;
       }
 
-      current.lines.push(line);
+      current.lines.push(current.kind === 'award' && hasListMarker ? `• ${line}` : line);
     }
 
     if (current.lines.length > 0 || current.title) sections.push(current);
@@ -368,18 +375,25 @@ export class NLPHelper {
       descriptionLines = [];
     };
 
+    let afterBlankLine = false;
     for (const [index, line] of lines.entries()) {
-      const dateMatch = line.match(/\b(\d{4})[年./-](\d{1,2})月?\b/);
-      const isHeader = index === 0
-        || /[|｜·]/.test(line)
-        || Boolean(dateMatch && line.length <= 60);
+      if (!line) {
+        afterBlankLine = true;
+        continue;
+      }
+
+      const hasListMarker = /^•\s+/.test(line);
+      const isHeader = index === 0 || hasListMarker || afterBlankLine;
+      afterBlankLine = false;
       if (!isHeader) {
         descriptionLines.push(line);
         continue;
       }
 
       flushDescription();
-      const parts = line
+      const header = line.replace(/^•\s+/, '');
+      const dateMatch = header.match(/\b(\d{4})[年./-](\d{1,2})月?\b/);
+      const parts = header
         .replace(dateMatch?.[0] ?? '', '')
         .split(/[|｜·，,、]/)
         .map(part => part.trim())

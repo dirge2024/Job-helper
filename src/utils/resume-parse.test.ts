@@ -190,6 +190,7 @@ test('同一奖项章节解析多条并分别归属描述', () => {
     '奖项',
     '优秀毕业生 | 负责人 | 2026-06',
     '第一项详细描述',
+    '',
     '一等奖 | 核心成员',
     '第二项第一行描述',
     '第二项第二行描述',
@@ -226,4 +227,36 @@ test('证书类标题不解析为 awards', () => {
     assert.equal(sections.some(section => section.kind === 'award'), false);
     assert.equal(NLPHelper.parseResumeText(`${heading}\n英语六级`).awards, undefined);
   }
+});
+
+test('项目符号连续纯名称解析为多个奖项', () => {
+  const parsed = NLPHelper.parseResumeText([
+    '荣誉',
+    '• 优秀毕业生',
+    '• 国家奖学金',
+    '• 三好学生',
+  ].join('\n'));
+
+  assert.deepEqual(parsed.awards, [
+    { id: 'award-0', name: '优秀毕业生', role: '', date: '', description: '' },
+    { id: 'award-1', name: '国家奖学金', role: '', date: '', description: '' },
+    { id: 'award-2', name: '三好学生', role: '', date: '', description: '' },
+  ]);
+});
+
+test('描述中的日期或竖线短行不会误拆为奖项', () => {
+  const parsed = NLPHelper.parseResumeText([
+    '奖项',
+    '优秀毕业生 | 负责人 | 2026-06',
+    '2025-12 完成候选材料整理',
+    '负责材料准备 | 现场答辩',
+  ].join('\n'));
+
+  assert.deepEqual(parsed.awards, [{
+    id: 'award-0',
+    name: '优秀毕业生',
+    role: '负责人',
+    date: '2026-06',
+    description: '2025-12 完成候选材料整理\n负责材料准备 | 现场答辩',
+  }]);
 });
