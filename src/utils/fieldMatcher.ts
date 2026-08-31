@@ -124,6 +124,33 @@ export class FieldMatcher {
     return bestMatch;
   }
 
+  private static extractModuleContext(module: HTMLElement | null): string {
+    if (!module) return '';
+
+    const stableIdentifiers = [
+      module.getAttribute('data-form-module'),
+      module.getAttribute('data-section'),
+      module.getAttribute('data-module'),
+      module.getAttribute('aria-label'),
+    ];
+    const labelledBy = module.getAttribute('aria-labelledby');
+    const labelledText = labelledBy
+      ?.split(/\s+/)
+      .map(id => module.ownerDocument?.getElementById(id)?.textContent || '')
+      .join(' ');
+    const headingText = module.querySelector(
+      ':scope > legend, :scope > [role="heading"], :scope > h1, :scope > h2, ' +
+      ':scope > h3, :scope > h4, :scope > h5, :scope > h6, ' +
+      'legend, [role="heading"], h1, h2, h3, h4, h5, h6'
+    )?.textContent;
+
+    return [...stableIdentifiers, labelledText, headingText]
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   // 从元素中提取所有可能的标识符
   static extractIdentifiers(
     element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -203,11 +230,13 @@ export class FieldMatcher {
       labelText = [elementDataI18nName, containerDataI18nName].filter(Boolean).join(' ');
     }
 
-    const moduleContainer = element.closest<HTMLElement>('[class*=applyFormModuleWrapper]');
-    const moduleText = (moduleContainer?.textContent || '').replace(/\s+/g, ' ').trim();
-    const contextText = `${moduleText} ${labelText} ${name} ${id}`;
+    const moduleContainer = element.closest<HTMLElement>(
+      '[data-form-module], [data-section], [data-module], [class*=applyFormModuleWrapper]'
+    );
+    const moduleContext = this.extractModuleContext(moduleContainer);
+    const contextText = `${moduleContext} ${labelText} ${name} ${id}`;
 
-    if (/奖项|荣誉|获奖|award|honou?r/i.test(moduleText)) {
+    if (/奖项|荣誉|获奖|award|honou?r/i.test(moduleContext)) {
       labelText = `${labelText} award-context 奖项`;
     }
 

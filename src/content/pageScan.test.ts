@@ -69,7 +69,12 @@ test('generic award labels require award module context', () => {
     getAttribute: () => '',
     querySelector: () => ({ textContent: '详细描述' }),
   };
-  const awardModule = { textContent: '奖项 / 荣誉 详细描述' };
+  const awardModule = {
+    textContent: '奖项 / 荣誉 详细描述',
+    ownerDocument: null,
+    getAttribute: (name: string) => name === 'data-form-module' ? 'awards' : null,
+    querySelector: () => null,
+  };
   const element = {
     id: '',
     getAttribute: () => '',
@@ -86,4 +91,30 @@ test('generic award labels require award module context', () => {
     identifiers.type,
     identifiers.autocomplete,
   ).fieldType, FieldType.AWARD_DESCRIPTION);
+});
+
+test('project module user content mentioning awards does not create award context', () => {
+  const heading = { textContent: '项目经历' };
+  const fieldContainer = {
+    getAttribute: () => '',
+    querySelector: () => ({ textContent: '详细描述' }),
+  };
+  const projectModule = {
+    textContent: '项目经历 曾获奖并获得荣誉',
+    getAttribute: () => '',
+    querySelector: (selector: string) => selector.includes('heading') || selector.includes('h1') ? heading : null,
+  };
+  const element = {
+    id: '',
+    value: '曾获奖并获得荣誉',
+    getAttribute: () => '',
+    closest: (selector: string) => selector.includes('applyFormModuleWrapper') ? projectModule : fieldContainer,
+    previousElementSibling: null,
+  } as unknown as HTMLTextAreaElement;
+
+  const identifiers = FieldMatcher.extractIdentifiers(element);
+  assert.equal(FieldMatcher.matchFieldType(
+    identifiers.name, identifiers.id, identifiers.placeholder, identifiers.labelText,
+    identifiers.type, identifiers.autocomplete,
+  ).fieldType, FieldType.DESCRIPTION);
 });

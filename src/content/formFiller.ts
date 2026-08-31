@@ -327,10 +327,34 @@ export class FormFiller {
   }
 
   private getAwardRowContainer(element: Element): Element | null {
-    return element.closest(
-      '[data-award-index], [data-row-index], [data-index], [class*=formListItem], ' +
-      '[class*=form-list-item], [class*=awardItem], [class*=award-item], [class*=itemCard]'
+    const module = element.closest<HTMLElement>(
+      '[data-form-module], [data-section], [data-module], [class*=applyFormModuleWrapper]'
     );
+    if (!module || !this.isAwardModule(module)) return null;
+
+    const markedRow = element.closest('[data-award-row], [data-repeat-item], [role="listitem"], fieldset');
+    if (markedRow && module.contains(markedRow)) return markedRow;
+
+    let current: Element | null = element.parentElement;
+    let siblingRow: Element | null = null;
+    while (current && current !== module) {
+      const parent: Element | null = current.parentElement;
+      if (parent && parent !== module && parent.children.length > 1) siblingRow = current;
+      current = parent;
+    }
+    return siblingRow;
+  }
+
+  private isAwardModule(module: HTMLElement): boolean {
+    const identifiers = [
+      module.getAttribute('data-form-module'),
+      module.getAttribute('data-section'),
+      module.getAttribute('data-module'),
+      module.getAttribute('aria-label'),
+      module.querySelector('legend, [role="heading"], h1, h2, h3, h4, h5, h6')?.textContent,
+    ].filter(Boolean).join(' ');
+
+    return /奖项|荣誉|获奖|awards?|honou?rs?/i.test(identifiers);
   }
 
   resolveFieldValue(fieldType: FieldType, profile: UserProfile, awardIndex = 0): string | null {

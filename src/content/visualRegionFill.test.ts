@@ -113,39 +113,62 @@ test('keeps generic experience description independent from award descriptions',
   assert.equal(filler.resolveFieldValue(FieldType.AWARD_DESCRIPTION, profile, 0), '奖项描述');
 });
 
-test('fillForm shares award row index when the first row omits an optional role field', async () => {
+test('nested controls with their own data-index share the containing award row', async () => {
+  type TreeNode = {
+    parentElement: TreeNode | null; children: TreeNode[]; id?: string; attrs: Record<string, string>;
+    getAttribute(name: string): string | null; querySelector(selector: string): TreeNode | null; contains(node: TreeNode): boolean;
+  };
+  const node = (attrs: Record<string, string> = {}, id?: string): TreeNode => ({
+    parentElement: null, children: [], attrs, id,
+    getAttribute(name) { return this.attrs[name] ?? null; },
+    querySelector() { return null; },
+    contains(target) {
+      let current: TreeNode | null = target;
+      while (current) { if (current === this) return true; current = current.parentElement; }
+      return false;
+    },
+  });
+  const append = (parent: TreeNode, child: TreeNode) => { parent.children.push(child); child.parentElement = parent; return child; };
+  const module = node({ 'data-form-module': 'awards' });
+  const list = append(module, node());
+  const row1 = append(list, node());
+  const row2 = append(list, node());
+  const field = (row: TreeNode, id: string, dataIndex: string) => {
+    const wrapper = append(row, node({ 'data-index': dataIndex }));
+    const control = append(wrapper, node({}, id));
+    return Object.assign(control, {
+      closest(selector: string) {
+        let current: TreeNode | null = control;
+        while (current) {
+          if (selector.includes('applyFormModuleWrapper') && current === module) return current;
+          if (selector.includes('data-form-module') && current.attrs['data-form-module']) return current;
+          if (selector.includes('data-repeat-item') && 'data-repeat-item' in current.attrs) return current;
+          if (selector.includes('data-index') && 'data-index' in current.attrs) return current;
+          current = current.parentElement;
+        }
+        return null;
+      },
+      getAttribute(name: string) { return this.attrs[name] ?? null; },
+    }) as unknown as HTMLInputElement;
+  };
+  const firstName = field(row1, 'first-name-nested', '0');
+  const secondRole = field(row2, 'second-role-nested', '1');
   const profile = createEmptyUserProfile();
   profile.awards = [
-    { id: 'award-1', name: '一等奖', role: '', date: '2025-06', description: '第一项描述' },
-    { id: 'award-2', name: '二等奖', role: '核心成员', date: '2026-07', description: '第二项描述' },
+    { id: 'a1', name: '一等奖', role: '', date: '', description: '' },
+    { id: 'a2', name: '二等奖', role: '核心成员', date: '', description: '' },
   ];
-  const firstRow = { getAttribute: () => '0' };
-  const secondRow = { getAttribute: () => '1' };
-  const makeElement = (id: string, row: object) => ({
-    id,
-    closest: () => row,
-  }) as unknown as HTMLInputElement;
-  const firstName = makeElement('first-name', firstRow);
-  const secondName = makeElement('second-name', secondRow);
-  const secondRole = makeElement('second-role', secondRow);
-  const secondDescription = makeElement('second-description', secondRow);
   const calls: Array<[string, string]> = [];
   const filler = new FormFiller();
-  (filler as unknown as { fillField: (element: HTMLInputElement, value: string) => Promise<void> }).fillField = async (element, value) => {
-    calls.push([element.id, value]);
-  };
+  (filler as unknown as { fillField: (element: HTMLInputElement, value: string) => Promise<void> }).fillField = async (element, value) => { calls.push([element.id, value]); };
 
   await filler.fillForm([
     { element: firstName, fieldType: FieldType.AWARD_NAME, confidence: 1 },
-    { element: secondName, fieldType: FieldType.AWARD_NAME, confidence: 1 },
     { element: secondRole, fieldType: FieldType.AWARD_ROLE, confidence: 1 },
-    { element: secondDescription, fieldType: FieldType.AWARD_DESCRIPTION, confidence: 1 },
   ], profile);
 
   assert.deepEqual(calls, [
-    ['first-name', '一等奖'],
-    ['second-name', '二等奖'],
-    ['second-role', '核心成员'],
-    ['second-description', '第二项描述'],
+    ['first-name-nested', '一等奖'],
+    ['second-role-nested', '核心成员'],
   ]);
 });
