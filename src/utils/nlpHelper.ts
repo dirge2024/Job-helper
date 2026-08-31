@@ -366,9 +366,14 @@ export class NLPHelper {
     const contentLines = lines.filter(Boolean);
     if (contentLines.length === 0) return [];
 
-    const titleLikePattern = /^(?=.{2,20}$)(?!.*(?:负责|参与|完成|推动|实现|开展|承担|协助|组织|通过|包含|主要|用于))[^。！？；;：:|｜·，,、\d]+$/;
+    const titleLikePattern = /^(?=.{2,20}$)[^。！？；;：:|｜·，,、\d]+$/;
+    const awardNameEvidence = /(?:奖学金|(?:一|二|三|特)等奖|金奖|银奖|铜奖|荣誉|优秀(?:毕业生|学生|干部|团员)|三好学生|先进个人|标兵|之星|冠军|亚军|季军|称号)$/;
     const isPlainNameList = contentLines.length > 1
-      && contentLines.every(line => !/^•\s+/.test(line) && titleLikePattern.test(line));
+      && contentLines.every(line => (
+        !/^•\s+/.test(line)
+        && titleLikePattern.test(line)
+        && awardNameEvidence.test(line)
+      ));
     if (isPlainNameList) {
       return contentLines.map((name, index) => ({
         id: `award-${index}`,
@@ -401,7 +406,17 @@ export class NLPHelper {
       const header = line.replace(/^•\s+/, '');
       const dateMatch = header.match(/\b(\d{4})[年./-](\d{1,2})月?\b/);
       const separatorCount = header.match(/[|｜·]/g)?.length ?? 0;
-      const isStructuredHeader = Boolean(dateMatch && separatorCount >= 2);
+      const structuralParts = header
+        .replace(dateMatch?.[0] ?? '', '')
+        .split(/[|｜·]/)
+        .map(part => part.trim())
+        .filter(Boolean);
+      const roleEvidence = /^(?:负责人|核心成员|成员|队长|组长|主席|部长|干事|代表|指导教师|指导老师|个人|团队)$/;
+      const hasNameAndRole = separatorCount >= 1
+        && structuralParts.length === 2
+        && roleEvidence.test(structuralParts[1]);
+      const isStructuredHeader = hasNameAndRole
+        || Boolean(dateMatch && separatorCount >= 2);
       const isHeader = index === 0 || hasListMarker || isStructuredHeader;
       if (!isHeader) {
         descriptionLines.push(line);
