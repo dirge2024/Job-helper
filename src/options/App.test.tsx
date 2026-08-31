@@ -8,7 +8,7 @@ import type { UserProfile } from "../shared/types.ts";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const makeProfile = (name: string): UserProfile => ({ personal: { name }, education: [], experience: [], projects: [], customInformation: [], skills: [], certifications: [] });
+const makeProfile = (name: string): UserProfile => ({ personal: { name }, education: [], experience: [], projects: [], awards: [], customInformation: [], skills: [], certifications: [] });
 
 function text(renderer: TestRenderer.ReactTestRenderer): string {
   return renderer.root.findAll(node => typeof node.type === "string").flatMap(node => node.children).filter(child => typeof child === "string").join(" ");
@@ -107,5 +107,29 @@ test("外部资料 reload 失败时保留冲突提示并显示错误", async () 
     assert.equal(nameInput(env.renderer).props.value, "本地草稿");
     assert.match(text(env.renderer), /重新加载/);
     assert.match(text(env.renderer), /读取失败/);
+  } finally { await env.cleanup(); }
+});
+
+test("奖项名称为空时阻止保存，只有名称时允许保存", async () => {
+  const env = await setup();
+  try {
+    await act(async () => { button(env.renderer, "实习与项目")?.props.onClick(); });
+    await act(async () => { button(env.renderer, "添加奖项 / 荣誉")?.props.onClick(); });
+    assert.match(text(env.renderer), /请填写奖项名称/);
+    await act(async () => { await button(env.renderer, "保存设置")?.props.onClick(); });
+    assert.equal(env.saveCount(), 0);
+    const input = env.renderer.root.findByProps({ placeholder: "请填写奖项名称" });
+    await act(async () => { input.props.onChange({ target: { value: "优秀毕业生" } }); });
+    await act(async () => { await button(env.renderer, "保存设置")?.props.onClick(); });
+    assert.equal(env.saveCount(), 1);
+  } finally { await env.cleanup(); }
+});
+
+test("实习与项目页不再显示成果和技术栈输入", async () => {
+  const env = await setup();
+  try {
+    await act(async () => { button(env.renderer, "实习与项目")?.props.onClick(); });
+    const rendered = text(env.renderer);
+    assert.doesNotMatch(rendered, /实习成果|项目成果|项目技术栈/);
   } finally { await env.cleanup(); }
 });

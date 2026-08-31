@@ -12,6 +12,7 @@ import type {
 import { AISettings } from './AISettings';
 import { EducationSection } from './EducationSection';
 import { ExperienceSection } from './ExperienceSection';
+import { AwardsSection } from './AwardsSection';
 import { DataSyncSettings } from './DataSyncSettings';
 import { ApplicationRecordsSection } from './ApplicationRecordsSection';
 import { ResumeProfileManager } from './ResumeProfileManager';
@@ -121,6 +122,7 @@ function App() {
     education: [],
     experience: [],
     projects: [],
+    awards: [],
     customInformation: [],
     skills: [],
     certifications: []
@@ -207,6 +209,7 @@ function App() {
         education: [],
         experience: [],
         projects: [],
+        awards: [],
         customInformation: [],
         skills: [],
         certifications: [],
@@ -261,6 +264,10 @@ function App() {
   };
 
   const handleSave = async () => {
+    if ((profile.awards || []).some(award => !award.name.trim())) {
+      setSaveNotice({ type: 'error', text: '请填写奖项名称后再保存' });
+      return false;
+    }
     if (externalConflict?.keptLocal) {
       setSaveNotice({ type: 'error', text: '当前草稿属于另一份简历，请先重新加载或切回原简历后再保存' });
       return false;
@@ -689,6 +696,10 @@ function App() {
                 onChangeExperience={experience => setProfile({ ...profile, experience })}
                 onChangeProjects={projects => setProfile({ ...profile, projects })}
                 onChangeSkills={skills => setProfile({ ...profile, skills })}
+              />
+              <AwardsSection
+                awards={profile.awards || []}
+                onChange={awards => setProfile({ ...profile, awards })}
               />
             </div>
           )}

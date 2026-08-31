@@ -251,7 +251,6 @@ export function ExperienceSection({
               startDate: '',
               endDate: '',
               description: '',
-              achievements: '',
             },
           ])
         }

@@ -1255,3 +1255,9 @@ textarea:focus {
   .profile-manager-heading { justify-content: space-between; }
   .profile-manager-actions { flex-wrap: wrap; }
 }
+
+.awards-section .field-error {
+  margin-top: 6px;
+  color: var(--color-danger);
+  font-size: 12px;
+}
