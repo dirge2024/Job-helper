@@ -89,7 +89,6 @@ test('只把存在于 controlsById 的映射交给写回层', async () => {
   });
 });
 
-
 test('resolves each award field by its repeated-field index', () => {
   const profile = createEmptyUserProfile();
   profile.awards = [
@@ -112,4 +111,41 @@ test('keeps generic experience description independent from award descriptions',
 
   assert.equal(filler.resolveFieldValue(FieldType.DESCRIPTION, profile, 0), '通用实习描述');
   assert.equal(filler.resolveFieldValue(FieldType.AWARD_DESCRIPTION, profile, 0), '奖项描述');
+});
+
+test('fillForm shares award row index when the first row omits an optional role field', async () => {
+  const profile = createEmptyUserProfile();
+  profile.awards = [
+    { id: 'award-1', name: '一等奖', role: '', date: '2025-06', description: '第一项描述' },
+    { id: 'award-2', name: '二等奖', role: '核心成员', date: '2026-07', description: '第二项描述' },
+  ];
+  const firstRow = { getAttribute: () => '0' };
+  const secondRow = { getAttribute: () => '1' };
+  const makeElement = (id: string, row: object) => ({
+    id,
+    closest: () => row,
+  }) as unknown as HTMLInputElement;
+  const firstName = makeElement('first-name', firstRow);
+  const secondName = makeElement('second-name', secondRow);
+  const secondRole = makeElement('second-role', secondRow);
+  const secondDescription = makeElement('second-description', secondRow);
+  const calls: Array<[string, string]> = [];
+  const filler = new FormFiller();
+  (filler as unknown as { fillField: (element: HTMLInputElement, value: string) => Promise<void> }).fillField = async (element, value) => {
+    calls.push([element.id, value]);
+  };
+
+  await filler.fillForm([
+    { element: firstName, fieldType: FieldType.AWARD_NAME, confidence: 1 },
+    { element: secondName, fieldType: FieldType.AWARD_NAME, confidence: 1 },
+    { element: secondRole, fieldType: FieldType.AWARD_ROLE, confidence: 1 },
+    { element: secondDescription, fieldType: FieldType.AWARD_DESCRIPTION, confidence: 1 },
+  ], profile);
+
+  assert.deepEqual(calls, [
+    ['first-name', '一等奖'],
+    ['second-name', '二等奖'],
+    ['second-role', '核心成员'],
+    ['second-description', '第二项描述'],
+  ]);
 });

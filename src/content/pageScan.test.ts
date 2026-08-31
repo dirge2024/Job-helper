@@ -46,7 +46,6 @@ test('groups page scan fields by section while preserving field order and metada
   assert.deepEqual(grouped[1].fields.map(field => field.index), [1]);
 });
 
-
 test('matches award field semantics without reviving removed legacy fields', () => {
   const match = (labelText: string) => FieldMatcher.matchFieldType('', '', '', labelText, 'text', '');
 
@@ -57,4 +56,34 @@ test('matches award field semantics without reviving removed legacy fields', () 
   assert.equal(match('项目技术栈').fieldType, FieldType.UNKNOWN);
   assert.equal(match('实习成果').fieldType, FieldType.UNKNOWN);
   assert.equal(match('项目描述').fieldType, FieldType.DESCRIPTION);
+});
+
+test('generic award labels require award module context', () => {
+  const match = (labelText: string) => FieldMatcher.matchFieldType('', '', '', labelText, 'text', '').fieldType;
+
+  assert.notEqual(match('担任角色'), FieldType.AWARD_ROLE);
+  assert.notEqual(match('获取时间'), FieldType.AWARD_DATE);
+  assert.notEqual(match('详细描述'), FieldType.AWARD_DESCRIPTION);
+
+  const fieldContainer = {
+    getAttribute: () => '',
+    querySelector: () => ({ textContent: '详细描述' }),
+  };
+  const awardModule = { textContent: '奖项 / 荣誉 详细描述' };
+  const element = {
+    id: '',
+    getAttribute: () => '',
+    closest: (selector: string) => selector.includes('applyFormModuleWrapper') ? awardModule : fieldContainer,
+    previousElementSibling: null,
+  } as unknown as HTMLInputElement;
+
+  const identifiers = FieldMatcher.extractIdentifiers(element);
+  assert.equal(FieldMatcher.matchFieldType(
+    identifiers.name,
+    identifiers.id,
+    identifiers.placeholder,
+    identifiers.labelText,
+    identifiers.type,
+    identifiers.autocomplete,
+  ).fieldType, FieldType.AWARD_DESCRIPTION);
 });

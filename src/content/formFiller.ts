@@ -94,7 +94,8 @@ export class FormFiller {
 
     const educationIndexes: Partial<Record<FieldType, number>> = {};
     const experienceIndexes: Partial<Record<FieldType, number>> = {};
-    const awardIndexes: Partial<Record<FieldType, number>> = {};
+    const awardRowIndexes = new Map<Element, number>();
+    let fallbackAwardIndex = -1;
     await this.fillDateRangeFields(fields, profile);
     const orderedFields = fields.filter(field => !this.isDateRangeField(field.fieldType as FieldType));
 
@@ -103,7 +104,13 @@ export class FormFiller {
         const fieldType = field.fieldType as FieldType;
         const educationIndex = this.getNextEducationIndex(fieldType, educationIndexes);
         const experienceIndex = this.getNextExperienceIndex(fieldType, experienceIndexes);
-        const awardIndex = this.getNextAwardIndex(fieldType, awardIndexes);
+        const awardIndex = AWARD_FIELD_TYPES.has(fieldType)
+          ? this.getAwardIndex(field.element, fieldType, awardRowIndexes, fallbackAwardIndex)
+          : undefined;
+        if (AWARD_FIELD_TYPES.has(fieldType) && !this.getAwardRowContainer(field.element)
+          && fieldType === FieldType.AWARD_NAME) {
+          fallbackAwardIndex += 1;
+        }
         const value = this.getValueForField(fieldType, profile, educationIndex, experienceIndex, awardIndex);
         if (value !== null && value !== undefined) {
           await this.fillField(field.element, value);
@@ -300,15 +307,30 @@ export class FormFiller {
     return index;
   }
 
-  private getNextAwardIndex(
+  private getAwardIndex(
+    element: Element,
     fieldType: FieldType,
-    awardIndexes: Partial<Record<FieldType, number>>
-  ): number | undefined {
-    if (!AWARD_FIELD_TYPES.has(fieldType)) return undefined;
+    rowIndexes: Map<Element, number>,
+    fallbackIndex: number
+  ): number {
+    const row = this.getAwardRowContainer(element);
+    if (row) {
+      const existing = rowIndexes.get(row);
+      if (existing !== undefined) return existing;
 
-    const index = awardIndexes[fieldType] ?? 0;
-    awardIndexes[fieldType] = index + 1;
-    return index;
+      const index = rowIndexes.size;
+      rowIndexes.set(row, index);
+      return index;
+    }
+
+    return fieldType === FieldType.AWARD_NAME ? fallbackIndex + 1 : Math.max(fallbackIndex, 0);
+  }
+
+  private getAwardRowContainer(element: Element): Element | null {
+    return element.closest(
+      '[data-award-index], [data-row-index], [data-index], [class*=formListItem], ' +
+      '[class*=form-list-item], [class*=awardItem], [class*=award-item], [class*=itemCard]'
+    );
   }
 
   resolveFieldValue(fieldType: FieldType, profile: UserProfile, awardIndex = 0): string | null {

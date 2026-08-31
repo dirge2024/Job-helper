@@ -207,6 +207,10 @@ export class FieldMatcher {
     const moduleText = (moduleContainer?.textContent || '').replace(/\s+/g, ' ').trim();
     const contextText = `${moduleText} ${labelText} ${name} ${id}`;
 
+    if (/奖项|荣誉|获奖|award|honou?r/i.test(moduleText)) {
+      labelText = `${labelText} award-context 奖项`;
+    }
+
     if (fieldContainer && /起止时间|date range|start.*end|start_end/i.test(`${labelText} ${name} ${id}`)) {
       const fieldsInContainer = Array.from(
         fieldContainer.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
