@@ -36,7 +36,7 @@ export async function openApplicationRecordCreateWindow(): Promise<void> {
 
 export async function openApplicationRecordOptions(): Promise<void> {
   await chrome.tabs.create({
-    url: getRuntimeUrl('src/options/index.html?tab=application-records'),
+    url: getRuntimeUrl('src/dashboard/index.html?page=applications'),
   });
 }
 

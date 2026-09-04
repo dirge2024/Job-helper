@@ -12,6 +12,15 @@ dist
 release
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+local-backups
+*.backup.json
 mock-resume-samples
 mock-resume-samples-zh
 mock-resume-samples-v2

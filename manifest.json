@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "秋招网申助手",
+  "name": "求职助手",
   "version": "1.0.0",
   "minimum_chrome_version": "116",
   "description": "自动识别和填充求职网申表单，支持简历解析",
@@ -43,7 +43,7 @@
       "js": ["content.js"]
     }
   ],
-  "options_page": "src/options/index.html",
+  "options_page": "src/dashboard/index.html",
   "web_accessible_resources": [
     {
       "resources": ["icons/*", "pdf.worker.min.js", "cmaps/*", "standard_fonts/*"],
