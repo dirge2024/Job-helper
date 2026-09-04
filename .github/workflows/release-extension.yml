@@ -60,7 +60,7 @@ jobs:
           fi
 
           if [[ -z "${RELEASE_NAME}" ]]; then
-            RELEASE_NAME="秋招网申助手 ${TAG_NAME}"
+            RELEASE_NAME="求职助手 ${TAG_NAME}"
           fi
 
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
