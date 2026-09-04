@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { APPLICATION_RECORD_STATUSES, normalizeApplicationRecord } from '../shared/applicationRecords.ts';
 import { MessageService } from '../shared/message.ts';
-import type { ApplicationRecord, ApplicationRecordStatus, InterviewReview, InterviewSchedule, InterviewStage } from '../shared/types.ts';
+import type { ActiveResumeContext, ApplicationRecord, ApplicationRecordStatus, InterviewReview, InterviewSchedule, InterviewStage, SyncMetadata, WebDAVConfig } from '../shared/types.ts';
 
 type DashboardPage = 'applications' | 'schedule' | 'reviews' | 'profiles' | 'insights' | 'backup';
 
@@ -452,14 +452,94 @@ function ReviewsPage() {
   </>;
 }
 
-function PlaceholderPage({ item }: { item: NavigationItem }) {
-  return <div className="dashboard-stage-card"><div className="dashboard-stage-icon" aria-hidden="true">NEXT</div><h2>{item.title}将在下一阶段接入</h2><p>{item.description}。已有功能没有删除，迁移前仍可通过下方入口使用。</p>{item.legacyTab ? <button type="button" className="dashboard-primary-action" onClick={() => openLegacySettings(item.legacyTab!)}>打开现有功能</button> : <span className="dashboard-status-note">投递管理已可正常使用；其余页面会按需求依次实现。</span>}</div>;
+function ProfilesPage() {
+  const [context, setContext] = useState<ActiveResumeContext | null>(null);
+  const [errorText, setErrorText] = useState('');
+
+  useEffect(() => {
+    void (async () => {
+      const response = await MessageService.sendMessage<ActiveResumeContext>({ type: 'GET_ACTIVE_RESUME_CONTEXT' });
+      if (!response.success) setErrorText(response.error || '读取简历资料失败');
+      else setContext(response.data ?? null);
+    })();
+  }, []);
+
+  const profile = context?.profile;
+  return <>
+    {errorText && <p className="dashboard-form-error" role="alert">{errorText}</p>}
+    <div className="dashboard-overview-grid">
+      <section className="dashboard-overview-card profile-overview-card">
+        <p className="dashboard-card-eyebrow">ACTIVE RESUME</p>
+        <h2>{context?.profiles.find(item => item.id === context.activeProfileId)?.name || '默认简历'}</h2>
+        <p>当前投递和自动填充使用这份简历资料。编辑、切换、新建和导入简历等完整功能仍在原资料编辑器中保留。</p>
+        <div className="dashboard-card-actions"><button type="button" className="dashboard-primary-action" onClick={() => openLegacySettings('resume')}>管理简历资料</button><button type="button" className="dashboard-secondary-action" onClick={() => openLegacySettings('ai')}>配置 AI（可选）</button></div>
+      </section>
+      <section className="dashboard-overview-card profile-facts-card">
+        <p className="dashboard-card-eyebrow">PROFILE SNAPSHOT</p>
+        <dl className="profile-facts">
+          <div><dt>个人信息</dt><dd>{profile?.personal.name || '未填写'}</dd></div>
+          <div><dt>教育经历</dt><dd>{profile?.education.length ?? 0} 条</dd></div>
+          <div><dt>工作 / 实习</dt><dd>{profile?.experience.length ?? 0} 条</dd></div>
+          <div><dt>项目经历</dt><dd>{profile?.projects.length ?? 0} 条</dd></div>
+        </dl>
+      </section>
+    </div>
+  </>;
+}
+
+function InsightsPage() {
+  const [records, setRecords] = useState<ApplicationRecord[]>([]);
+  const [errorText, setErrorText] = useState('');
+  useEffect(() => {
+    void (async () => {
+      const response = await MessageService.sendMessage<ApplicationRecord[]>({ type: 'GET_APPLICATION_RECORDS' });
+      if (!response.success) setErrorText(response.error || '读取投递数据失败');
+      else setRecords((response.data ?? []).map(normalizeApplicationRecord));
+    })();
+  }, []);
+  const activeRecords = records.filter(item => item.status !== '中止');
+  const interviewCount = records.filter(item => isInterviewStage(item.status)).length;
+  const offerCount = records.filter(item => item.status === 'Offer').length;
+  return <>
+    {errorText && <p className="dashboard-form-error" role="alert">{errorText}</p>}
+    <div className="insights-summary">
+      <section><span>总投递</span><strong>{records.length}</strong></section>
+      <section><span>进行中</span><strong>{activeRecords.length}</strong></section>
+      <section><span>面试阶段</span><strong>{interviewCount}</strong></section>
+      <section><span>已获 Offer</span><strong>{offerCount}</strong></section>
+    </div>
+    <section className="insights-card"><div><p className="dashboard-card-eyebrow">PROGRESS DISTRIBUTION</p><h2>投递进度分布</h2></div><div className="insight-status-grid">{APPLICATION_RECORD_STATUSES.map(status => { const count = records.filter(item => item.status === status).length; return <div key={status} className={`insight-status-item progress-${STATUS_CLASS_NAMES[status]}`}><span>{status}</span><strong>{count}</strong></div>; })}</div></section>
+  </>;
+}
+
+function BackupPage() {
+  const [metadata, setMetadata] = useState<SyncMetadata>({ status: 'idle' });
+  const [config, setConfig] = useState<WebDAVConfig | null>(null);
+  const [errorText, setErrorText] = useState('');
+  useEffect(() => {
+    void Promise.all([
+      MessageService.sendMessage<SyncMetadata>({ type: 'GET_SYNC_STATUS' }),
+      MessageService.sendMessage<WebDAVConfig>({ type: 'GET_WEBDAV_CONFIG' }),
+    ]).then(([syncResponse, configResponse]) => {
+      if (!syncResponse.success) setErrorText(syncResponse.error || '读取同步状态失败');
+      else if (syncResponse.data) setMetadata(syncResponse.data);
+      if (configResponse.success && configResponse.data) setConfig(configResponse.data);
+    });
+  }, []);
+  const syncLabel: Record<SyncMetadata['status'], string> = { idle: '尚未同步', syncing: '同步中', synced: '已同步', conflict: '需要处理冲突', error: '同步失败' };
+  return <>
+    {errorText && <p className="dashboard-form-error" role="alert">{errorText}</p>}
+    <div className="dashboard-overview-grid">
+      <section className="dashboard-overview-card backup-status-card"><p className="dashboard-card-eyebrow">SYNC STATUS</p><h2>{syncLabel[metadata.status]}</h2><p>{config?.enabled ? 'WebDAV 自动同步已启用。' : 'WebDAV 自动同步尚未启用。'} 最近成功同步：{metadata.lastSyncedAt ? new Date(metadata.lastSyncedAt).toLocaleString() : '暂无'}。</p><span className={`backup-status-pill status-${metadata.status}`}>{syncLabel[metadata.status]}</span></section>
+      <section className="dashboard-overview-card"><p className="dashboard-card-eyebrow">SAFE DATA CONTROL</p><h2>导入、导出与同步</h2><p>完整 JSON 备份、导入预检、冲突处理和 WebDAV 凭据都保留在专用设置中；备份可能含个人资料和密钥，请勿分享。</p><div className="dashboard-card-actions"><button type="button" className="dashboard-primary-action" onClick={() => openLegacySettings('data-sync')}>打开备份与同步</button></div></section>
+    </div>
+  </>;
 }
 
 function App() {
   const [activePage, setActivePage] = useState<DashboardPage>(getInitialPage);
   const activeItem = NAVIGATION_ITEMS.find(item => item.id === activePage)!;
-  return <main className="dashboard-shell"><header className="dashboard-header"><a className="dashboard-brand" href={getRuntimeUrl('src/dashboard/index.html')}><span className="dashboard-brand-mark" aria-hidden="true">J</span><span>求职助手</span></a><nav className="dashboard-nav" aria-label="主导航">{NAVIGATION_ITEMS.map(item => <button key={item.id} type="button" className={item.id === activePage ? 'dashboard-nav-item is-active' : 'dashboard-nav-item'} onClick={() => setActivePage(item.id)}>{item.label}</button>)}</nav></header><section className="dashboard-workspace" aria-labelledby="page-title"><div className="dashboard-page-heading"><div><p>{activeItem.eyebrow}</p><h1 id="page-title">{activeItem.title}</h1><span>{activeItem.description}</span></div></div>{activePage === 'applications' ? <ApplicationsPage /> : activePage === 'schedule' ? <SchedulePage /> : activePage === 'reviews' ? <ReviewsPage /> : <PlaceholderPage item={activeItem} />}</section></main>;
+  return <main className="dashboard-shell"><header className="dashboard-header"><a className="dashboard-brand" href={getRuntimeUrl('src/dashboard/index.html')}><span className="dashboard-brand-mark" aria-hidden="true">J</span><span>求职助手</span></a><nav className="dashboard-nav" aria-label="主导航">{NAVIGATION_ITEMS.map(item => <button key={item.id} type="button" className={item.id === activePage ? 'dashboard-nav-item is-active' : 'dashboard-nav-item'} onClick={() => setActivePage(item.id)}>{item.label}</button>)}</nav></header><section className="dashboard-workspace" aria-labelledby="page-title"><div className="dashboard-page-heading"><div><p>{activeItem.eyebrow}</p><h1 id="page-title">{activeItem.title}</h1><span>{activeItem.description}</span></div></div>{activePage === 'applications' ? <ApplicationsPage /> : activePage === 'schedule' ? <SchedulePage /> : activePage === 'reviews' ? <ReviewsPage /> : activePage === 'profiles' ? <ProfilesPage /> : activePage === 'insights' ? <InsightsPage /> : <BackupPage />}</section></main>;
 }
 
 export default App;

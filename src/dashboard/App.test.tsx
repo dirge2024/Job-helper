@@ -38,3 +38,14 @@ test('面经复盘保持左侧编辑和右侧列表，AI 总结位于保存按�
   assert.match(css, /\.reviews-layout\s*\{[^}]*grid-template-columns:/);
   assert.match(css, /\.review-editor-actions\s*\{[^}]*justify-content:\s*flex-end;/);
 });
+
+test('资料、洞察和备份页面均保留原有能力的可达入口', () => {
+  for (const label of ['管理简历资料', '配置 AI（可选）', '投递进度分布', '总投递', '面试阶段', '打开备份与同步']) {
+    assert.ok(appSource.includes(label), `缺少工作台页面入口：${label}`);
+  }
+  for (const messageType of ['GET_ACTIVE_RESUME_CONTEXT', 'GET_APPLICATION_RECORDS', 'GET_SYNC_STATUS', 'GET_WEBDAV_CONFIG']) {
+    assert.match(appSource, new RegExp(messageType));
+  }
+  assert.match(css, /\.dashboard-overview-grid\s*\{[^}]*grid-template-columns:/);
+  assert.match(css, /\.insight-status-grid\s*\{[^}]*grid-template-columns:/);
+});

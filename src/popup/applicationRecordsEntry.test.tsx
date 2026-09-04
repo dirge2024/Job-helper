@@ -15,6 +15,7 @@ test('popup 视觉重构保留全部现有入口且不引入额外功能', async
   const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
   assert.match(appSource, /className="popup-metrics-strip"/);
   for (const label of [
+    '求职助手',
     '新建投递记录',
     '打开投递记录',
     '打开信息窗口',
@@ -25,6 +26,13 @@ test('popup 视觉重构保留全部现有入口且不引入额外功能', async
   ]) assert.match(html, new RegExp(label));
   assert.match(html, /icons\/icon128\.png/);
   assert.doesNotMatch(html, /复制全部信息|清空表单/);
+});
+
+test('popup 名称和主色与求职助手工作台保持一致', () => {
+  const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(appSource, /<h1>求职助手<\/h1>/);
+  assert.match(css, /--color-primary:\s*#63876a;/);
 });
 
 test('打开投递记录入口打开新版工作台的投递管理页', async () => {

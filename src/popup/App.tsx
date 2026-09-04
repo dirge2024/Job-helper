@@ -346,7 +346,7 @@ function App() {
             aria-hidden="true"
           />
           <div>
-            <h1>秋招网申助手</h1>
+            <h1>求职助手</h1>
             <p>让每一次投递更高效</p>
           </div>
         </div>
