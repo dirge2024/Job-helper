@@ -368,7 +368,7 @@ function ApplicationsPage() {
         {loading ? <p className="application-empty">正在读取投递记录...</p> : visibleRecords.length === 0 ? <p className="application-empty">暂无符合条件的投递记录。点击“新增投递”开始记录。</p> : (
           <table className="application-table"><thead><tr><th>公司与岗位</th><th>城市</th><th>投递日期</th><th>进度</th><th>最近安排 / 下一步行动</th><th>操作</th></tr></thead><tbody>
             {visibleRecords.map(record => <tr key={record.id}>
-              <td><strong>{record.companyName || '未填写公司'}</strong><span>{record.jobTitle || '未填写岗位'}</span></td>
+              <td>{record.sourceUrl ? <a className="application-company-link" href={record.sourceUrl} target="_blank" rel="noreferrer">{record.companyName || '未填写公司'} <span aria-hidden="true">↗</span></a> : <strong>{record.companyName || '未填写公司'}</strong>}<span>{record.jobTitle || '未填写岗位'}</span></td>
               <td>{record.location || '未填写'}</td><td>{record.appliedAt || '未填写'}</td>
               <td><ProgressSelect value={record.status} onChange={status => void updateProgress(record, status)} /></td>
               <td className="application-next-action">{record.notes || '暂未设置下一步行动'}</td>

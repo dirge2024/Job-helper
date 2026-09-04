@@ -14,6 +14,12 @@ test('投递工作台保留完整表格字段和原有数据操作入口', () =>
   }
 });
 
+test('有投递链接时公司名称作为新标签页链接打开', () => {
+  assert.match(appSource, /className="application-company-link"/);
+  assert.match(appSource, /target="_blank"/);
+  assert.match(css, /\.application-company-link\s*\{/);
+});
+
 test('九种进度都有统一的彩色选择器，中止使用红色', () => {
   for (const status of ['已投递', '测评', '笔试', '一面', '二面', '三面', 'HR面', 'Offer', '中止']) {
     assert.ok(appSource.includes(status), `缺少进度：${status}`);

@@ -46,6 +46,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(104, 139, 108, 0
 .application-table td:first-child { min-width: 190px; }
 .application-table td:first-child strong, .application-table td:first-child span { display: block; }
 .application-table td:first-child strong { margin-bottom: 5px; color: #193628; font-size: 15px; }
+.application-company-link { display: block; width: fit-content; margin-bottom: 5px; color: #193628; font-size: 15px; font-weight: 800; text-decoration: none; }.application-company-link span { display: inline; margin-left: 3px; color: #769a7b; font-size: 13px; }.application-company-link:hover { color: #53765a; text-decoration: underline; text-underline-offset: 3px; }
 .application-table td:first-child span { color: #76877b; }
 .application-next-action { min-width: 205px; max-width: 280px; line-height: 1.65; }
 .application-row-actions { display: flex; gap: 8px; }
