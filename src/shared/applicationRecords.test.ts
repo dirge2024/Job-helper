@@ -5,6 +5,7 @@ import {
   createApplicationRecordDraft,
   findApplicationRecordDuplicate,
   normalizeApplicationRecordStatus,
+  normalizeApplicationRecord,
   parseApplicationRecordsCsv,
   serializeApplicationRecordsCsv,
 } from './applicationRecords.ts';
@@ -31,6 +32,15 @@ test('旧进度会归一化到新的九阶段进度', () => {
   assert.equal(normalizeApplicationRecordStatus('终止'), '中止');
 });
 
+test('面试日程会保留四种面试阶段和线上标记', () => {
+  const record = normalizeApplicationRecord({
+    id: 'interview-r1', companyName: '字节跳动', jobTitle: '前端开发', sourceSite: '', sourceUrl: '', status: '二面', notes: '', appliedAt: '', location: '',
+    createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z',
+    interviews: [{ id: 'schedule-1', stage: '二面', scheduledAt: '2026-09-08T14:00', format: 'online', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }],
+  });
+  assert.deepEqual(record.interviews, [{ id: 'schedule-1', stage: '二面', scheduledAt: '2026-09-08T14:00', format: 'online', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }]);
+});
+
 test('findApplicationRecordDuplicate 按同公司加同链接命中', () => {
   const records = [{
     id: 'r1',
@@ -42,6 +52,7 @@ test('findApplicationRecordDuplicate 按同公司加同链接命中', () => {
     notes: '',
     appliedAt: '2026-08-07',
     location: '',
+    interviews: [],
     createdAt: '2026-08-07T10:00:00.000Z',
     updatedAt: '2026-08-07T10:00:00.000Z',
   }] satisfies ApplicationRecord[];
@@ -116,6 +127,7 @@ test('StorageService 可保存并读取投递记录列表', async () => {
     notes: '',
     appliedAt: '2026-08-07',
     location: '',
+    interviews: [],
     createdAt: '2026-08-07T10:00:00.000Z',
     updatedAt: '2026-08-07T10:00:00.000Z',
   }];

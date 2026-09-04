@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { APPLICATION_RECORD_STATUSES, normalizeApplicationRecord } from '../shared/applicationRecords.ts';
 import { MessageService } from '../shared/message.ts';
-import type { ApplicationRecord, ApplicationRecordStatus } from '../shared/types.ts';
+import type { ApplicationRecord, ApplicationRecordStatus, InterviewSchedule, InterviewStage } from '../shared/types.ts';
 
 type DashboardPage = 'applications' | 'schedule' | 'reviews' | 'profiles' | 'insights' | 'backup';
 
@@ -35,6 +35,13 @@ const STATUS_CLASS_NAMES: Record<ApplicationRecordStatus, string> = {
   中止: 'stopped',
 };
 
+const INTERVIEW_STAGES: InterviewStage[] = ['一面', '二面', '三面', 'HR面'];
+const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
+
+function isInterviewStage(status: ApplicationRecordStatus): status is InterviewStage {
+  return INTERVIEW_STAGES.includes(status as InterviewStage);
+}
+
 function getInitialPage(): DashboardPage {
   const value = new URLSearchParams(window.location.search).get('page');
   return NAVIGATION_ITEMS.some(item => item.id === value) ? value as DashboardPage : 'applications';
@@ -50,6 +57,20 @@ function openLegacySettings(tab: string): void {
 
 function createRecordId(): string {
   return crypto.randomUUID?.() ?? `record_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function localDateTimeValue(value?: string): string {
+  if (value) return value.slice(0, 16);
+  const nextHour = new Date();
+  nextHour.setMinutes(0, 0, 0);
+  nextHour.setHours(nextHour.getHours() + 1);
+  const offset = nextHour.getTimezoneOffset();
+  return new Date(nextHour.getTime() - offset * 60_000).toISOString().slice(0, 16);
+}
+
+function formatScheduleDate(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
 }
 
 function sortByRecent(records: ApplicationRecord[]): ApplicationRecord[] {
@@ -134,6 +155,97 @@ function ApplicationForm({ record, onClose, onSaved }: { record?: ApplicationRec
   );
 }
 
+function InterviewScheduleModal({ record, stage, schedule, onClose, onSave, onCancelSchedule }: {
+  record: ApplicationRecord;
+  stage: InterviewStage;
+  schedule?: InterviewSchedule;
+  onClose: () => void;
+  onSave: (record: ApplicationRecord) => Promise<boolean>;
+  onCancelSchedule?: () => void;
+}) {
+  const [scheduledAt, setScheduledAt] = useState(() => localDateTimeValue(schedule?.scheduledAt));
+  const [saving, setSaving] = useState(false);
+  const [errorText, setErrorText] = useState('');
+  const save = async (includeSchedule: boolean) => {
+    setSaving(true);
+    setErrorText('');
+    const now = new Date().toISOString();
+    const interviews = record.interviews ?? [];
+    const nextInterviews = includeSchedule ? (
+      schedule
+        ? interviews.map(item => item.id === schedule.id ? { ...item, scheduledAt, format: 'online' as const, updatedAt: now } : item)
+        : [...interviews, { id: createRecordId(), stage, scheduledAt, format: 'online' as const, createdAt: now, updatedAt: now }]
+    ) : interviews;
+    const updated = { ...record, status: stage, interviews: nextInterviews, updatedAt: now };
+    if (await onSave(updated)) onClose();
+    else setErrorText('保存日程失败，请稍后重试。');
+    setSaving(false);
+  };
+
+  return <div className="dashboard-modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <section className="dashboard-modal interview-schedule-modal" aria-modal="true" aria-labelledby="schedule-form-title" role="dialog" onMouseDown={event => event.stopPropagation()}>
+      <header><div><p>INTERVIEW SCHEDULE</p><h2 id="schedule-form-title">安排{stage}</h2></div><button type="button" className="modal-close" aria-label="关闭" onClick={onClose}>×</button></header>
+      <p className="schedule-modal-context">{record.companyName || '未填写公司'} · {record.jobTitle || '未填写岗位'}</p>
+      <label className="schedule-date-field">日期与时间<input type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></label>
+      <p className="schedule-online-note">线上面试（默认）。无需填写地点或会议链接。</p>
+      {errorText && <p className="dashboard-form-error" role="alert">{errorText}</p>}
+      <footer>{onCancelSchedule && <button type="button" className="schedule-cancel-action" disabled={saving} onClick={onCancelSchedule}>取消当前日程</button>}<button type="button" className="dashboard-secondary-action" disabled={saving} onClick={() => void save(false)}>暂不安排</button><button type="button" className="dashboard-primary-action" disabled={saving || !scheduledAt} onClick={() => void save(true)}>{saving ? '保存中...' : '保存并加入日程'}</button></footer>
+    </section>
+  </div>;
+}
+
+type ScheduledInterview = { record: ApplicationRecord; schedule: InterviewSchedule };
+
+function SchedulePage() {
+  const [records, setRecords] = useState<ApplicationRecord[]>([]);
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [loading, setLoading] = useState(true);
+  const [errorText, setErrorText] = useState('');
+  const [editing, setEditing] = useState<ScheduledInterview | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const response = await MessageService.sendMessage<ApplicationRecord[]>({ type: 'GET_APPLICATION_RECORDS' });
+      if (!response.success) setErrorText(response.error || '读取面试日程失败');
+      else setRecords((response.data ?? []).map(normalizeApplicationRecord));
+      setLoading(false);
+    })();
+  }, []);
+
+  const interviews = records.flatMap(record => (record.interviews ?? []).map(schedule => ({ record, schedule }))).sort((left, right) => left.schedule.scheduledAt.localeCompare(right.schedule.scheduledAt));
+  const [year, monthIndex] = month.split('-').map(Number);
+  const firstDay = new Date(year, monthIndex - 1, 1);
+  const daysInMonth = new Date(year, monthIndex, 0).getDate();
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const cellCount = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+  const previousMonth = () => setMonth(current => { const date = new Date(`${current}-01T00:00:00`); date.setMonth(date.getMonth() - 1); return date.toISOString().slice(0, 7); });
+  const nextMonth = () => setMonth(current => { const date = new Date(`${current}-01T00:00:00`); date.setMonth(date.getMonth() + 1); return date.toISOString().slice(0, 7); });
+  const updateRecord = async (updated: ApplicationRecord): Promise<boolean> => {
+    const response = await MessageService.sendMessage({ type: 'UPDATE_APPLICATION_RECORD', payload: updated });
+    if (!response.success) { setErrorText(response.error || '更新日程失败'); return false; }
+    setRecords(current => current.map(record => record.id === updated.id ? updated : record));
+    return true;
+  };
+  const cancelSchedule = async (item: ScheduledInterview) => {
+    if (!window.confirm(`确定取消${item.record.companyName || '该公司'}的${item.schedule.stage}日程吗？`)) return;
+    const saved = await updateRecord({ ...item.record, interviews: (item.record.interviews ?? []).filter(schedule => schedule.id !== item.schedule.id), updatedAt: new Date().toISOString() });
+    if (saved) setEditing(null);
+  };
+
+  return <>
+    <div className="calendar-toolbar"><div className="month-picker"><button type="button" aria-label="上一个月" onClick={previousMonth}>‹</button><input type="month" aria-label="选择月份" value={month} onChange={event => setMonth(event.target.value)} /><button type="button" aria-label="下一个月" onClick={nextMonth}>›</button></div><span>面试进度更新后自动加入，默认线上</span></div>
+    {errorText && <p className="dashboard-form-error" role="alert">{errorText}</p>}
+    <div className="calendar-card">{loading ? <p className="application-empty">正在读取面试日程...</p> : <><div className="calendar-weekdays">{WEEKDAYS.map(day => <span key={day}>{day}</span>)}</div><div className="calendar-grid">{Array.from({ length: cellCount }, (_, index) => {
+      const day = index - startOffset + 1;
+      const dateKey = day > 0 && day <= daysInMonth ? `${month}-${String(day).padStart(2, '0')}` : '';
+      const events = interviews.filter(item => item.schedule.scheduledAt.slice(0, 10) === dateKey);
+      return <div key={index} className={dateKey ? 'calendar-day' : 'calendar-day is-empty'}>{dateKey && <time dateTime={dateKey}>{day}</time>}{events.map(item => <button type="button" key={item.schedule.id} className={`calendar-event progress-${STATUS_CLASS_NAMES[item.schedule.stage]}`} onClick={() => setEditing(item)}><b>{item.schedule.stage}</b><span>{item.record.companyName || '未填写公司'}</span><small>{formatScheduleDate(item.schedule.scheduledAt).split(' ')[1] || ''}</small></button>)}</div>;
+    })}</div></>}</div>
+    {!loading && interviews.length === 0 && <p className="calendar-empty-note">还没有面试日程。将投递进度修改为一面、二面、三面或 HR 面时，会自动询问安排时间。</p>}
+    {editing && <InterviewScheduleModal record={editing.record} stage={editing.schedule.stage} schedule={editing.schedule} onClose={() => setEditing(null)} onSave={updateRecord} onCancelSchedule={() => void cancelSchedule(editing)} />}
+  </>;
+}
+
 function ApplicationsPage() {
   const [records, setRecords] = useState<ApplicationRecord[]>([]);
   const [keyword, setKeyword] = useState('');
@@ -144,6 +256,7 @@ function ApplicationsPage() {
   const [notice, setNotice] = useState('');
   const [errorText, setErrorText] = useState('');
   const [editingRecord, setEditingRecord] = useState<ApplicationRecord | null | undefined>(undefined);
+  const [scheduleRequest, setScheduleRequest] = useState<{ record: ApplicationRecord; stage: InterviewStage } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const loadRecords = async () => {
@@ -171,12 +284,21 @@ function ApplicationsPage() {
     return sortDirection === 'recent' ? rightDate.localeCompare(leftDate) : leftDate.localeCompare(rightDate);
   });
 
-  const updateProgress = async (record: ApplicationRecord, status: ApplicationRecordStatus) => {
-    const payload = { ...record, status, updatedAt: new Date().toISOString() };
+  const persistRecord = async (payload: ApplicationRecord, noticeText?: string): Promise<boolean> => {
     const response = await MessageService.sendMessage({ type: 'UPDATE_APPLICATION_RECORD', payload });
-    if (!response.success) { setErrorText(response.error || '更新进度失败'); return; }
-    setRecords(current => current.map(item => item.id === record.id ? payload : item));
-    setNotice(`${record.companyName || '投递记录'}已更新为${status}`);
+    if (!response.success) { setErrorText(response.error || '更新投递记录失败'); return false; }
+    setRecords(current => current.map(item => item.id === payload.id ? payload : item));
+    if (noticeText) setNotice(noticeText);
+    return true;
+  };
+
+  const updateProgress = async (record: ApplicationRecord, status: ApplicationRecordStatus) => {
+    if (isInterviewStage(status)) {
+      setScheduleRequest({ record, stage: status });
+      return;
+    }
+    const payload = { ...record, status, updatedAt: new Date().toISOString() };
+    await persistRecord(payload, `${record.companyName || '投递记录'}已更新为${status}`);
   };
 
   const removeRecord = async (record: ApplicationRecord) => {
@@ -207,7 +329,9 @@ function ApplicationsPage() {
   const savedRecord = (record: ApplicationRecord) => {
     setRecords(current => sortByRecent(current.some(item => item.id === record.id) ? current.map(item => item.id === record.id ? record : item) : [...current, record]));
     setEditingRecord(undefined);
-    setNotice('投递记录已保存');
+    if (isInterviewStage(record.status) && !(record.interviews ?? []).some(schedule => schedule.stage === record.status)) {
+      setScheduleRequest({ record, stage: record.status });
+    } else setNotice('投递记录已保存');
   };
 
   return (
@@ -237,6 +361,11 @@ function ApplicationsPage() {
         )}
       </div>
       {editingRecord !== undefined && <ApplicationForm record={editingRecord ?? undefined} onClose={() => setEditingRecord(undefined)} onSaved={savedRecord} />}
+      {scheduleRequest && <InterviewScheduleModal record={scheduleRequest.record} stage={scheduleRequest.stage} onClose={() => setScheduleRequest(null)} onSave={async record => {
+        const saved = await persistRecord(record, `${record.companyName || '投递记录'}已更新并加入${record.status}日程`);
+        if (saved) setScheduleRequest(null);
+        return saved;
+      }} />}
     </>
   );
 }
@@ -248,7 +377,7 @@ function PlaceholderPage({ item }: { item: NavigationItem }) {
 function App() {
   const [activePage, setActivePage] = useState<DashboardPage>(getInitialPage);
   const activeItem = NAVIGATION_ITEMS.find(item => item.id === activePage)!;
-  return <main className="dashboard-shell"><header className="dashboard-header"><a className="dashboard-brand" href={getRuntimeUrl('src/dashboard/index.html')}><span className="dashboard-brand-mark" aria-hidden="true">J</span><span>求职助手</span></a><nav className="dashboard-nav" aria-label="主导航">{NAVIGATION_ITEMS.map(item => <button key={item.id} type="button" className={item.id === activePage ? 'dashboard-nav-item is-active' : 'dashboard-nav-item'} onClick={() => setActivePage(item.id)}>{item.label}</button>)}</nav></header><section className="dashboard-workspace" aria-labelledby="page-title"><div className="dashboard-page-heading"><div><p>{activeItem.eyebrow}</p><h1 id="page-title">{activeItem.title}</h1><span>{activeItem.description}</span></div></div>{activePage === 'applications' ? <ApplicationsPage /> : <PlaceholderPage item={activeItem} />}</section></main>;
+  return <main className="dashboard-shell"><header className="dashboard-header"><a className="dashboard-brand" href={getRuntimeUrl('src/dashboard/index.html')}><span className="dashboard-brand-mark" aria-hidden="true">J</span><span>求职助手</span></a><nav className="dashboard-nav" aria-label="主导航">{NAVIGATION_ITEMS.map(item => <button key={item.id} type="button" className={item.id === activePage ? 'dashboard-nav-item is-active' : 'dashboard-nav-item'} onClick={() => setActivePage(item.id)}>{item.label}</button>)}</nav></header><section className="dashboard-workspace" aria-labelledby="page-title"><div className="dashboard-page-heading"><div><p>{activeItem.eyebrow}</p><h1 id="page-title">{activeItem.title}</h1><span>{activeItem.description}</span></div></div>{activePage === 'applications' ? <ApplicationsPage /> : activePage === 'schedule' ? <SchedulePage /> : <PlaceholderPage item={activeItem} />}</section></main>;
 }
 
 export default App;

@@ -80,6 +80,7 @@ const completeData: BackupData = {
       notes: '一志愿',
       appliedAt: '2026-01-01',
       location: '北京',
+      interviews: [{ id: 'schedule-1', stage: '一面', scheduledAt: '2026-09-08T14:00', format: 'online', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }],
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     },

@@ -105,19 +105,15 @@ function validateLLMConfig(value: unknown): value is LLMConfig {
 }
 
 function validateApplicationRecords(value: unknown): boolean {
-  return value === undefined || value === null || validateOptionalObjectArray(value, [
-    'id',
-    'companyName',
-    'jobTitle',
-    'sourceSite',
-    'sourceUrl',
-    'status',
-    'notes',
-    'appliedAt',
-    'location',
-    'createdAt',
-    'updatedAt',
-  ]);
+  if (value === undefined || value === null) return true;
+  if (!Array.isArray(value)) return false;
+  const recordFields = ['id', 'companyName', 'jobTitle', 'sourceSite', 'sourceUrl', 'status', 'notes', 'appliedAt', 'location', 'createdAt', 'updatedAt'];
+  const scheduleFields = ['id', 'stage', 'scheduledAt', 'format', 'createdAt', 'updatedAt'];
+  return value.every(record => (
+    isPlainObject(record)
+    && hasOnlyStringFields(record, recordFields)
+    && (record.interviews === undefined || validateObjectArray(record.interviews, scheduleFields))
+  ));
 }
 
 function validateEnvelope(value: PlainObject): BackupParseResult | null {

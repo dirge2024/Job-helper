@@ -3,6 +3,7 @@ import type {
   ApplicationRecord,
   ApplicationRecordDraft,
   ApplicationRecordStatus,
+  InterviewSchedule,
 } from './types.ts';
 
 export const APPLICATION_RECORD_STATUSES: ApplicationRecordStatus[] = [
@@ -68,11 +69,24 @@ export function normalizeApplicationRecord(record: ApplicationRecord): Applicati
   return {
     ...record,
     status: normalizeApplicationRecordStatus(record.status) ?? '已投递',
+    interviews: normalizeInterviewSchedules(record.interviews),
   };
 }
 
 export function normalizeApplicationRecords(records: ApplicationRecord[] | undefined | null): ApplicationRecord[] {
   return (records ?? []).map(normalizeApplicationRecord);
+}
+
+function normalizeInterviewSchedules(schedules: InterviewSchedule[] | undefined): InterviewSchedule[] {
+  if (!Array.isArray(schedules)) return [];
+  return schedules.filter(schedule => (
+    schedule
+    && ['一面', '二面', '三面', 'HR面'].includes(schedule.stage)
+    && typeof schedule.scheduledAt === 'string'
+    && typeof schedule.id === 'string'
+    && typeof schedule.createdAt === 'string'
+    && typeof schedule.updatedAt === 'string'
+  )).map(schedule => ({ ...schedule, format: 'online' }));
 }
 
 function normalizeText(value: string | undefined): string {

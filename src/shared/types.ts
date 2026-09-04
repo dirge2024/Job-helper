@@ -194,6 +194,17 @@ export type ApplicationRecordStatus =
   | 'Offer'
   | '中止';
 
+export type InterviewStage = '一面' | '二面' | '三面' | 'HR面';
+
+export interface InterviewSchedule {
+  id: string;
+  stage: InterviewStage;
+  scheduledAt: string;
+  format: 'online';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApplicationPageMetadata {
   companyName: string;
   sourceSite: string;
@@ -211,6 +222,7 @@ export interface ApplicationRecord {
   notes: string;
   appliedAt: string;
   location: string;
+  interviews?: InterviewSchedule[];
   createdAt: string;
   updatedAt: string;
 }

@@ -21,3 +21,11 @@ test('九种进度都有统一的彩色选择器，中止使用红色', () => {
   assert.match(css, /\.progress-stopped\s*\{[^}]*color:\s*#b43f3d;/);
   assert.match(css, /\.progress-select::after/);
 });
+
+test('面试阶段只在进度更新后安排，日程默认线上且月历按实际天数生成', () => {
+  for (const label of ['一面', '二面', '三面', 'HR面', '暂不安排', '保存并加入日程', '线上面试（默认）', 'datetime-local', 'type="month"']) {
+    assert.ok(appSource.includes(label), `缺少日程交互：${label}`);
+  }
+  assert.match(appSource, /Math\.ceil\(\(startOffset \+ daysInMonth\) \/ 7\) \* 7/);
+  assert.match(appSource, /取消当前日程/);
+});

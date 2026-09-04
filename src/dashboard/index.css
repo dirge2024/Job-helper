@@ -79,7 +79,31 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(104, 139, 108, 0
 .record-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .dashboard-modal footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 .dashboard-modal footer .dashboard-primary-action, .dashboard-modal footer .dashboard-secondary-action { min-height: 42px; }
+.interview-schedule-modal { width: min(500px, 100%); }
+.schedule-modal-context { margin: -8px 0 22px; color: #6d806f; font-family: "Microsoft YaHei", sans-serif; font-size: 14px; }
+.schedule-date-field { display: grid; gap: 8px; color: #536958; font-family: "Microsoft YaHei", sans-serif; font-size: 13px; font-weight: 700; }
+.schedule-date-field input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #d8e4d5; border-radius: 9px; color: #294333; font: inherit; }
+.schedule-online-note { margin: 14px 0 0; padding: 11px 12px; border: 1px solid #d7e8d6; border-radius: 10px; background: #f3f8f1; color: #55775d; font-family: "Microsoft YaHei", sans-serif; font-size: 13px; line-height: 1.6; }
+.schedule-cancel-action { min-height: 42px; padding: 0 12px; border: 1px solid #efd5d0; border-radius: 11px; background: #fff; color: #ac5048; font-family: "Microsoft YaHei", sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+.calendar-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; color: #708172; font-family: "Microsoft YaHei", sans-serif; font-size: 14px; }
+.month-picker { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid #dbe5d8; border-radius: 12px; background: #fffefa; }
+.month-picker button { width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; color: #58735e; font-family: Georgia, serif; font-size: 26px; line-height: 1; cursor: pointer; }
+.month-picker button:hover { background: #edf4ea; }
+.month-picker input { min-height: 34px; border: 0; outline: 0; background: transparent; color: #314d38; font-family: "Microsoft YaHei", sans-serif; font-size: 15px; font-weight: 800; }
+.calendar-card { overflow: hidden; border: 1px solid #dce6d9; border-radius: 20px; background: #fffefa; box-shadow: 0 16px 42px rgba(68, 91, 71, .07); }
+.calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.calendar-weekdays { border-bottom: 1px solid #e4ece1; background: #f5f8f2; }
+.calendar-weekdays span { padding: 13px 8px; color: #6d826f; font-family: "Microsoft YaHei", sans-serif; font-size: 13px; font-weight: 800; text-align: center; }
+.calendar-day { min-height: 132px; padding: 10px; border-right: 1px solid #e8eee5; border-bottom: 1px solid #e8eee5; background: #fffefa; }
+.calendar-day:nth-child(7n) { border-right: 0; }
+.calendar-day time { display: block; margin-bottom: 7px; color: #6a806d; font-family: Georgia, serif; font-size: 15px; font-weight: 700; }
+.calendar-day.is-empty { background: #fafbf8; }
+.calendar-event { display: grid; width: 100%; gap: 2px; margin: 5px 0 0; padding: 7px 8px; border: 1px solid currentColor; border-radius: 8px; background: #fff; color: #477551; font-family: "Microsoft YaHei", sans-serif; text-align: left; cursor: pointer; }
+.calendar-event:hover { filter: brightness(.97); transform: translateY(-1px); }
+.calendar-event b { font-size: 12px; }.calendar-event span { overflow: hidden; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }.calendar-event small { font-size: 11px; }
+.calendar-empty-note { margin: 16px 0 0; color: #758477; font-family: "Microsoft YaHei", sans-serif; font-size: 14px; text-align: center; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; clip-path: inset(50%); }
 @media (max-width: 800px) { .dashboard-header { align-items: flex-start; flex-direction: column; gap: 12px; padding: 20px 24px 14px; } .dashboard-nav { width: calc(100% + 8px); } .dashboard-workspace { width: min(100% - 32px, 1180px); padding-top: 44px; } .dashboard-page-heading { align-items: flex-start; flex-direction: column; } }
 @media (max-width: 900px) { .application-toolbar { flex-wrap: wrap; } .dashboard-search { flex-basis: 100%; } }
 @media (max-width: 560px) { .record-form-grid { grid-template-columns: 1fr; } .dashboard-modal { padding: 22px; } }
+@media (max-width: 700px) { .calendar-toolbar { align-items: flex-start; flex-direction: column; } .calendar-day { min-height: 96px; padding: 6px; } .calendar-event { padding: 5px; } .calendar-event span { display: none; } }
