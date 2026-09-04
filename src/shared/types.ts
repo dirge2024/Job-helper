@@ -205,6 +205,15 @@ export interface InterviewSchedule {
   updatedAt: string;
 }
 
+export interface InterviewReview {
+  id: string;
+  stage: InterviewStage;
+  content: string;
+  status: 'pending' | 'completed';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApplicationPageMetadata {
   companyName: string;
   sourceSite: string;
@@ -223,6 +232,7 @@ export interface ApplicationRecord {
   appliedAt: string;
   location: string;
   interviews?: InterviewSchedule[];
+  interviewReviews?: InterviewReview[];
   createdAt: string;
   updatedAt: string;
 }

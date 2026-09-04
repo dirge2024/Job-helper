@@ -41,6 +41,16 @@ test('面试日程会保留四种面试阶段和线上标记', () => {
   assert.deepEqual(record.interviews, [{ id: 'schedule-1', stage: '二面', scheduledAt: '2026-09-08T14:00', format: 'online', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }]);
 });
 
+test('面经复盘会保留内容与待复盘状态', () => {
+  const record = normalizeApplicationRecord({
+    id: 'review-r1', companyName: '字节跳动', jobTitle: '前端开发', sourceSite: '', sourceUrl: '', status: '一面', notes: '', appliedAt: '', location: '',
+    createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z',
+    interviewReviews: [{ id: 'review-1', stage: '一面', content: '手写防抖与节流', status: 'completed', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' }],
+  });
+  assert.equal(record.interviewReviews?.[0]?.content, '手写防抖与节流');
+  assert.equal(record.interviewReviews?.[0]?.status, 'completed');
+});
+
 test('findApplicationRecordDuplicate 按同公司加同链接命中', () => {
   const records = [{
     id: 'r1',
@@ -53,6 +63,7 @@ test('findApplicationRecordDuplicate 按同公司加同链接命中', () => {
     appliedAt: '2026-08-07',
     location: '',
     interviews: [],
+    interviewReviews: [],
     createdAt: '2026-08-07T10:00:00.000Z',
     updatedAt: '2026-08-07T10:00:00.000Z',
   }] satisfies ApplicationRecord[];
@@ -128,6 +139,7 @@ test('StorageService 可保存并读取投递记录列表', async () => {
     appliedAt: '2026-08-07',
     location: '',
     interviews: [],
+    interviewReviews: [],
     createdAt: '2026-08-07T10:00:00.000Z',
     updatedAt: '2026-08-07T10:00:00.000Z',
   }];

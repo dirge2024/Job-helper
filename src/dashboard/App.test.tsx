@@ -29,3 +29,12 @@ test('面试阶段只在进度更新后安排，日程默认线上且月历按�
   assert.match(appSource, /Math\.ceil\(\(startOffset \+ daysInMonth\) \/ 7\) \* 7/);
   assert.match(appSource, /取消当前日程/);
 });
+
+test('面经复盘保持左侧编辑和右侧列表，AI 总结位于保存按钮旁', () => {
+  for (const label of ['面试复盘', '+ 添加面经', '搜索面经...', '待复盘', '保存复盘', '✦ AI 总结']) {
+    assert.ok(appSource.includes(label), `缺少面经功能：${label}`);
+  }
+  assert.match(appSource, /interviewReviews/);
+  assert.match(css, /\.reviews-layout\s*\{[^}]*grid-template-columns:/);
+  assert.match(css, /\.review-editor-actions\s*\{[^}]*justify-content:\s*flex-end;/);
+});

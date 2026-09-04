@@ -109,10 +109,12 @@ function validateApplicationRecords(value: unknown): boolean {
   if (!Array.isArray(value)) return false;
   const recordFields = ['id', 'companyName', 'jobTitle', 'sourceSite', 'sourceUrl', 'status', 'notes', 'appliedAt', 'location', 'createdAt', 'updatedAt'];
   const scheduleFields = ['id', 'stage', 'scheduledAt', 'format', 'createdAt', 'updatedAt'];
+  const reviewFields = ['id', 'stage', 'content', 'status', 'createdAt', 'updatedAt'];
   return value.every(record => (
     isPlainObject(record)
     && hasOnlyStringFields(record, recordFields)
     && (record.interviews === undefined || validateObjectArray(record.interviews, scheduleFields))
+    && (record.interviewReviews === undefined || validateObjectArray(record.interviewReviews, reviewFields))
   ));
 }
 
