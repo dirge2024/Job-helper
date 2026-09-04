@@ -1,0 +1,115 @@
+<!-- Design prototype only. Production implementation must follow dashboard-redesign-requirements.md. -->
+<main class="app-shell">
+  <header class="app-nav">
+    <strong>求职助手</strong>
+    <nav aria-label="功能导航">
+      <button class="nav-item active" data-page="applications">投递管理</button>
+      <button class="nav-item" data-page="schedule">面试日程</button>
+      <button class="nav-item" data-page="reviews">面经复盘</button>
+      <button class="nav-item" data-page="resumes">简历资料库</button>
+      <button class="nav-item" data-page="insights">数据洞察</button>
+      <button class="nav-item" data-page="backup">备份与同步</button>
+    </nav>
+  </header>
+
+  <section class="page visible" data-view="applications">
+    <header class="page-head"><div><p>APPLICATIONS</p><h1>投递管理</h1></div><div class="toolbar"><button>截图识别</button><button>导入</button><button>导出备份</button><button class="primary">+ 新增投递</button></div></header>
+    <section class="surface"><div class="toolbar"><button class="search">搜索公司、岗位或下一步行动</button><button>全部进度</button><button>最近更新优先</button></div><div class="records"><div class="row labels"><span>公司与岗位</span><span>城市</span><span>投递日期</span><span>进度</span><span>最近安排 / 下一步行动</span><span>操作</span></div>
+      <div class="row"><div><b>联想集团</b><small>Java 开发工程师</small></div><span>天津</span><span>2026-09-01</span><div class="status-picker"><button class="status status-applied" type="button"><span>已投递</span></button><div class="status-menu" hidden><button class="status-applied">已投递</button><button class="status-assessment">测评</button><button class="status-exam">笔试</button><button class="status-interview">一面</button><button class="status-second">二面</button><button class="status-third">三面</button><button class="status-hr">HR 面</button><button class="status-offer">Offer</button><button class="status-stopped">中止</button></div></div><div><b>关注招聘动态</b><small>9 月 4 日</small></div><span class="row-actions">编辑　删除</span></div>
+      <div class="row"><div><b>去哪儿</b><small>AI 应用开发工程师</small></div><span>北京</span><span>2026-09-02</span><div class="status-picker"><button class="status status-interview" type="button"><span>一面</span></button><div class="status-menu" hidden><button class="status-applied">已投递</button><button class="status-assessment">测评</button><button class="status-exam">笔试</button><button class="status-interview">一面</button><button class="status-second">二面</button><button class="status-third">三面</button><button class="status-hr">HR 面</button><button class="status-offer">Offer</button><button class="status-stopped">中止</button></div></div><div><b>9 月 8 日 14:00</b><small>已自动加入面试日程</small></div><span class="row-actions">编辑　删除</span></div>
+      <div class="row"><div><b>小米集团</b><small>前端开发工程师</small></div><span>北京</span><span>2026-08-28</span><div class="status-picker"><button class="status status-exam" type="button"><span>笔试</span></button><div class="status-menu" hidden><button class="status-applied">已投递</button><button class="status-assessment">测评</button><button class="status-exam">笔试</button><button class="status-interview">一面</button><button class="status-second">二面</button><button class="status-third">三面</button><button class="status-hr">HR 面</button><button class="status-offer">Offer</button><button class="status-stopped">中止</button></div></div><div><b>完成在线笔试</b><small>9 月 6 日</small></div><span class="row-actions">编辑　删除</span></div>
+    </div></section>
+  </section>
+
+  <section class="page" data-view="schedule" hidden>
+    <header class="page-head"><div><p>AUTO SCHEDULE</p><h1>面试日程</h1><small>进度改为一面、二面、三面或 HR 面后，均自动加入日程。</small></div><div class="month-control"><button id="previous-month" type="button" aria-label="上个月">‹</button><input id="month-picker" type="month" value="2026-09" aria-label="选择月份"><button id="next-month" type="button" aria-label="下个月">›</button></div></header>
+    <section class="surface"><h2 id="calendar-title">2026 年 9 月</h2><div id="interview-calendar" class="calendar"></div></section>
+  </section>
+
+  <section class="page" data-view="reviews" hidden>
+    <header class="page-head"><div><p>INTERVIEW NOTES</p><h1>面经复盘</h1></div></header>
+    <div class="review-layout"><section class="surface editor"><h2>去哪儿 · 一面</h2><div class="note">记录本次面试的详细过程、问题、回答、感受……<br><br>也可直接粘贴会议纪要或零散笔记；配置 AI 后可整理为结构化复盘。</div><div class="editor-actions"><button>AI 总结</button><button class="primary">保存复盘</button></div></section><aside class="surface review-list"><div class="toolbar"><button class="search">搜索面经</button><button>筛选</button><button class="primary">＋ 添加面经</button></div><div class="review-item active"><b>去哪儿 · 一面</b><small>2026-09-08 · 待复盘</small></div><div class="review-item"><b>联想集团 · 笔试</b><small>2026-09-01 · 已记录</small></div></aside></div>
+  </section>
+
+  <section class="page" data-view="resumes" hidden>
+    <header class="page-head"><div><p>RESUME PROFILES</p><h1>简历资料库</h1></div><div class="toolbar"><button>上传简历</button><button class="primary">+ 新建简历</button></div></header>
+    <div class="cards"><article class="surface card"><h2>软件开发简历</h2><p>当前使用。个人信息、教育经历和项目经历已完善。</p><button>编辑资料</button></article><article class="surface card"><h2>产品岗位简历</h2><p>用于产品、运营岗位，可维护独立经历与自我评价。</p><button>切换使用</button></article><article class="surface card"><h2>AI 功能设置</h2><p>可选配置，用于简历解析、截图识别和面经整理。</p><button>配置 AI</button></article></div>
+  </section>
+
+  <section class="page" data-view="insights" hidden>
+    <header class="page-head"><div><p>ANALYTICS</p><h1>数据洞察</h1></div><button>近 30 天</button></header>
+    <div class="insight-layout"><section class="surface"><h2>投递与更新趋势</h2><div class="bars"><i style="height:35%">第 1 周</i><i style="height:62%">第 2 周</i><i style="height:88%">第 3 周</i><i style="height:48%">第 4 周</i></div></section><section class="surface stages"><h2>进度分布</h2><p>已投递 <b>22</b></p><p>笔试 <b>1</b></p><p>面试 <b>0</b></p><p>Offer <b>0</b></p></section></div>
+  </section>
+
+  <section class="page" data-view="backup" hidden>
+    <header class="page-head"><div><p>DATA CONTROL</p><h1>备份与同步</h1></div><div class="toolbar"><button>导入备份</button><button class="primary">导出备份</button></div></header>
+    <section class="surface settings"><div><b>完整数据备份</b><small>包含简历资料、投递记录、面试日程与 AI 配置。</small><button>立即导出</button></div><div><b>WebDAV 同步</b><small>将本地数据安全同步到你的 WebDAV 服务。</small><button>配置同步</button></div><div><b>自动同步</b><small>保存资料或更新投递记录后自动排队同步。</small><button>关闭</button></div></section>
+  </section>
+</main>
+
+<style>
+  :root { font-family: "Segoe UI Variable", "PingFang SC", sans-serif; color: #1f2b3d; background: #f7f8f5; }
+  * { box-sizing: border-box; } body { margin: 0; } button { font: inherit; cursor: pointer; }
+  .app-shell { min-height: 100vh; background: #f7f8f5; }.app-nav { display: flex; align-items: center; gap: 30px; padding: 17px 7vw; background: #fff; border-bottom: 1px solid #e4e9e1; }.app-nav strong { color: #577a62; font-size: 21px; white-space: nowrap; }.app-nav nav,.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }.app-nav nav { overflow-x: auto; }.nav-item { padding: 10px 13px; border: 0; border-radius: 8px; background: transparent; color: #657181; font-weight: 650; white-space: nowrap; }.nav-item.active { background: #e9f1e9; color: #4e7359; }.page { max-width: 1240px; padding: 43px 28px; margin: auto; }.page-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 25px; }.page-head p { margin: 0 0 7px; color: #7b9b81; font-size: 12px; font-weight: 700; letter-spacing: .1em; }h1 { margin: 0; font-size: 35px; letter-spacing: -.04em; }h2 { margin: 0; font-size: 16px; }small { display: block; margin-top: 5px; color: #7a8697; font-size: 12px; }.toolbar button,.surface button,.page-head > button { padding: 11px 14px; border: 1px solid #dfe7df; border-radius: 9px; background: #fff; color: #536173; }.toolbar .primary,.editor-actions .primary { border-color: #5f8b6b; background: #5f8b6b; color: #fff; font-weight: 700; }.search { min-width: 265px; text-align: left; color: #778594 !important; }.surface { padding: 24px; border-radius: 17px; background: #fff; box-shadow: 0 12px 30px rgba(29,49,40,.07); }.row { display: grid; grid-template-columns: 1.35fr .55fr .7fr .8fr 1fr .7fr; gap: 12px; align-items: center; padding: 15px 5px; border-top: 1px solid #edf1ec; font-size: 13px; }.labels { margin-top: 18px; color: #778594; font-size: 12px; font-weight: 700; }.row b { display: block; font-size: 14px; }.row-actions { color: #557b60; font-weight: 650; }.status-picker { position: relative; }.status { width: 100%; padding: 8px; border: 0; border-radius: 7px; font-weight: 700; text-align: left; }.status-menu { position: absolute; z-index: 5; width: 118px; margin-top: 5px; overflow: hidden; border: 1px solid #dce5db; border-radius: 8px; background: #fff; box-shadow: 0 12px 25px rgba(29,49,40,.15); }.status-menu button { display: block; width: 100%; padding: 8px 10px; border: 0; text-align: left; font-size: 12px; font-weight: 700; }.status-applied { background: #e8efff !important; color: #3867c8 !important; }.status-assessment,.status-exam { background: #fff0d9 !important; color: #b86e12 !important; }.status-interview { background: #e8f5ed !important; color: #357d51 !important; }.status-second { background: #e8f2fb !important; color: #28759f !important; }.status-third { background: #f0eaff !important; color: #7651be !important; }.status-hr { background: #fdebf0 !important; color: #ad4b6b !important; }.status-offer { background: #e3f6e9 !important; color: #257344 !important; }.status-stopped { background: #edf0f3 !important; color: #697482 !important; }.calendar { display: grid; grid-template-columns: repeat(7,1fr); margin-top: 14px; border: 1px solid #e6ece4; }.calendar > * { min-height: 70px; padding: 8px; border-right: 1px solid #e6ece4; border-bottom: 1px solid #e6ece4; color: #66816b; font-size: 12px; }.calendar b { min-height: auto; text-align: center; }.event-day i { display: block; margin-top: 6px; padding: 4px; border-radius: 4px; background: #e8f2e8; color: #4d7357; font-style: normal; font-size: 10px; }.review-layout,.insight-layout { display: grid; grid-template-columns: 1.6fr .8fr; gap: 18px; }.editor { min-height: 355px; display: flex; flex-direction: column; }.note { flex: 1; margin-top: 16px; padding: 15px; border: 1px solid #e4eae3; border-radius: 9px; color: #8a96a5; line-height: 1.8; }.editor-actions { display: flex; justify-content: end; gap: 10px; margin-top: 15px; }.review-item { padding: 15px 0; border-bottom: 1px solid #edf1ec; }.review-item.active { color: #4e7359; }.cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 15px; }.card { min-height: 175px; }.card p { min-height: 50px; color: #728092; font-size: 13px; line-height: 1.6; }.bars { display: flex; align-items: end; height: 205px; gap: 16px; padding: 18px; }.bars i { display: flex; flex: 1; align-items: end; justify-content: center; min-height: 30px; padding-bottom: 6px; border-radius: 6px 6px 0 0; background: #79a484; color: #fff; font-style: normal; font-size: 10px; }.stages p { display: flex; justify-content: space-between; padding: 13px 0; margin: 0; border-bottom: 1px solid #edf1ec; }.settings > div { display: flex; align-items: center; gap: 20px; padding: 17px 0; border-bottom: 1px solid #edf1ec; }.settings small { flex: 1; }.settings button { margin-left: auto; }
+  .status { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; }
+  .status::after { width: 7px; height: 7px; margin: 0 2px 4px 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; content: ""; transform: rotate(45deg); }
+  .status[aria-expanded="true"]::after { margin-bottom: -3px; transform: rotate(225deg); }
+  .status-menu { top: calc(100% + 6px); width: max-content; min-width: 100%; padding: 5px; border-radius: 11px; box-shadow: 0 14px 28px rgba(29,49,40,.18); }
+  .status-menu button { min-width: 106px; margin: 2px 0; border-radius: 7px; transition: filter 140ms ease, transform 140ms ease; }
+  .status-menu button:hover { filter: brightness(.96); transform: translateX(2px); }
+  .status-stopped { background: #fdeaea !important; color: #b63d3d !important; }
+  .calendar .empty { background: #fafcf9; }
+  .month-control { display: flex; align-items: center; gap: 6px; padding: 5px; border: 1px solid #dfe7df; border-radius: 11px; background: #fff; }
+  .month-control button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 7px; background: #edf3ec; color: #52775d; font-size: 21px; line-height: 1; }
+  .month-control button:hover { background: #dfece0; }
+  .month-control input { width: 130px; padding: 6px 8px; border: 0; outline: 0; background: transparent; color: #415d49; font: inherit; font-weight: 700; }
+  @media (max-width:800px) { .app-nav { align-items: flex-start; flex-direction: column; gap: 10px; padding: 16px; }.page { padding: 28px 16px; }.page-head { align-items: flex-start; flex-direction: column; }.row { grid-template-columns: 1.25fr .8fr 1fr; }.row > :nth-child(2),.row > :nth-child(3),.row > :nth-child(6) { display:none; }.review-layout,.insight-layout,.cards { grid-template-columns: 1fr; }.calendar > * { min-height: 52px; }.event-day i { font-size: 8px; } }
+</style>
+
+<script>
+  const navItems = document.querySelectorAll('.nav-item');
+  const pages = document.querySelectorAll('.page');
+  navItems.forEach((item) => item.addEventListener('click', () => {
+    navItems.forEach((button) => button.classList.toggle('active', button === item));
+    pages.forEach((page) => { const selected = page.dataset.view === item.dataset.page; page.hidden = !selected; page.classList.toggle('visible', selected); });
+  }));
+  const monthPicker = document.getElementById('month-picker');
+  const calendarTitle = document.getElementById('calendar-title');
+  const calendar = document.getElementById('interview-calendar');
+  const interviewEvents = { '2026-09-08': '14:00 去哪儿 · 一面', '2026-09-16': '10:00 联想集团 · HR 面' };
+  function renderCalendar(value) {
+    const [year, month] = value.split('-').map(Number);
+    const firstDay = (new Date(year, month - 1, 1).getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    calendarTitle.textContent = `${year} 年 ${month} 月`;
+    calendar.innerHTML = ['一', '二', '三', '四', '五', '六', '日'].map(day => `<b>${day}</b>`).join('');
+    for (let index = 0; index < firstDay; index += 1) calendar.insertAdjacentHTML('beforeend', '<span class="empty"></span>');
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const key = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const event = interviewEvents[key];
+      calendar.insertAdjacentHTML('beforeend', event ? `<span class="event-day">${day}<i>${event}</i></span>` : `<span>${day}</span>`);
+    }
+    const totalCells = firstDay + daysInMonth;
+    const trailingCells = (7 - (totalCells % 7)) % 7;
+    for (let index = 0; index < trailingCells; index += 1) calendar.insertAdjacentHTML('beforeend', '<span class="empty"></span>');
+  }
+  function shiftMonth(delta) {
+    const [year, month] = monthPicker.value.split('-').map(Number);
+    const next = new Date(year, month - 1 + delta, 1);
+    monthPicker.value = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+    renderCalendar(monthPicker.value);
+  }
+  monthPicker.addEventListener('change', () => renderCalendar(monthPicker.value));
+  document.getElementById('previous-month').addEventListener('click', () => shiftMonth(-1));
+  document.getElementById('next-month').addEventListener('click', () => shiftMonth(1));
+  renderCalendar(monthPicker.value);
+  const pickers = document.querySelectorAll('.status-picker');
+  pickers.forEach((picker) => {
+    const trigger = picker.querySelector('.status');
+    const menu = picker.querySelector('.status-menu');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.addEventListener('click', () => { pickers.forEach((item) => { if (item !== picker) { item.querySelector('.status-menu').hidden = true; item.querySelector('.status').setAttribute('aria-expanded', 'false'); } }); menu.hidden = !menu.hidden; trigger.setAttribute('aria-expanded', String(!menu.hidden)); });
+    menu.querySelectorAll('button').forEach((option) => option.addEventListener('click', () => { trigger.className = `status ${option.className}`; trigger.innerHTML = `<span>${option.textContent}</span>`; trigger.setAttribute('aria-expanded', 'false'); menu.hidden = true; }));
+  });
+  document.addEventListener('click', (event) => { if (!event.target.closest('.status-picker')) document.querySelectorAll('.status-picker').forEach((picker) => { picker.querySelector('.status-menu').hidden = true; picker.querySelector('.status').setAttribute('aria-expanded', 'false'); }); });
+</script>
