@@ -20,6 +20,12 @@ test('有投递链接时公司名称作为新标签页链接打开', () => {
   assert.match(css, /\.application-company-link\s*\{/);
 });
 
+test('添加面经弹窗支持按公司或岗位前缀搜索投递', () => {
+  assert.match(appSource, /搜索投递/);
+  assert.match(appSource, /输入公司或岗位前缀/);
+  assert.match(appSource, /record\.companyName, record\.jobTitle/);
+});
+
 test('九种进度都有统一的彩色选择器，中止使用红色', () => {
   for (const status of ['已投递', '测评', '笔试', '一面', '二面', '三面', 'HR面', 'Offer', '中止']) {
     assert.ok(appSource.includes(status), `缺少进度：${status}`);

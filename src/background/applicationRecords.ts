@@ -168,17 +168,3 @@ export async function handleImportApplicationRecordsCsv(
     },
   };
 }
-
-export async function handleImportApplicationRecords(
-  importedRecords: ApplicationRecord[],
-): Promise<MessageResponse<{ imported: number; warnings: string[] }>> {
-  const existingRecords = await StorageService.getApplicationRecords();
-  const warnings: string[] = [];
-  importedRecords.forEach((record, index) => {
-    if (findApplicationRecordDuplicate(existingRecords, record)) {
-      warnings.push(`第 ${index + 1} 条与已有记录重复：${record.companyName || '未命名公司'} ${record.sourceUrl || '(缺少链接)'}`);
-    }
-  });
-  await StorageService.saveApplicationRecords([...existingRecords, ...importedRecords]);
-  return { success: true, data: { imported: importedRecords.length, warnings } };
-}

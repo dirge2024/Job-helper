@@ -46,7 +46,6 @@ import {
   handleExportApplicationRecordsCsv,
   handleGetApplicationRecordDraft,
   handleGetApplicationRecords,
-  handleImportApplicationRecords,
   handleImportApplicationRecordsCsv,
   handleUpdateApplicationRecord,
 } from './applicationRecords.ts';
@@ -197,12 +196,6 @@ export async function handleMessage(
     case 'IMPORT_APPLICATION_RECORDS_CSV':
       return await handleApplicationRecordMutation(
         () => handleImportApplicationRecordsCsv(message.payload.csv),
-        'application-record-import',
-      );
-
-    case 'IMPORT_APPLICATION_RECORDS':
-      return await handleApplicationRecordMutation(
-        () => handleImportApplicationRecords(message.payload.records),
         'application-record-import',
       );
 

@@ -56,9 +56,6 @@ export function parseResumeJSON(jsonText: string): ParsedResumeData {
     throw new Error('JSON 内容不是有效的简历对象。');
   }
 
-  const legacyResume = data.resume && typeof data.resume === 'object' ? data.resume : data;
-  if (legacyResume['基本信息'] || legacyResume['优先信息']) return parseLegacyResumeJSON(legacyResume);
-
   const basic = data.basic ?? {};
   const status: string = basic.employementStatus ?? '';
 
@@ -159,17 +156,6 @@ export function parseResumeJSON(jsonText: string): ParsedResumeData {
     skills,
     rawText: buildRawText(data, personal, education, experience, projects, awards, skills),
   };
-}
-
-function parseLegacyResumeJSON(data: Record<string, any>): ParsedResumeData {
-  const basic = data['基本信息'] ?? {};
-  const priority = data['优先信息'] ?? {};
-  const personal = { name: basic['姓名'] || '', gender: basic['性别'] || '', birthDate: basic['出生日期'] || '', phone: priority['手机'] || '', email: priority['邮箱'] || '', wechat: priority['微信号'] || '', idCard: priority['身份证'] || '', politicalStatus: basic['政治面貌'] || '', hometown: basic['籍贯'] || '', currentAddress: priority['现居地'] || '', selfEvaluation: basic['自我评价'] || '' };
-  const education = (data['教育经历'] ?? []).map((item: any) => ({ id: crypto.randomUUID(), school: item['学校'] || '', college: item['学院'] || '', educationType: item['_rowName'] || '', major: item['专业'] || '', degree: item['学历'] || '', startDate: item['开始时间'] || '', endDate: item['结束时间'] || '', gpa: item['GPA'] || '' }));
-  const experience = (data['实习经历'] ?? []).map((item: any) => ({ id: crypto.randomUUID(), company: item['单位'] || '', position: item['岗位'] || '', startDate: item['开始'] || '', endDate: item['结束'] || '', description: item['岗位职责'] || '' }));
-  const projects = (data['项目经历'] ?? []).map((item: any) => ({ id: crypto.randomUUID(), name: item['项目名称'] || item['_rowName'] || '', role: item['角色'] || '', startDate: item['开始'] || '', endDate: item['结束'] || '', description: item['主要工作'] || item['技术栈'] || '' }));
-  const skills = Object.values(data['竞赛与技能'] ?? {}).filter((value): value is string => typeof value === 'string' && Boolean(value.trim()));
-  return { personal, education, experience, projects, awards: [], skills, rawText: buildRawText(data, personal, education, experience, projects, [], skills) };
 }
 
 /**

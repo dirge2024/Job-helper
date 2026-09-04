@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
-import { APPLICATION_RECORD_STATUSES, normalizeApplicationRecord, parseLegacyApplicationRecordsJson } from '../shared/applicationRecords.ts';
+import { APPLICATION_RECORD_STATUSES, normalizeApplicationRecord } from '../shared/applicationRecords.ts';
 import { MessageService } from '../shared/message.ts';
 import type { ActiveResumeContext, ApplicationRecord, ApplicationRecordStatus, InterviewReview, InterviewSchedule, InterviewStage, SyncMetadata, WebDAVConfig } from '../shared/types.ts';
 
@@ -324,22 +324,13 @@ function ApplicationsPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     const content = await file.text();
-    const isJson = file.name.toLowerCase().endsWith('.json') || content.trim().startsWith('{');
-    const legacy = isJson ? parseLegacyApplicationRecordsJson(content) : null;
-    if (legacy?.error) {
-      event.target.value = '';
-      setErrorText(legacy.error);
-      return;
-    }
     const response = await MessageService.sendMessage<{ imported: number; warnings: string[] }>(
-      legacy
-        ? { type: 'IMPORT_APPLICATION_RECORDS', payload: { records: legacy.records } }
-        : { type: 'IMPORT_APPLICATION_RECORDS_CSV', payload: { csv: content } },
+      { type: 'IMPORT_APPLICATION_RECORDS_CSV', payload: { csv: content } },
     );
     event.target.value = '';
     if (!response.success) { setErrorText(response.error || '导入投递记录失败'); return; }
     await loadRecords();
-    const warningCount = (legacy?.warnings.length ?? 0) + (response.data?.warnings.length ?? 0);
+    const warningCount = response.data?.warnings.length ?? 0;
     setNotice(warningCount ? `已导入 ${response.data?.imported ?? 0} 条，存在 ${warningCount} 条提示` : `已导入 ${response.data?.imported ?? 0} 条投递记录`);
   };
 
@@ -360,8 +351,8 @@ function ApplicationsPage() {
           <label className="dashboard-search"><span aria-hidden="true">⌕</span><input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="搜索公司、岗位、城市或下一步行动" /></label>
           <select className="dashboard-filter" aria-label="筛选进度" value={statusFilter} onChange={event => setStatusFilter(event.target.value as ApplicationRecordStatus | 'all')}><option value="all">全部进度</option>{APPLICATION_RECORD_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}</select>
           <select className="dashboard-filter" aria-label="排序方式" value={sortDirection} onChange={event => setSortDirection(event.target.value as 'recent' | 'oldest')}><option value="recent">最近更新优先</option><option value="oldest">投递日期最早</option></select>
-          <input ref={importInputRef} className="visually-hidden" type="file" accept=".csv,text/csv,.json,application/json" onChange={event => void importRecords(event)} />
-          <button type="button" className="dashboard-tertiary-action" onClick={() => importInputRef.current?.click()}>导入 CSV / 旧版 JSON</button>
+          <input ref={importInputRef} className="visually-hidden" type="file" accept=".csv,text/csv" onChange={event => void importRecords(event)} />
+          <button type="button" className="dashboard-tertiary-action" onClick={() => importInputRef.current?.click()}>导入 CSV</button>
           <button type="button" className="dashboard-tertiary-action" onClick={() => void exportRecords()}>导出备份</button>
           <button type="button" className="dashboard-primary-action" onClick={() => setEditingRecord(null)}>+ 新增投递</button>
         </div>
@@ -391,6 +382,7 @@ type ReviewItem = { record: ApplicationRecord; review: InterviewReview };
 
 function AddReviewModal({ records, onClose, onSave }: { records: ApplicationRecord[]; onClose: () => void; onSave: (item: ReviewItem) => void }) {
   const [recordId, setRecordId] = useState(records[0]?.id ?? '');
+  const [recordKeyword, setRecordKeyword] = useState('');
   const [stage, setStage] = useState<InterviewStage>('一面');
   const [errorText, setErrorText] = useState('');
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -404,7 +396,9 @@ function AddReviewModal({ records, onClose, onSave }: { records: ApplicationReco
     if (!response.success) { setErrorText(response.error || '添加面经失败'); return; }
     onSave({ record: updated, review });
   };
-  return <div className="dashboard-modal-backdrop" role="presentation" onMouseDown={onClose}><section className="dashboard-modal add-review-modal" aria-modal="true" aria-labelledby="add-review-title" role="dialog" onMouseDown={event => event.stopPropagation()}><header><div><p>ADD INTERVIEW NOTE</p><h2 id="add-review-title">添加面经</h2></div><button type="button" className="modal-close" aria-label="关闭" onClick={onClose}>×</button></header><form onSubmit={event => void submit(event)}><label>关联投递<select value={recordId} onChange={event => setRecordId(event.target.value)}>{records.map(record => <option key={record.id} value={record.id}>{record.companyName || '未填写公司'} · {record.jobTitle || '未填写岗位'}</option>)}</select></label><label>面试轮次<select value={stage} onChange={event => setStage(event.target.value as InterviewStage)}>{INTERVIEW_STAGES.map(item => <option key={item} value={item}>{item}</option>)}</select></label>{errorText && <p className="dashboard-form-error" role="alert">{errorText}</p>}<footer><button type="button" className="dashboard-secondary-action" onClick={onClose}>取消</button><button type="submit" className="dashboard-primary-action">添加待复盘</button></footer></form></section></div>;
+  const normalizedKeyword = recordKeyword.trim().toLowerCase();
+  const filteredRecords = records.filter(record => [record.companyName, record.jobTitle].some(value => value.toLowerCase().startsWith(normalizedKeyword)));
+  return <div className="dashboard-modal-backdrop" role="presentation" onMouseDown={onClose}><section className="dashboard-modal add-review-modal" aria-modal="true" aria-labelledby="add-review-title" role="dialog" onMouseDown={event => event.stopPropagation()}><header><div><p>ADD INTERVIEW NOTE</p><h2 id="add-review-title">添加面经</h2></div><button type="button" className="modal-close" aria-label="关闭" onClick={onClose}>×</button></header><form onSubmit={event => void submit(event)}><label>搜索投递<input value={recordKeyword} onChange={event => setRecordKeyword(event.target.value)} placeholder="输入公司或岗位前缀" /></label><label>关联投递<select value={recordId} onChange={event => setRecordId(event.target.value)}>{filteredRecords.map(record => <option key={record.id} value={record.id}>{record.companyName || '未填写公司'} · {record.jobTitle || '未填写岗位'}</option>)}</select></label><label>面试轮次<select value={stage} onChange={event => setStage(event.target.value as InterviewStage)}>{INTERVIEW_STAGES.map(item => <option key={item} value={item}>{item}</option>)}</select></label>{errorText && <p className="dashboard-form-error" role="alert">{errorText}</p>}<footer><button type="button" className="dashboard-secondary-action" onClick={onClose}>取消</button><button type="submit" className="dashboard-primary-action">添加待复盘</button></footer></form></section></div>;
 }
 
 function ReviewsPage() {
