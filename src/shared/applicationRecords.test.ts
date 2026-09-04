@@ -7,6 +7,7 @@ import {
   normalizeApplicationRecordStatus,
   normalizeApplicationRecord,
   parseApplicationRecordsCsv,
+  parseLegacyApplicationRecordsJson,
   serializeApplicationRecordsCsv,
 } from './applicationRecords.ts';
 import { StorageService, STORAGE_KEYS } from './storage.ts';
@@ -30,6 +31,16 @@ test('旧进度会归一化到新的九阶段进度', () => {
   assert.equal(normalizeApplicationRecordStatus('面试中'), '一面');
   assert.equal(normalizeApplicationRecordStatus('offer'), 'Offer');
   assert.equal(normalizeApplicationRecordStatus('终止'), '中止');
+});
+
+test('旧版 JSON 投递备份会转换为新版记录', () => {
+  const result = parseLegacyApplicationRecordsJson(JSON.stringify({ records: [{ id: 'old-1', company: '联想集团', position: 'Java 开发工程师', applicationUrl: 'https://talent.lenovo.com.cn/apply', city: '天津', applicationDate: '2026-09-01', stage: '笔试', recentSchedule: '已完成网申投递', nextAction: '关注邮件', updatedAt: 1788531766709 }] }));
+  assert.equal(result.error, undefined);
+  assert.equal(result.records.length, 1);
+  assert.equal(result.records[0]?.companyName, '联想集团');
+  assert.equal(result.records[0]?.status, '笔试');
+  assert.equal(result.records[0]?.sourceSite, 'talent.lenovo.com.cn');
+  assert.equal(result.records[0]?.notes, '已完成网申投递；关注邮件');
 });
 
 test('面试日程会保留四种面试阶段和线上标记', () => {

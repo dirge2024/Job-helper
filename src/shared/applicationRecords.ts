@@ -276,3 +276,65 @@ export function parseApplicationRecordsCsv(csv: string): {
 
   return { records, warnings };
 }
+
+type LegacyApplicationRecord = {
+  id?: unknown;
+  company?: unknown;
+  position?: unknown;
+  applicationUrl?: unknown;
+  city?: unknown;
+  applicationDate?: unknown;
+  stage?: unknown;
+  nextAction?: unknown;
+  recentSchedule?: unknown;
+  updatedAt?: unknown;
+};
+
+/** Convert the JSON export used by the pre-redesign application dashboard. */
+export function parseLegacyApplicationRecordsJson(json: string): {
+  records: ApplicationRecord[];
+  warnings: string[];
+  error?: string;
+} {
+  let parsed: { records?: unknown };
+  try {
+    parsed = JSON.parse(json) as { records?: unknown };
+  } catch {
+    return { records: [], warnings: [], error: 'JSON 文件无法解析' };
+  }
+  if (!Array.isArray(parsed.records)) {
+    return { records: [], warnings: [], error: '不是旧版投递备份 JSON；请在简历资料库中导入简历 JSON' };
+  }
+  const warnings: string[] = [];
+  const records = parsed.records.flatMap((raw, index) => {
+    if (!raw || typeof raw !== 'object') {
+      warnings.push(`第 ${index + 1} 条旧记录格式无效，已跳过`);
+      return [];
+    }
+    const item = raw as LegacyApplicationRecord;
+    const status = normalizeApplicationRecordStatus(typeof item.stage === 'string' ? item.stage : undefined);
+    if (!status) {
+      warnings.push(`第 ${index + 1} 条记录的进度无效，已按“已投递”导入`);
+    }
+    const sourceUrl = typeof item.applicationUrl === 'string' ? item.applicationUrl.trim() : '';
+    let sourceSite = '';
+    try { sourceSite = sourceUrl ? new URL(sourceUrl).host : ''; } catch { /* Keep an invalid legacy URL as plain text. */ }
+    const timestamp = typeof item.updatedAt === 'number' ? new Date(item.updatedAt).toISOString() : new Date().toISOString();
+    const nextAction = typeof item.nextAction === 'string' ? item.nextAction.trim() : '';
+    const recentSchedule = typeof item.recentSchedule === 'string' ? item.recentSchedule.trim() : '';
+    return [normalizeApplicationRecord({
+      id: typeof item.id === 'string' && item.id.trim() ? item.id : generateRecordId(),
+      companyName: typeof item.company === 'string' ? item.company.trim() : '',
+      jobTitle: typeof item.position === 'string' ? item.position.trim() : '',
+      sourceSite,
+      sourceUrl,
+      status: status ?? '已投递',
+      notes: [recentSchedule, nextAction].filter(Boolean).join('；'),
+      appliedAt: typeof item.applicationDate === 'string' ? item.applicationDate.trim() : '',
+      location: typeof item.city === 'string' ? item.city.trim() : '',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })];
+  });
+  return { records, warnings };
+}

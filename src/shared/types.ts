@@ -362,6 +362,7 @@ export type Message =
   | { type: 'DELETE_APPLICATION_RECORD'; payload: { id: string } }
   | { type: 'EXPORT_APPLICATION_RECORDS_CSV'; payload?: null }
   | { type: 'IMPORT_APPLICATION_RECORDS_CSV'; payload: { csv: string } }
+  | { type: 'IMPORT_APPLICATION_RECORDS'; payload: { records: ApplicationRecord[] } }
   | { type: 'START_AI_PAGE_FILL'; payload?: null }
   | { type: 'DETECT_FIELDS'; payload?: null }
   | { type: 'START_AI_REGION_FILL'; payload?: VisualRegionControlPayload | null }

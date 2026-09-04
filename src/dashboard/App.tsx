@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
-import { APPLICATION_RECORD_STATUSES, normalizeApplicationRecord } from '../shared/applicationRecords.ts';
+import { APPLICATION_RECORD_STATUSES, normalizeApplicationRecord, parseLegacyApplicationRecordsJson } from '../shared/applicationRecords.ts';
 import { MessageService } from '../shared/message.ts';
 import type { ActiveResumeContext, ApplicationRecord, ApplicationRecordStatus, InterviewReview, InterviewSchedule, InterviewStage, SyncMetadata, WebDAVConfig } from '../shared/types.ts';
 
@@ -323,11 +323,24 @@ function ApplicationsPage() {
   const importRecords = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const response = await MessageService.sendMessage<{ imported: number; warnings: string[] }>({ type: 'IMPORT_APPLICATION_RECORDS_CSV', payload: { csv: await file.text() } });
+    const content = await file.text();
+    const isJson = file.name.toLowerCase().endsWith('.json') || content.trim().startsWith('{');
+    const legacy = isJson ? parseLegacyApplicationRecordsJson(content) : null;
+    if (legacy?.error) {
+      event.target.value = '';
+      setErrorText(legacy.error);
+      return;
+    }
+    const response = await MessageService.sendMessage<{ imported: number; warnings: string[] }>(
+      legacy
+        ? { type: 'IMPORT_APPLICATION_RECORDS', payload: { records: legacy.records } }
+        : { type: 'IMPORT_APPLICATION_RECORDS_CSV', payload: { csv: content } },
+    );
     event.target.value = '';
-    if (!response.success) { setErrorText(response.error || '导入 CSV 失败'); return; }
+    if (!response.success) { setErrorText(response.error || '导入投递记录失败'); return; }
     await loadRecords();
-    setNotice(response.data?.warnings.length ? `已导入 ${response.data.imported} 条，存在 ${response.data.warnings.length} 条提示` : `已导入 ${response.data?.imported ?? 0} 条投递记录`);
+    const warningCount = (legacy?.warnings.length ?? 0) + (response.data?.warnings.length ?? 0);
+    setNotice(warningCount ? `已导入 ${response.data?.imported ?? 0} 条，存在 ${warningCount} 条提示` : `已导入 ${response.data?.imported ?? 0} 条投递记录`);
   };
 
   const savedRecord = (record: ApplicationRecord) => {
@@ -340,18 +353,18 @@ function ApplicationsPage() {
 
   return (
     <>
-      <div className="application-toolbar">
-        <label className="dashboard-search"><span aria-hidden="true">⌕</span><input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="搜索公司、岗位、城市或下一步行动" /></label>
-        <select className="dashboard-filter" aria-label="筛选进度" value={statusFilter} onChange={event => setStatusFilter(event.target.value as ApplicationRecordStatus | 'all')}><option value="all">全部进度</option>{APPLICATION_RECORD_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}</select>
-        <select className="dashboard-filter" aria-label="排序方式" value={sortDirection} onChange={event => setSortDirection(event.target.value as 'recent' | 'oldest')}><option value="recent">最近更新优先</option><option value="oldest">投递日期最早</option></select>
-        <input ref={importInputRef} className="visually-hidden" type="file" accept=".csv,text/csv" onChange={event => void importRecords(event)} />
-        <button type="button" className="dashboard-tertiary-action" onClick={() => importInputRef.current?.click()}>导入</button>
-        <button type="button" className="dashboard-tertiary-action" onClick={() => void exportRecords()}>导出备份</button>
-        <button type="button" className="dashboard-primary-action" onClick={() => setEditingRecord(null)}>+ 新增投递</button>
-      </div>
       {notice && <p className="dashboard-notice" role="status">{notice}</p>}
       {errorText && <p className="dashboard-form-error" role="alert">{errorText}</p>}
       <div className="application-table-card">
+        <div className="application-toolbar">
+          <label className="dashboard-search"><span aria-hidden="true">⌕</span><input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="搜索公司、岗位、城市或下一步行动" /></label>
+          <select className="dashboard-filter" aria-label="筛选进度" value={statusFilter} onChange={event => setStatusFilter(event.target.value as ApplicationRecordStatus | 'all')}><option value="all">全部进度</option>{APPLICATION_RECORD_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}</select>
+          <select className="dashboard-filter" aria-label="排序方式" value={sortDirection} onChange={event => setSortDirection(event.target.value as 'recent' | 'oldest')}><option value="recent">最近更新优先</option><option value="oldest">投递日期最早</option></select>
+          <input ref={importInputRef} className="visually-hidden" type="file" accept=".csv,text/csv,.json,application/json" onChange={event => void importRecords(event)} />
+          <button type="button" className="dashboard-tertiary-action" onClick={() => importInputRef.current?.click()}>导入 CSV / 旧版 JSON</button>
+          <button type="button" className="dashboard-tertiary-action" onClick={() => void exportRecords()}>导出备份</button>
+          <button type="button" className="dashboard-primary-action" onClick={() => setEditingRecord(null)}>+ 新增投递</button>
+        </div>
         {loading ? <p className="application-empty">正在读取投递记录...</p> : visibleRecords.length === 0 ? <p className="application-empty">暂无符合条件的投递记录。点击“新增投递”开始记录。</p> : (
           <table className="application-table"><thead><tr><th>公司与岗位</th><th>城市</th><th>投递日期</th><th>进度</th><th>最近安排 / 下一步行动</th><th>操作</th></tr></thead><tbody>
             {visibleRecords.map(record => <tr key={record.id}>
