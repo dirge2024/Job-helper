@@ -421,7 +421,7 @@ function ReviewsPage() {
   const selectedItem = selected ? reviewItems.find(item => item.record.id === selected.recordId && item.review.id === selected.reviewId) ?? null : null;
 
   useEffect(() => { if (!selected && reviewItems[0]) setSelected({ recordId: reviewItems[0].record.id, reviewId: reviewItems[0].review.id }); }, [reviewItems, selected]);
-  useEffect(() => { setContent(selectedItem?.review.content ?? ''); }, [selectedItem?.review.id]);
+  useEffect(() => { setContent(selectedItem?.review.content ?? ''); }, [selectedItem?.review.id, selectedItem?.review.content]);
 
   const saveReview = async () => {
     if (!selectedItem) return;
