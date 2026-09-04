@@ -184,12 +184,15 @@ export interface SyncMetadata {
 }
 
 export type ApplicationRecordStatus =
-  | '待投递'
   | '已投递'
-  | '已笔试'
-  | '面试中'
-  | 'offer'
-  | '终止';
+  | '测评'
+  | '笔试'
+  | '一面'
+  | '二面'
+  | '三面'
+  | 'HR面'
+  | 'Offer'
+  | '中止';
 
 export interface ApplicationPageMetadata {
   companyName: string;

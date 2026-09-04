@@ -106,13 +106,13 @@ test('背景层 CRUD 与 CSV handler 可独立运行', async () => {
     assert.equal(listResponse.data?.length, 1);
 
     const updated = buildRecord({
-      status: '面试中',
+      status: '一面',
       notes: '一面通过',
       updatedAt: '2026-08-08T10:00:00.000Z',
     });
     const updateResponse = await handleUpdateApplicationRecord(updated);
     assert.equal(updateResponse.success, true);
-    assert.equal((await handleGetApplicationRecords()).data?.[0]?.status, '面试中');
+    assert.equal((await handleGetApplicationRecords()).data?.[0]?.status, '一面');
 
     const exportResponse = await handleExportApplicationRecordsCsv();
     assert.equal(exportResponse.success, true);
@@ -146,7 +146,7 @@ test('连续保存同一条新建记录时不会生成重复 id 记录', async (
     });
     const secondPayload = buildRecord({
       id: 'same-record-id',
-      status: '面试中',
+      status: '一面',
       notes: '再次保存',
       updatedAt: '2026-08-08T12:00:00.000Z',
     });
@@ -160,7 +160,7 @@ test('连续保存同一条新建记录时不会生成重复 id 记录', async (
     const records = (await handleGetApplicationRecords()).data ?? [];
     assert.equal(records.length, 1);
     assert.equal(records[0]?.id, 'same-record-id');
-    assert.equal(records[0]?.status, '面试中');
+    assert.equal(records[0]?.status, '一面');
     assert.equal(records[0]?.notes, '再次保存');
     assert.equal(records[0]?.updatedAt, '2026-08-08T12:00:00.000Z');
   } finally {

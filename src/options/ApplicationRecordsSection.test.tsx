@@ -46,7 +46,7 @@ const records: ApplicationRecord[] = [
     jobTitle: '产品经理',
     sourceSite: 'join.qq.com',
     sourceUrl: 'https://join.qq.com/example-2',
-    status: '面试中',
+    status: '一面',
     notes: '',
     appliedAt: '2026-08-06',
     location: '深圳',

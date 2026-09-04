@@ -4,6 +4,7 @@ import {
   APPLICATION_RECORD_CSV_HEADERS,
   createApplicationRecordDraft,
   findApplicationRecordDuplicate,
+  normalizeApplicationRecordStatus,
   parseApplicationRecordsCsv,
   serializeApplicationRecordsCsv,
 } from './applicationRecords.ts';
@@ -21,6 +22,13 @@ test('createApplicationRecordDraft 默认状态为已投递且岗位名留空', 
   assert.equal(draft.status, '已投递');
   assert.equal(draft.jobTitle, '');
   assert.equal(draft.companyName, '字节跳动');
+});
+
+test('旧进度会归一化到新的九阶段进度', () => {
+  assert.equal(normalizeApplicationRecordStatus('已笔试'), '笔试');
+  assert.equal(normalizeApplicationRecordStatus('面试中'), '一面');
+  assert.equal(normalizeApplicationRecordStatus('offer'), 'Offer');
+  assert.equal(normalizeApplicationRecordStatus('终止'), '中止');
 });
 
 test('findApplicationRecordDuplicate 按同公司加同链接命中', () => {
@@ -153,13 +161,13 @@ test('StorageService 可新增、更新、删除单条投递记录', async () =>
 
     const updated: ApplicationRecord = {
       ...created,
-      status: '面试中',
+      status: '一面',
       notes: '一面已过',
       updatedAt: '2026-08-08T10:00:00.000Z',
     };
 
     await StorageService.updateApplicationRecord(updated);
-    assert.equal((await StorageService.getApplicationRecords())[0]?.status, '面试中');
+    assert.equal((await StorageService.getApplicationRecords())[0]?.status, '一面');
 
     await StorageService.deleteApplicationRecord(created.id);
     assert.deepEqual(await StorageService.getApplicationRecords(), []);
@@ -196,7 +204,7 @@ test('StorageService 读取旧状态值时会自动归一化到新状态文案',
 
   try {
     const records = await StorageService.getApplicationRecords();
-    assert.equal(records[0]?.status, 'offer');
+    assert.equal(records[0]?.status, 'Offer');
   } finally {
     (globalThis as { chrome?: unknown }).chrome = originalChrome;
   }

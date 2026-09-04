@@ -6,22 +6,32 @@ import type {
 } from './types.ts';
 
 export const APPLICATION_RECORD_STATUSES: ApplicationRecordStatus[] = [
-  '待投递',
   '已投递',
-  '已笔试',
-  '面试中',
-  'offer',
-  '终止',
+  '测评',
+  '笔试',
+  '一面',
+  '二面',
+  '三面',
+  'HR面',
+  'Offer',
+  '中止',
 ];
 
 const LEGACY_APPLICATION_RECORD_STATUS_MAP: Record<string, ApplicationRecordStatus> = {
-  待投: '待投递',
+  待投: '已投递',
+  待投递: '已投递',
   已投递: '已投递',
-  笔试: '已笔试',
-  面试: '面试中',
-  Offer: 'offer',
-  offer: 'offer',
-  终止: '终止',
+  已笔试: '笔试',
+  笔试: '笔试',
+  面试: '一面',
+  面试中: '一面',
+  HR面: 'HR面',
+  'HR 面': 'HR面',
+  Offer: 'Offer',
+  offer: 'Offer',
+  终止: '中止',
+  已结束: '中止',
+  中止: '中止',
 };
 
 export const APPLICATION_RECORD_CSV_HEADERS = [

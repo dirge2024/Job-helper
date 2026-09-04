@@ -27,7 +27,7 @@ test('popup 视觉重构保留全部现有入口且不引入额外功能', async
   assert.doesNotMatch(html, /复制全部信息|清空表单/);
 });
 
-test('打开投递记录入口打开带 query 的设置页标签', async () => {
+test('打开投递记录入口打开新版工作台的投递管理页', async () => {
   const originalChrome = (globalThis as { chrome?: unknown }).chrome;
   const createdTabs: Array<{ url?: string }> = [];
 
@@ -49,7 +49,7 @@ test('打开投递记录入口打开带 query 的设置页标签', async () => {
     assert.equal(createdTabs.length, 1);
     assert.equal(
       createdTabs[0]?.url,
-      'chrome-extension://test/src/options/index.html?tab=application-records',
+      'chrome-extension://test/src/dashboard/index.html?page=applications',
     );
   } finally {
     (globalThis as { chrome?: unknown }).chrome = originalChrome;
