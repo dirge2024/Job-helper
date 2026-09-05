@@ -19,6 +19,7 @@ import { ResumeProfileManager } from './ResumeProfileManager';
 import { applyLoadedProfile, getExternalProfileChangeAction, isProfileDirty, profileSnapshot } from './profileState';
 import { parsePDF } from '../parsers/pdfParser';
 import { parseDOCX } from '../parsers/docxParser';
+import { serializeUserProfileCSV } from '../parsers/resumeCsvParser';
 
 const OPTION_TABS = [
   'personal',
@@ -47,6 +48,7 @@ function hasChromeApis(): boolean {
 /** MIME 类型到扩展名的兜底映射，用于文件名缺少扩展名的情况 */
 const MIME_TO_EXT: Record<string, string> = {
   'application/json': 'json',
+  'text/csv': 'csv',
   'application/pdf': 'pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
   'application/msword': 'doc',
@@ -63,10 +65,20 @@ function resolveFileType(file: File): string {
   const dotIndex = name.lastIndexOf('.');
   const ext = dotIndex > 0 ? name.slice(dotIndex + 1).toLowerCase() : '';
 
-  const known = ['pdf', 'doc', 'docx', 'md', 'markdown', 'txt', 'json'];
+  const known = ['pdf', 'doc', 'docx', 'md', 'markdown', 'txt', 'json', 'csv'];
   if (known.includes(ext)) return ext;
 
   return MIME_TO_EXT[file.type] || ext;
+}
+
+function downloadResumeCsv(profile: UserProfile): void {
+  const blob = new Blob([`\uFEFF${serializeUserProfileCSV(profile)}`], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'resume-profile.csv';
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 /**
@@ -789,11 +801,11 @@ function App() {
                   </svg>
                   <p className="upload-title">{parsingResume ? '正在解析简历...' : '点击或拖拽文件到此处上传'}</p>
                   <p className="upload-hint">
-                    {parsingResume ? '请保持当前页面打开，解析完成后会自动提示。' : '支持 PDF、DOCX、MD、TXT、JSON 格式'}
+                    {parsingResume ? '请保持当前页面打开，解析完成后会自动提示。' : '支持 CSV、PDF、DOCX、MD、TXT 格式'}
                   </p>
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx,.md,.txt,.json"
+                    accept=".csv,.pdf,.doc,.docx,.md,.txt"
                     onChange={handleFileUpload}
                     className="file-input"
                     disabled={parsingResume}
@@ -830,6 +842,9 @@ function App() {
                   上传简历后，系统会自动解析并提取个人信息、教育经历、工作经验等内容。
                 </div>
               </div>
+              <button type="button" className="btn btn-secondary" onClick={() => downloadResumeCsv(profile)}>
+                导出当前简历 CSV
+              </button>
             </div>
           )}
 

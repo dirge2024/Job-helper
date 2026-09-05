@@ -545,7 +545,7 @@ async function handleParseResume(
 
     if (isStructuredType(fileType)) {
       // JSON 简历本身已结构化，直接映射，避免 LLM 二次推断带来的误差
-      parsedData = parseStructuredResume(rawText);
+      parsedData = parseStructuredResume(rawText, fileType);
       parseMethod = 'structured';
     } else {
       const llmConfig = await StorageService.getLLMConfig();

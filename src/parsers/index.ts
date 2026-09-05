@@ -3,11 +3,12 @@ import { parseDOCX } from './docxParser.ts';
 import { parseMarkdown } from './markdownParser.ts';
 import { parseTXT } from './txtParser.ts';
 import { parseResumeJSON } from './jsonParser.ts';
+import { parseResumeCSV } from './resumeCsvParser.ts';
 import type { ParsedResumeData } from '../shared/types';
 
 /** JSON 简历自带结构，无需再经 LLM/正则推断 */
 export function isStructuredType(fileType: string): boolean {
-  return fileType.toLowerCase().replace('.', '') === 'json';
+  return ['json', 'csv'].includes(fileType.toLowerCase().replace('.', ''));
 }
 
 /**
@@ -48,11 +49,12 @@ export async function parseResume(
       return await parseMarkdown(base64Data);
     case 'txt':
     case 'json':
+    case 'csv':
       // JSON 与 TXT 同为纯文本，解码方式一致
       return await parseTXT(base64Data);
     default:
       throw new Error(
-        `不支持的文件格式：${fileType || '(未识别)'}。目前支持 PDF、DOC/DOCX、MD、TXT、JSON。`
+        `不支持的文件格式：${fileType || '(未识别)'}。目前支持 PDF、DOC/DOCX、MD、TXT、JSON、CSV。`
       );
   }
 }
@@ -120,8 +122,9 @@ async function parseInOffscreen(base64Data: string, fileType: string): Promise<s
 }
 
 /** 直接从 JSON 文本得到结构化简历数据 */
-export function parseStructuredResume(jsonText: string): ParsedResumeData {
-  return parseResumeJSON(jsonText);
+export function parseStructuredResume(text: string, fileType = 'json'): ParsedResumeData {
+  return fileType.toLowerCase().replace('.', '') === 'csv' ? parseResumeCSV(text) : parseResumeJSON(text);
 }
 
 export { parsePDF, parseDOCX, parseMarkdown, parseTXT, parseResumeJSON };
+export { parseResumeCSV, serializeResumeCSV, serializeUserProfileCSV } from './resumeCsvParser.ts';
