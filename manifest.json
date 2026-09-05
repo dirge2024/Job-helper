@@ -32,7 +32,7 @@
   "commands": {
     "open-job-helper-side-panel": {
       "suggested_key": {
-        "default": "Ctrl+Shift+A"
+        "default": "Ctrl+Shift+F"
       },
       "description": "打开求职助手侧边栏"
     }

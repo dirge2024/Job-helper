@@ -53,7 +53,7 @@ function injectFloatingLauncher() {
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = '简历助手';
-  button.title = '打开求职助手侧边栏（Ctrl+Shift+A）';
+  button.title = '打开求职助手侧边栏（Ctrl+Shift+F）';
   button.addEventListener('click', async () => {
     button.disabled = true;
     const response = await sendRuntimeMessage({ type: 'OPEN_SIDE_PANEL' });
@@ -65,6 +65,12 @@ function injectFloatingLauncher() {
   shadow.append(style, button);
   document.body.appendChild(host);
 }
+
+document.addEventListener('keydown', event => {
+  if (!event.ctrlKey || !event.shiftKey || event.key.toLowerCase() !== 'f') return;
+  event.preventDefault();
+  void sendRuntimeMessage({ type: 'OPEN_SIDE_PANEL' });
+}, true);
 
 // 初始化
 const formDetector = new FormDetector();

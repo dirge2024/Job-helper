@@ -21,10 +21,10 @@ test('侧边栏收录岗位使用紧凑内嵌表单和固定底部导航', () =>
   assert.match(css, /\.panel-footer\s*\{[^}]*border-top/s);
 });
 
-test('侧边栏显示 Ctrl+Shift+A 快捷键提示', () => {
+test('侧边栏显示 Ctrl+Shift+F 快捷键提示', () => {
   const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
   const manifest = readFileSync(new URL('../../manifest.json', import.meta.url), 'utf8');
-  assert.match(source, /Ctrl\+Shift\+A/);
-  assert.match(manifest, /"default":\s*"Ctrl\+Shift\+A"/);
+  assert.match(source, /Ctrl\+Shift\+F/);
+  assert.match(manifest, /"default":\s*"Ctrl\+Shift\+F"/);
   assert.doesNotMatch(manifest, /"default_popup"/);
 });

@@ -8,7 +8,8 @@ test('content script 注入右侧简历助手入口并通过 background 打开�
   assert.match(source, /display:block!important;position:fixed!important;right:0!important;top:50%/);
   assert.match(source, /textContent = '简历助手'/);
   assert.match(source, /type: 'OPEN_SIDE_PANEL'/);
-  assert.match(source, /Ctrl\+Shift\+A/);
+  assert.match(source, /Ctrl\+Shift\+F/);
+  assert.match(source, /event\.key\.toLowerCase\(\) !== 'f'/);
   assert.match(source, /attachShadow\(\{ mode: 'closed' \}\)/);
 });
 
