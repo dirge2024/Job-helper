@@ -63,6 +63,7 @@ import {
   captureVisibleRegion,
   handleVisualRegionFill,
 } from './visualRegionFill.ts';
+import { buildSidepanelUrl } from '../sidepanel/navigation.ts';
 
 // Background Service Worker 入口
 console.log('Background service worker started');
@@ -132,6 +133,26 @@ async function openJobHelperSidePanel(windowId?: number): Promise<boolean> {
   return true;
 }
 
+async function openFallbackInfoWindow(targetWindowId: number): Promise<boolean> {
+  if (!chrome.windows?.create || !chrome.runtime?.getURL) return false;
+  const target = await chrome.windows.get(targetWindowId);
+  const width = 420;
+  const height = Math.max(640, Math.min(900, target.height || 800));
+  const left = target.left !== undefined && target.width !== undefined
+    ? target.left + Math.max(0, target.width - width)
+    : undefined;
+  await chrome.windows.create({
+    url: chrome.runtime.getURL(buildSidepanelUrl({ targetWindowId, mode: 'float' })),
+    type: 'popup',
+    width,
+    height,
+    left,
+    top: target.top,
+    focused: true,
+  });
+  return true;
+}
+
 chrome.action?.onClicked.addListener(() => {
   void openJobHelperSidePanel();
 });
@@ -148,7 +169,14 @@ export async function handleMessage(
 ): Promise<MessageResponse> {
   switch (message.type) {
     case 'OPEN_SIDE_PANEL': {
-      const opened = await openJobHelperSidePanel(sender.tab?.windowId);
+      const targetWindowId = sender.tab?.windowId;
+      let opened = typeof targetWindowId === 'number'
+        ? await openJobHelperSidePanel(targetWindowId).catch(() => false)
+        : false;
+      // sidePanel.open 需要原生扩展手势；网页注入入口消息可能丢失手势，回退到右侧小窗。
+      if (!opened && typeof targetWindowId === 'number') {
+        opened = await openFallbackInfoWindow(targetWindowId).catch(() => false);
+      }
       return opened
         ? { success: true }
         : { success: false, error: '当前浏览器不支持右侧侧边栏' };
