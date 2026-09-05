@@ -73,6 +73,11 @@ test('资料、洞察和备份页面均保留原有能力的可达入口', () =>
   assert.match(css, /\.insight-status-grid\s*\{[^}]*grid-template-columns:/);
 });
 
+test('投递记录删除使用自定义确认弹窗，不调用浏览器 confirm', () => {
+  assert.doesNotMatch(appSource, /window\.confirm\(/);
+  assert.match(appSource, /确认删除投递记录/);
+});
+
 test('日程弹窗不再显示线上面试说明行', () => {
   assert.doesNotMatch(appSource, /线上面试（默认）/);
 });

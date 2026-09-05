@@ -258,6 +258,7 @@ function ApplicationsPage() {
   const [notice, setNotice] = useState('');
   const [errorText, setErrorText] = useState('');
   const [editingRecord, setEditingRecord] = useState<ApplicationRecord | null | undefined>(undefined);
+  const [deletingRecord, setDeletingRecord] = useState<ApplicationRecord | null>(null);
   const [scheduleRequest, setScheduleRequest] = useState<{ record: ApplicationRecord; stage: InterviewStage } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -304,10 +305,14 @@ function ApplicationsPage() {
   };
 
   const removeRecord = async (record: ApplicationRecord) => {
-    if (!window.confirm(`确定删除 ${record.companyName || '该条'} 投递记录吗？`)) return;
+    setDeletingRecord(record);
+  };
+
+  const confirmRemoveRecord = async (record: ApplicationRecord) => {
     const response = await MessageService.sendMessage({ type: 'DELETE_APPLICATION_RECORD', payload: { id: record.id } });
     if (!response.success) { setErrorText(response.error || '删除投递记录失败'); return; }
     setRecords(current => current.filter(item => item.id !== record.id));
+    setDeletingRecord(null);
     setNotice('投递记录已删除');
   };
 
@@ -372,6 +377,7 @@ function ApplicationsPage() {
         if (saved) setScheduleRequest(null);
         return saved;
       }} />}
+      {deletingRecord && <div className="dashboard-modal-backdrop" role="presentation" onMouseDown={() => setDeletingRecord(null)}><section className="dashboard-modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-application-title" onMouseDown={event => event.stopPropagation()}><p className="dashboard-card-eyebrow">DELETE APPLICATION</p><h2 id="delete-application-title">确认删除投递记录？</h2><p>{deletingRecord.companyName || '该公司'} · {deletingRecord.jobTitle || '该岗位'}</p><footer><button type="button" className="dashboard-secondary-action" onClick={() => setDeletingRecord(null)}>取消</button><button type="button" className="schedule-cancel-action" onClick={() => void confirmRemoveRecord(deletingRecord)}>确定删除</button></footer></section></div>}
     </>
   );
 }
