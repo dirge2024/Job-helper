@@ -1,16 +1,16 @@
 :root {
-  --color-primary: #4f46e5;
-  --color-primary-hover: #4338ca;
-  --color-primary-soft: #eef2ff;
-  --color-bg: #f1f3f6;
-  --color-panel: #ffffff;
-  --color-text: #111827;
-  --color-muted: #6b7280;
-  --color-border: #e2e5ea;
-  --color-danger: #dc2626;
-  --radius-panel: 12px;
-  --radius-control: 9px;
-  --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.05);
+  --color-primary: #6f8e74;
+  --color-primary-hover: #58745d;
+  --color-primary-soft: #eaf2e7;
+  --color-bg: #f5f7f3;
+  --color-panel: #fffefa;
+  --color-text: #1e3426;
+  --color-muted: #718074;
+  --color-border: #dce6d9;
+  --color-danger: #b45850;
+  --radius-panel: 16px;
+  --radius-control: 10px;
+  --shadow-panel: 0 12px 32px rgba(68, 91, 71, 0.07);
   color: var(--color-text);
   background: var(--color-bg);
   font-family: "SF Pro Text", "Segoe UI Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

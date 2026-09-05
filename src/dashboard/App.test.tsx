@@ -56,9 +56,9 @@ test('面经复盘保持左侧编辑和右侧列表，AI 总结位于保存按�
   assert.match(css, /\.review-editor-actions\s*\{[^}]*justify-content:\s*flex-end;/);
 });
 
-test('每条面经记录都提供删除按钮并通过更新投递记录保存', () => {
+test('每条面经记录都提供删除按钮并通过自定义弹窗确认', () => {
   assert.match(appSource, /review-list-delete/);
-  assert.match(appSource, /删除面经失败/);
+  assert.match(appSource, /确认删除面经/);
   assert.match(appSource, /interviewReviews: \(item\.record\.interviewReviews \?\? \[\]\)\.filter/);
 });
 
