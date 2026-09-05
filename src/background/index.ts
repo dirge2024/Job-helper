@@ -118,6 +118,17 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
+chrome.commands?.onCommand.addListener(async command => {
+  if (command !== 'open-job-helper-side-panel' || !chrome.sidePanel?.open || !chrome.sidePanel?.setOptions) return;
+  const currentWindow = await chrome.windows.getCurrent();
+  if (typeof currentWindow.id !== 'number') return;
+  await chrome.sidePanel.setOptions({
+    path: `src/sidepanel/index.html?targetWindowId=${currentWindow.id}`,
+    enabled: true,
+  });
+  await chrome.sidePanel.open({ windowId: currentWindow.id });
+});
+
 // 处理消息
 export async function handleMessage(
   message: Message,
