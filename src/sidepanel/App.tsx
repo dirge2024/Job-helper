@@ -243,8 +243,13 @@ export default function App() {
     return <main className="panel-state">正在加载信息...</main>;
   }
 
+  const closeFloatingPanel = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) await chrome.tabs.sendMessage(tab.id, { type: 'CLOSE_FLOATING_PANEL' }).catch(() => undefined);
+  };
+
   return <main className="panel">
-    <header className="panel-header"><div className="panel-brand"><img src={chrome.runtime.getURL('icons/icon128.png')} alt="" /><div><h1>求职助手</h1><p>让每一次投递更高效</p></div></div><span className="panel-shortcut">Ctrl+Shift+F</span></header>
+    <header className="panel-header"><div className="panel-brand"><img src={chrome.runtime.getURL('icons/icon128.png')} alt="" /><div><h1>求职助手</h1><p>让每一次投递更高效</p></div></div><span className="panel-shortcut">Ctrl+Shift+F</span>{isFloatMode && <button type="button" className="panel-close" onClick={() => void closeFloatingPanel()} aria-label="关闭求职助手">×</button>}</header>
     <div className="panel-scroll">
       <div className="panel-main-actions"><button type="button" className="panel-action panel-action-primary" onClick={() => void openCapture()}>收录当前岗位</button><button type="button" className="panel-action panel-action-secondary" onClick={() => void handleQuickFill()}>一键填充</button></div>
       {captureOpen && <section className="capture-panel" aria-label="收录当前岗位"><div className="capture-panel-heading"><strong>收录当前岗位</strong><button type="button" onClick={() => setCaptureOpen(false)}>收起</button></div>{captureLoading ? <p className="capture-loading">正在识别当前岗位...</p> : <><label>公司名称<input value={captureForm.companyName} onChange={event => updateCapture('companyName', event.target.value)} placeholder="自动识别或手动填写" /></label><label>岗位名称<input value={captureForm.jobTitle} onChange={event => updateCapture('jobTitle', event.target.value)} placeholder="自动识别或手动填写" /></label><div className="capture-grid"><label>目标城市<input list="capture-city-history" value={captureForm.location} onChange={event => updateCapture('location', event.target.value)} placeholder="例如：北京" /><datalist id="capture-city-history">{cityHistory.map(city => <option key={city} value={city} />)}</datalist></label><label>投递阶段<select value={captureForm.status} onChange={event => updateCapture('status', event.target.value as ApplicationRecordStatus)}>{APPLICATION_RECORD_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}</select></label></div><label>投递日期<input type="date" value={captureForm.appliedAt} onChange={event => updateCapture('appliedAt', event.target.value)} /></label><button type="button" className="capture-confirm" disabled={captureSaving} onClick={() => void saveCapture()}>{captureSaving ? '保存中...' : '确认存入看板'}</button></>}</section>}

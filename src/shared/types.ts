@@ -355,6 +355,8 @@ export type Message =
   | { type: 'PARSE_RESUME'; payload: { file: string; fileType: string; fileName: string; rawText?: string } }
   | { type: 'FILL_FORM'; payload?: null }
   | { type: 'OPEN_SIDE_PANEL'; payload?: null }
+  | { type: 'TOGGLE_FLOATING_PANEL'; payload?: null }
+  | { type: 'CLOSE_FLOATING_PANEL'; payload?: null }
   | { type: 'GET_APPLICATION_PAGE_METADATA'; payload?: null }
   | { type: 'CREATE_APPLICATION_RECORD_DRAFT'; payload: { tabId: number } }
   | { type: 'GET_APPLICATION_RECORD_DRAFT'; payload: { draftId: string } }

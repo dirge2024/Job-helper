@@ -207,10 +207,7 @@ function App() {
   const handleOpenApplicationRecordCreate = async () => {
     setOpeningApplicationCreate(true);
     try {
-      const opened = await openNativeSidePanel();
-      if (!opened) {
-        throw new Error('当前浏览器不支持右侧侧边栏，请使用 Chrome 侧边栏打开插件');
-      }
+      await toggleFloatingPanelOnActiveTab();
       window.close();
     } catch (error) {
       alert(error instanceof Error ? error.message : '打开收录当前岗位失败');
@@ -268,22 +265,19 @@ function App() {
   const handleOpenSidePanel = async () => {
     setOpeningView(true);
     try {
-      const opened = await openNativeSidePanel();
-      if (!opened) {
-        // 原生侧边栏不可用（旧版浏览器 / API 缺失 / 手势失效）时回退到浮动小窗
-        await openInfoFloatWindow();
-      }
+      await toggleFloatingPanelOnActiveTab();
       window.close();
-    } catch {
-      // 原生侧边栏调用抛错时同样回退，避免用户点击后毫无反应
-      try {
-        await openInfoFloatWindow();
-        window.close();
-      } catch (fallbackError) {
-        alert(fallbackError instanceof Error ? fallbackError.message : '打开信息窗口失败');
-        setOpeningView(false);
-      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '打开信息窗口失败');
+      setOpeningView(false);
     }
+  };
+
+  const toggleFloatingPanelOnActiveTab = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error('没有可用的当前页面');
+    const response = await sendMessageToActiveTab(tab.id, { type: 'TOGGLE_FLOATING_PANEL' });
+    if (!response.success) throw new Error(response.error || '无法打开求职助手');
   };
 
   // 尝试打开 Chrome 原生侧边栏；成功返回 true，不支持或未开启时返回 false。

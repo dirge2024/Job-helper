@@ -25,6 +25,67 @@ async function sendRuntimeMessage<T = any>(message: Message): Promise<MessageRes
 
 console.log('Content script loaded');
 
+const FLOATING_LAUNCHER_ID = 'job-helper-floating-launcher';
+const FLOATING_PANEL_ID = 'job-helper-floating-panel';
+
+function toggleFloatingPanel(): void {
+  const existing = document.getElementById(FLOATING_PANEL_ID);
+  if (existing) {
+    existing.remove();
+    return;
+  }
+
+  const panel = document.createElement('iframe');
+  panel.id = FLOATING_PANEL_ID;
+  panel.title = '求职助手';
+  panel.src = chrome.runtime.getURL('src/sidepanel/index.html?mode=float');
+  panel.style.cssText = [
+    'position: fixed',
+    'top: 16px',
+    'right: 16px',
+    'width: min(380px, calc(100vw - 32px))',
+    'height: min(760px, calc(100vh - 32px))',
+    'z-index: 2147483647',
+    'border: 1px solid #dfe5df',
+    'border-radius: 18px',
+    'background: #f1f3f6',
+    'box-shadow: 0 18px 48px rgba(15, 23, 42, .24)',
+  ].join(';');
+  document.documentElement.appendChild(panel);
+}
+
+function injectFloatingLauncher(): void {
+  if (document.getElementById(FLOATING_LAUNCHER_ID)) return;
+  const button = document.createElement('button');
+  button.id = FLOATING_LAUNCHER_ID;
+  button.type = 'button';
+  button.textContent = '简历助手';
+  button.title = '打开求职助手（Ctrl+Shift+F）';
+  button.style.cssText = [
+    'position: fixed',
+    'right: 0',
+    'top: 50%',
+    'transform: translateY(-50%)',
+    'z-index: 2147483646',
+    'padding: 12px 18px 12px 16px',
+    'border: 0',
+    'border-radius: 24px 0 0 24px',
+    'background: #536dde',
+    'color: #fff',
+    'box-shadow: 0 8px 24px rgba(83, 109, 222, .35)',
+    'font: 700 15px/1.2 "Segoe UI", sans-serif',
+    'cursor: pointer',
+  ].join(';');
+  button.addEventListener('click', toggleFloatingPanel);
+  document.documentElement.appendChild(button);
+}
+
+function initializeFloatingLauncher(): void {
+  setTimeout(injectFloatingLauncher, 500);
+}
+
+initializeFloatingLauncher();
+
 // 初始化
 const formDetector = new FormDetector();
 const formFiller = new FormFiller();
@@ -629,6 +690,18 @@ function showSuccessMessage() {
 
 // 监听来自 popup 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'TOGGLE_FLOATING_PANEL') {
+    toggleFloatingPanel();
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'CLOSE_FLOATING_PANEL') {
+    document.getElementById(FLOATING_PANEL_ID)?.remove();
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (message.type === 'GET_APPLICATION_PAGE_METADATA') {
     sendResponse({
       success: true,

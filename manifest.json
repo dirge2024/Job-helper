@@ -54,7 +54,7 @@
   "options_page": "src/dashboard/index.html",
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "pdf.worker.min.js", "cmaps/*", "standard_fonts/*"],
+      "resources": ["src/sidepanel/index.html", "assets/*", "icons/*", "pdf.worker.min.js", "cmaps/*", "standard_fonts/*"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -4,7 +4,10 @@ import type {
   BackupSummary,
   SyncMetadata,
   WebDAVConfig,
+  ActiveResumeContext,
+  UserProfile,
 } from '../shared/types';
+import { parseResumeCSV, serializeUserProfileCSV } from '../parsers/resumeCsvParser';
 
 const EMPTY_CONFIG: WebDAVConfig = {
   enabled: false,
@@ -40,6 +43,7 @@ function Summary({ summary }: { summary: BackupSummary }) {
 }
 
 export function DataSyncSettings({ onDataChanged }: Props) {
+  const resumeCsvInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importJson, setImportJson] = useState('');
   const [importSummary, setImportSummary] = useState<BackupSummary | null>(null);
@@ -48,6 +52,64 @@ export function DataSyncSettings({ onDataChanged }: Props) {
   const [metadata, setMetadata] = useState<SyncMetadata>({ status: 'idle' });
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const exportResumeCsv = async () => {
+    setBusy('resume-export');
+    setNotice(null);
+    try {
+      const response = await MessageService.sendMessage<ActiveResumeContext>({ type: 'GET_ACTIVE_RESUME_CONTEXT' });
+      if (!response.success || !response.data?.profile) throw new Error(response.error || '读取当前简历失败');
+      const url = URL.createObjectURL(new Blob([`\uFEFF${serializeUserProfileCSV(response.data.profile)}`], { type: 'text/csv;charset=utf-8' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'resume-profile.csv';
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setNotice({ type: 'success', text: '简历 CSV 已导出' });
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : '导出简历 CSV 失败' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const importResumeCsv = async (file?: File) => {
+    if (!file) return;
+    setBusy('resume-import');
+    setNotice(null);
+    try {
+      const parsed = parseResumeCSV(await file.text());
+      const current = await MessageService.sendMessage<ActiveResumeContext>({ type: 'GET_ACTIVE_RESUME_CONTEXT' });
+      if (!current.success || !current.data?.profile) throw new Error(current.error || '读取当前简历失败');
+      const withIds = (items: unknown[] | undefined) => (items ?? []).map(item => ({
+        ...(item as Record<string, unknown>),
+        id: typeof (item as Record<string, unknown>).id === 'string' && (item as Record<string, unknown>).id
+          ? (item as Record<string, unknown>).id
+          : `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      }));
+      const nextProfile: UserProfile = {
+        ...current.data.profile,
+        personal: { ...current.data.profile.personal, ...parsed.personal },
+        education: withIds(parsed.education),
+        experience: withIds(parsed.experience),
+        projects: withIds(parsed.projects),
+        awards: withIds(parsed.awards),
+        skills: parsed.skills,
+      } as UserProfile;
+      const saved = await MessageService.sendMessage({
+        type: 'SAVE_USER_PROFILE',
+        payload: { profile: nextProfile, expectedProfileId: current.data.activeProfileId },
+      });
+      if (!saved.success) throw new Error(saved.error || '保存简历失败');
+      if (resumeCsvInputRef.current) resumeCsvInputRef.current.value = '';
+      onDataChanged();
+      setNotice({ type: 'success', text: '简历 CSV 已导入并保存' });
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : '导入简历 CSV 失败' });
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const refreshStatus = async () => {
     const response = await MessageService.sendMessage<SyncMetadata>({ type: 'GET_SYNC_STATUS' });
@@ -195,8 +257,22 @@ export function DataSyncSettings({ onDataChanged }: Props) {
       <section className="data-section">
         <div className="data-section-heading">
           <div>
-            <h2 className="settings-section-title">本地 JSON 备份</h2>
-            <p className="settings-description">导入或导出全部简历资料、简历原文件、AI 配置和通用设置，不包含投递记录。</p>
+            <h2 className="settings-section-title">简历资料 CSV</h2>
+            <p className="settings-description">简历个人信息、教育经历、工作经历、项目和技能统一使用 CSV 导入导出。</p>
+          </div>
+          <div className="data-heading-actions">
+            <button className="btn btn-primary" onClick={() => resumeCsvInputRef.current?.click()} disabled={busy !== null}>导入简历 CSV</button>
+            <button className="btn btn-secondary" onClick={() => void exportResumeCsv()} disabled={busy !== null}>导出简历 CSV</button>
+            <input ref={resumeCsvInputRef} className="visually-hidden" type="file" accept=".csv,text/csv" onChange={event => void importResumeCsv(event.target.files?.[0])} />
+          </div>
+        </div>
+      </section>
+
+      <section className="data-section">
+        <div className="data-section-heading">
+          <div>
+            <h2 className="settings-section-title">系统完整备份（JSON）</h2>
+            <p className="settings-description">仅用于备份简历原文件、AI 配置和通用设置，不是简历资料 CSV 导入入口。</p>
           </div>
           <div className="data-heading-actions">
             <button
@@ -204,10 +280,10 @@ export function DataSyncSettings({ onDataChanged }: Props) {
               onClick={() => fileInputRef.current?.click()}
               disabled={busy !== null}
             >
-              导入完整数据
+              导入系统备份 JSON
             </button>
             <button className="btn btn-secondary" onClick={exportBackup} disabled={busy !== null}>
-              {busy === 'export' ? '导出中…' : '导出完整数据'}
+              {busy === 'export' ? '导出中…' : '导出系统备份 JSON'}
             </button>
             <input
               ref={fileInputRef}

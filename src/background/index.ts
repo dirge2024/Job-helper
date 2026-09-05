@@ -138,7 +138,10 @@ chrome.action?.onClicked.addListener(() => {
 
 chrome.commands?.onCommand.addListener(async command => {
   if (command !== 'open-job-helper-side-panel') return;
-  await openJobHelperSidePanel();
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) {
+    await chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_FLOATING_PANEL' }).catch(() => undefined);
+  }
 });
 
 // 处理消息

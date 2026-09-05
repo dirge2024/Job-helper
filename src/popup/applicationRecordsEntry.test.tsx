@@ -64,10 +64,10 @@ test('打开投递记录入口打开新版工作台的投递管理页', async ()
   }
 });
 
-test('收录当前岗位入口不再创建独立的大窗口', () => {
+test('收录当前岗位入口打开网页覆盖层而不创建独立窗口', () => {
   const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
   const handler = appSource.match(/const handleOpenApplicationRecordCreate[\s\S]*?\n  };/i)?.[0] || '';
-  assert.match(handler, /openNativeSidePanel\(\)/);
+  assert.match(handler, /toggleFloatingPanelOnActiveTab\(\)/);
   assert.doesNotMatch(handler, /openApplicationRecordCreateWindow\(\)/);
 });
 
