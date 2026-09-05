@@ -118,15 +118,18 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-async function openJobHelperSidePanel(): Promise<void> {
-  if (!chrome.sidePanel?.open || !chrome.sidePanel?.setOptions) return;
-  const currentWindow = await chrome.windows.getCurrent();
-  if (typeof currentWindow.id !== 'number') return;
+async function openJobHelperSidePanel(windowId?: number): Promise<boolean> {
+  if (!chrome.sidePanel?.open || !chrome.sidePanel?.setOptions) return false;
+  const currentWindow = typeof windowId === 'number'
+    ? { id: windowId }
+    : await chrome.windows.getCurrent();
+  if (typeof currentWindow.id !== 'number') return false;
   await chrome.sidePanel.setOptions({
     path: `src/sidepanel/index.html?targetWindowId=${currentWindow.id}`,
     enabled: true,
   });
   await chrome.sidePanel.open({ windowId: currentWindow.id });
+  return true;
 }
 
 chrome.action?.onClicked.addListener(() => {
@@ -144,6 +147,13 @@ export async function handleMessage(
   sender: chrome.runtime.MessageSender
 ): Promise<MessageResponse> {
   switch (message.type) {
+    case 'OPEN_SIDE_PANEL': {
+      const opened = await openJobHelperSidePanel(sender.tab?.windowId);
+      return opened
+        ? { success: true }
+        : { success: false, error: '当前浏览器不支持右侧侧边栏' };
+    }
+
     case 'GET_USER_PROFILE':
       return await handleGetUserProfile();
 
