@@ -51,7 +51,7 @@
       "js": ["content.js"]
     }
   ],
-  "options_page": "src/dashboard/index.html",
+  "options_page": "src/options/index.html",
   "web_accessible_resources": [
     {
       "resources": ["src/sidepanel/index.html", "assets/*", "icons/*", "pdf.worker.min.js", "cmaps/*", "standard_fonts/*"],

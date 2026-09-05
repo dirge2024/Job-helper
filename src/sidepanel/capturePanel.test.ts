@@ -12,6 +12,7 @@ test('侧边栏收录岗位使用紧凑内嵌表单和固定底部导航', () =>
   assert.match(source, /className="capture-panel"/);
   assert.match(source, /className="panel-scroll"/);
   assert.match(source, /className="panel-footer"/);
+  assert.match(source, /src\/options\/index\.html\?tab=personal/);
   assert.match(source, /className="panel-fill-note"/);
   assert.doesNotMatch(source, /className="panel-fill-hint"/);
   assert.doesNotMatch(source, /职位链接/);
