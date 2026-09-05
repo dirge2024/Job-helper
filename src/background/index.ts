@@ -118,8 +118,8 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-chrome.commands?.onCommand.addListener(async command => {
-  if (command !== 'open-job-helper-side-panel' || !chrome.sidePanel?.open || !chrome.sidePanel?.setOptions) return;
+async function openJobHelperSidePanel(): Promise<void> {
+  if (!chrome.sidePanel?.open || !chrome.sidePanel?.setOptions) return;
   const currentWindow = await chrome.windows.getCurrent();
   if (typeof currentWindow.id !== 'number') return;
   await chrome.sidePanel.setOptions({
@@ -127,6 +127,15 @@ chrome.commands?.onCommand.addListener(async command => {
     enabled: true,
   });
   await chrome.sidePanel.open({ windowId: currentWindow.id });
+}
+
+chrome.action?.onClicked.addListener(() => {
+  void openJobHelperSidePanel();
+});
+
+chrome.commands?.onCommand.addListener(async command => {
+  if (command !== 'open-job-helper-side-panel') return;
+  await openJobHelperSidePanel();
 });
 
 // 处理消息

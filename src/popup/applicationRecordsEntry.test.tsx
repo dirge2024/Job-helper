@@ -64,6 +64,13 @@ test('打开投递记录入口打开新版工作台的投递管理页', async ()
   }
 });
 
+test('收录当前岗位入口不再创建独立的大窗口', () => {
+  const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const handler = appSource.match(/const handleOpenApplicationRecordCreate[\s\S]*?\n  };/i)?.[0] || '';
+  assert.match(handler, /openNativeSidePanel\(\)/);
+  assert.doesNotMatch(handler, /openApplicationRecordCreateWindow\(\)/);
+});
+
 
 test('popup 保持浏览器扩展所需的固定基础宽度', () => {
   const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');

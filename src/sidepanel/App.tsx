@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageService } from '../shared/message';
+import { APPLICATION_RECORD_STATUSES, normalizeApplicationRecordStatus } from '../shared/applicationRecords.ts';
 import type {
+  ApplicationRecord,
+  ApplicationRecordDraft,
+  ApplicationRecordStatus,
   FocusedFieldWriteResult,
   UserProfile,
 } from '../shared/types';
@@ -34,16 +38,34 @@ const TOAST_DURATION_MS = 1000;
 const sidepanelMode = getSidepanelModeFromSearch(locationSearch);
 const isFloatMode = sidepanelMode === 'float';
 
+const EMPTY_CAPTURE: ApplicationRecord = {
+  id: '', companyName: '', jobTitle: '', sourceSite: '', sourceUrl: '', status: '已投递',
+  notes: '', appliedAt: new Date().toISOString().slice(0, 10), location: '', createdAt: '', updatedAt: '',
+};
+
+function normalizeCaptureDraft(draft: ApplicationRecordDraft): ApplicationRecord {
+  return { ...EMPTY_CAPTURE, ...draft, status: normalizeApplicationRecordStatus(draft.status) ?? '已投递', id: crypto.randomUUID() };
+}
+
 export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [workingKey, setWorkingKey] = useState<string | null>(null);
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [captureForm, setCaptureForm] = useState(EMPTY_CAPTURE);
+  const [cityHistory, setCityHistory] = useState<string[]>([]);
+  const [captureLoading, setCaptureLoading] = useState(false);
+  const [captureSaving, setCaptureSaving] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     void loadInitialData();
+    void chrome.storage.local.get('jobHelperCityHistory').then(result => {
+      const history = result.jobHelperCityHistory;
+      if (Array.isArray(history)) setCityHistory(history.filter((item): item is string => typeof item === 'string').slice(0, 8));
+    });
     const handleStorageChange = (
       changes: Record<string, chrome.storage.StorageChange>,
       areaName: string
@@ -161,55 +183,76 @@ export default function App() {
     }
   };
 
+  const updateCapture = <K extends keyof ApplicationRecord>(field: K, value: ApplicationRecord[K]) => {
+    setCaptureForm(current => ({ ...current, [field]: value }));
+  };
+
+  const openCapture = async () => {
+    setCaptureOpen(true);
+    setCaptureLoading(true);
+    try {
+      const query = hasTargetWindowId ? { active: true, windowId: targetWindowId } : { active: true, currentWindow: true };
+      const [tab] = await chrome.tabs.query(query);
+      if (!tab?.id) throw new Error('没有可用的当前页面');
+      const draftResponse = await MessageService.sendMessage<{ draftId: string }>({ type: 'CREATE_APPLICATION_RECORD_DRAFT', payload: { tabId: tab.id } });
+      if (!draftResponse.success || !draftResponse.data?.draftId) throw new Error(draftResponse.error || '无法识别当前岗位');
+      const response = await MessageService.sendMessage<{ draft: ApplicationRecordDraft }>({ type: 'GET_APPLICATION_RECORD_DRAFT', payload: { draftId: draftResponse.data.draftId } });
+      if (!response.success || !response.data?.draft) throw new Error(response.error || '无法读取岗位信息');
+      setCaptureForm(normalizeCaptureDraft(response.data.draft));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '无法识别当前岗位');
+    } finally {
+      setCaptureLoading(false);
+    }
+  };
+
+  const saveCapture = async () => {
+    if (!captureForm.companyName.trim() || !captureForm.jobTitle.trim()) {
+      showToast('请填写公司名称和岗位名称');
+      return;
+    }
+    setCaptureSaving(true);
+    const now = new Date().toISOString();
+    const record = { ...captureForm, companyName: captureForm.companyName.trim(), jobTitle: captureForm.jobTitle.trim(), location: captureForm.location.trim(), appliedAt: captureForm.appliedAt || now.slice(0, 10), createdAt: captureForm.createdAt || now, updatedAt: now };
+    const response = await MessageService.sendMessage({ type: 'CREATE_APPLICATION_RECORD', payload: record });
+    if (!response.success) showToast(response.error || '保存投递记录失败');
+    else {
+      const nextHistory = record.location && !cityHistory.includes(record.location) ? [record.location, ...cityHistory].slice(0, 8) : cityHistory;
+      setCityHistory(nextHistory);
+      await chrome.storage.local.set({ jobHelperCityHistory: nextHistory });
+      setCaptureOpen(false);
+      showToast('已确认存入看板');
+    }
+    setCaptureSaving(false);
+  };
+
+  const handleQuickFill = async () => {
+    try {
+      const query = hasTargetWindowId ? { active: true, windowId: targetWindowId } : { active: true, currentWindow: true };
+      const [tab] = await chrome.tabs.query(query);
+      if (!tab?.id) throw new Error('没有可用的当前页面');
+      const response = await MessageService.sendMessageToTab(tab.id, { type: 'FILL_FORM' });
+      if (!response.success) throw new Error(response.error || '快速填充失败');
+      showToast('已开始快速填充');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '快速填充失败');
+    }
+  };
+
   if (loading) {
     return <main className="panel-state">正在加载信息...</main>;
   }
 
-  if (!profile) {
-    return (
-      <main className="panel-state">
-        <h1>网申信息浮窗</h1>
-        <p>尚未保存个人信息。</p>
-        <button className="primary-action" onClick={() => chrome.runtime.openOptionsPage()}>
-          设置个人信息
-        </button>
-      </main>
-    );
-  }
-
-  return (
-    <main className="panel">
-      <header className="panel-header">
-        <div>
-            <h1>网申信息浮窗</h1>
-            <p className="panel-subtitle">{subtitleText}</p>
-        </div>
-        <div className="header-actions">
-          {!isFloatMode && (
-            <button className="pip-button" onClick={() => void handleOpenFloatWindow()}>
-              打开浮窗
-            </button>
-          )}
-          {isFloatMode && (
-            <button className="pip-button" onClick={handlePictureInPicture}>
-              {pipWindow && !pipWindow.closed ? '退出置顶' : '置顶小窗'}
-            </button>
-          )}
-          <button className="settings-button" onClick={() => chrome.runtime.openOptionsPage()}>
-            设置
-          </button>
-        </div>
-      </header>
-
-      <ProfileSections
-        profile={profile}
-        workingKey={workingKey}
-        onFieldClick={handleFieldClick}
-      />
-
-      {toast && <div className="copy-toast" role="status">{toast}</div>}
-    </main>
-  );
+  return <main className="panel">
+    <header className="panel-header"><div className="panel-brand"><img src={chrome.runtime.getURL('icons/icon128.png')} alt="" /><div><h1>求职助手</h1><p>让每一次投递更高效</p></div></div><span className="panel-shortcut">Ctrl+Shift+A</span></header>
+    <div className="panel-scroll">
+      <div className="panel-main-actions"><button type="button" className="panel-action panel-action-primary" onClick={() => void openCapture()}>收录当前岗位</button><button type="button" className="panel-action panel-action-secondary" onClick={() => void handleQuickFill()}>一键填充</button></div>
+      {captureOpen && <section className="capture-panel" aria-label="收录当前岗位"><div className="capture-panel-heading"><strong>收录当前岗位</strong><button type="button" onClick={() => setCaptureOpen(false)}>收起</button></div>{captureLoading ? <p className="capture-loading">正在识别当前岗位...</p> : <><label>公司名称<input value={captureForm.companyName} onChange={event => updateCapture('companyName', event.target.value)} placeholder="自动识别或手动填写" /></label><label>岗位名称<input value={captureForm.jobTitle} onChange={event => updateCapture('jobTitle', event.target.value)} placeholder="自动识别或手动填写" /></label><div className="capture-grid"><label>目标城市<input list="capture-city-history" value={captureForm.location} onChange={event => updateCapture('location', event.target.value)} placeholder="例如：北京" /><datalist id="capture-city-history">{cityHistory.map(city => <option key={city} value={city} />)}</datalist></label><label>投递阶段<select value={captureForm.status} onChange={event => updateCapture('status', event.target.value as ApplicationRecordStatus)}>{APPLICATION_RECORD_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}</select></label></div><label>投递日期<input type="date" value={captureForm.appliedAt} onChange={event => updateCapture('appliedAt', event.target.value)} /></label><button type="button" className="capture-confirm" disabled={captureSaving} onClick={() => void saveCapture()}>{captureSaving ? '保存中...' : '确认存入看板'}</button></>}</section>}
+      <button type="button" className="panel-fill-hint" onClick={() => void handleQuickFill()}>点击“一键填充”自动填写当前网页表单</button>
+    </div>
+    <nav className="panel-footer"><button type="button" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL('src/dashboard/index.html?page=applications') })}>投递看板</button><button type="button" onClick={() => void chrome.runtime.openOptionsPage()}>简历配置</button></nav>
+    {toast && <div className="copy-toast" role="status">{toast}</div>}
+  </main>;
 }
 
 function copyStylesToPictureWindow(source: Document, target: Document): void {

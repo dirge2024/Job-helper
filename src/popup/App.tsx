@@ -207,7 +207,10 @@ function App() {
   const handleOpenApplicationRecordCreate = async () => {
     setOpeningApplicationCreate(true);
     try {
-      await openApplicationRecordCreateWindow();
+      const opened = await openNativeSidePanel();
+      if (!opened) {
+        throw new Error('当前浏览器不支持右侧侧边栏，请使用 Chrome 侧边栏打开插件');
+      }
       window.close();
     } catch (error) {
       alert(error instanceof Error ? error.message : '打开收录当前岗位失败');
