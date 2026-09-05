@@ -30,6 +30,14 @@
       "128": "icons/icon128.png"
     }
   },
+  "commands": {
+    "open-job-helper-side-panel": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L"
+      },
+      "description": "打开求职助手侧边栏"
+    }
+  },
   "background": {
     "service_worker": "background.js",
     "type": "module"

@@ -191,7 +191,6 @@ function InterviewScheduleModal({ record, stage, schedule, onClose, onSave, onCa
       <header><div><p>INTERVIEW SCHEDULE</p><h2 id="schedule-form-title">安排{stage}</h2></div><button type="button" className="modal-close" aria-label="关闭" onClick={onClose}>×</button></header>
       <p className="schedule-modal-context">{record.companyName || '未填写公司'} · {record.jobTitle || '未填写岗位'}</p>
       <label className="schedule-date-field">日期与时间<input type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></label>
-      <p className="schedule-online-note">线上面试（默认）。无需填写地点或会议链接。</p>
       {errorText && <p className="dashboard-form-error" role="alert">{errorText}</p>}
       <footer>{onCancelSchedule && <button type="button" className="schedule-cancel-action" disabled={saving} onClick={onCancelSchedule}>取消当前日程</button>}<button type="button" className="dashboard-secondary-action" disabled={saving} onClick={() => void save(false)}>暂不安排</button><button type="button" className="dashboard-primary-action" disabled={saving || !scheduledAt} onClick={() => void save(true)}>{saving ? '保存中...' : '保存并加入日程'}</button></footer>
     </section>

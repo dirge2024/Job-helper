@@ -16,7 +16,7 @@ test('popup 视觉重构保留全部现有入口且不引入额外功能', async
   assert.match(appSource, /className="popup-metrics-strip"/);
   for (const label of [
     '求职助手',
-    '新建投递记录',
+    '收录当前岗位',
     '打开投递记录',
     '打开信息窗口',
     '快速填充',

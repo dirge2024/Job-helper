@@ -147,7 +147,7 @@ export function ApplicationRecordCreateApp() {
         <header className="record-card-header">
           <div>
             <p className="record-eyebrow">Application Records</p>
-            <h1>新建投递记录</h1>
+            <h1>收录当前岗位</h1>
             <p className="record-subtitle">
               {draftId ? '已根据当前页面生成草稿，可直接补全岗位信息后保存。' : '可手动补充并保存一条新的投递记录。'}
             </p>

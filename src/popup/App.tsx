@@ -210,7 +210,7 @@ function App() {
       await openApplicationRecordCreateWindow();
       window.close();
     } catch (error) {
-      alert(error instanceof Error ? error.message : '打开新建投递记录失败');
+      alert(error instanceof Error ? error.message : '打开收录当前岗位失败');
       setOpeningApplicationCreate(false);
     }
   };
@@ -357,7 +357,7 @@ function App() {
             onClick={() => void handleOpenApplicationRecordCreate()}
             disabled={openingApplicationCreate || openingApplicationRecords}
           >
-            {openingApplicationCreate ? '打开中...' : '新建投递记录'}
+            {openingApplicationCreate ? '打开中...' : '收录当前岗位'}
           </button>
           <button
             type="button"

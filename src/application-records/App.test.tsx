@@ -31,7 +31,7 @@ function getText(node: TestRenderer.ReactTestInstance): string {
     .join('');
 }
 
-test('新建记录页默认显示已投递状态并保留空岗位名输入框', () => {
+test('收录当前岗位页默认显示已投递状态并保留空岗位名输入框', () => {
   const html = renderToStaticMarkup(<App />);
   assert.match(html, /已投递/);
   assert.match(html, /岗位名/);

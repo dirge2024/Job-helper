@@ -36,7 +36,7 @@ test('九种进度都有统一的彩色选择器，中止使用红色', () => {
 });
 
 test('面试阶段只在进度更新后安排，日程默认线上且月历按实际天数生成', () => {
-  for (const label of ['一面', '二面', '三面', 'HR面', '暂不安排', '保存并加入日程', '线上面试（默认）', 'datetime-local', 'type="month"']) {
+  for (const label of ['一面', '二面', '三面', 'HR面', '暂不安排', '保存并加入日程', 'format: \'online\'', 'datetime-local', 'type="month"']) {
     assert.ok(appSource.includes(label), `缺少日程交互：${label}`);
   }
   assert.match(appSource, /Math\.ceil\(\(startOffset \+ daysInMonth\) \/ 7\) \* 7/);
@@ -71,4 +71,8 @@ test('资料、洞察和备份页面均保留原有能力的可达入口', () =>
   }
   assert.match(css, /\.dashboard-overview-grid\s*\{[^}]*grid-template-columns:/);
   assert.match(css, /\.insight-status-grid\s*\{[^}]*grid-template-columns:/);
+});
+
+test('日程弹窗不再显示线上面试说明行', () => {
+  assert.doesNotMatch(appSource, /线上面试（默认）/);
 });
