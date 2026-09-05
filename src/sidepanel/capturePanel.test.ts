@@ -26,5 +26,5 @@ test('侧边栏显示 Ctrl+Shift+F 快捷键提示', () => {
   const manifest = readFileSync(new URL('../../manifest.json', import.meta.url), 'utf8');
   assert.match(source, /Ctrl\+Shift\+F/);
   assert.match(manifest, /"default":\s*"Ctrl\+Shift\+F"/);
-  assert.doesNotMatch(manifest, /"default_popup"/);
+  assert.match(manifest, /"default_popup":\s*"src\/popup\/index\.html"/);
 });

@@ -25,56 +25,6 @@ async function sendRuntimeMessage<T = any>(message: Message): Promise<MessageRes
 
 console.log('Content script loaded');
 
-const FLOATING_LAUNCHER_ID = 'job-helper-floating-launcher';
-
-function injectFloatingLauncher() {
-  if (!document.body || document.getElementById(FLOATING_LAUNCHER_ID)) return;
-
-  const host = document.createElement('div');
-  host.id = FLOATING_LAUNCHER_ID;
-  host.style.cssText = 'display:block!important;position:fixed!important;right:0!important;top:50%!important;z-index:2147483646!important;transform:translateY(-50%)!important;pointer-events:auto!important;';
-  const shadow = host.attachShadow({ mode: 'closed' });
-  const style = document.createElement('style');
-  style.textContent = `
-    button {
-      border: 0;
-      border-radius: 22px 0 0 22px;
-      padding: 11px 16px 11px 14px;
-      background: #5a70dc;
-      color: #fff;
-      box-shadow: 0 5px 18px rgba(63, 82, 177, .32);
-      cursor: pointer;
-      font: 700 14px/1.2 "Segoe UI", "Microsoft YaHei", sans-serif;
-      transition: padding-right 160ms ease, background 160ms ease;
-    }
-    button:hover { padding-right: 20px; background: #4961cf; }
-    button:disabled { cursor: wait; opacity: .7; }
-  `;
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = '简历助手';
-  button.title = '打开求职助手侧边栏（Ctrl+Shift+F）';
-  button.addEventListener('click', async () => {
-    button.disabled = true;
-    const response = await sendRuntimeMessage({ type: 'OPEN_SIDE_PANEL' });
-    if (!response.success) {
-      button.disabled = false;
-      button.title = '请点击浏览器工具栏中的扩展图标，或使用 Ctrl+Shift+F 打开侧边栏';
-      window.setTimeout(() => {
-        button.title = '打开求职助手侧边栏（Ctrl+Shift+F）';
-      }, 2400);
-    }
-  });
-  shadow.append(style, button);
-  document.body.appendChild(host);
-}
-
-document.addEventListener('keydown', event => {
-  if (!event.ctrlKey || !event.shiftKey || event.key.toLowerCase() !== 'f') return;
-  event.preventDefault();
-  void sendRuntimeMessage({ type: 'OPEN_SIDE_PANEL' });
-}, true);
-
 // 初始化
 const formDetector = new FormDetector();
 const formFiller = new FormFiller();
@@ -158,7 +108,6 @@ if (document.readyState === 'loading') {
 }
 
 function initializeDetection() {
-  injectFloatingLauncher();
   // 延迟检测，等待动态内容加载
   setTimeout(() => {
     detectedFields = formDetector.detectFields();
