@@ -59,7 +59,10 @@ function injectFloatingLauncher() {
     const response = await sendRuntimeMessage({ type: 'OPEN_SIDE_PANEL' });
     if (!response.success) {
       button.disabled = false;
-      console.warn('Unable to open job helper side panel:', response.error);
+      button.title = '请点击浏览器工具栏中的扩展图标，或使用 Ctrl+Shift+F 打开侧边栏';
+      window.setTimeout(() => {
+        button.title = '打开求职助手侧边栏（Ctrl+Shift+F）';
+      }, 2400);
     }
   });
   shadow.append(style, button);
