@@ -32,15 +32,15 @@ textarea {
 
 .application-record-create-page {
   min-height: 100vh;
-  padding: 24px;
+  padding: 14px;
 }
 
 .record-card {
-  max-width: 640px;
+  max-width: 560px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 18px;
   border: 1px solid rgba(99, 102, 241, 0.14);
-  border-radius: 20px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 24px 80px rgba(15, 23, 42, 0.14);
   backdrop-filter: blur(18px);
@@ -50,7 +50,7 @@ textarea {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .record-eyebrow {
@@ -64,12 +64,12 @@ textarea {
 
 .record-card-header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1.15;
 }
 
 .record-subtitle {
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   color: #64748b;
   font-size: 14px;
   line-height: 1.6;
@@ -132,7 +132,7 @@ textarea {
 
 .record-form {
   display: grid;
-  gap: 16px;
+  gap: 11px;
 }
 
 .record-grid {
@@ -143,7 +143,7 @@ textarea {
 
 .record-field {
   display: grid;
-  gap: 8px;
+  gap: 5px;
 }
 
 .record-field span {
@@ -156,9 +156,9 @@ textarea {
 .record-field select,
 .record-field textarea {
   width: 100%;
-  padding: 12px 14px;
+  padding: 9px 11px;
   border: 1px solid #dbe1ea;
-  border-radius: 12px;
+  border-radius: 9px;
   background: #fff;
   color: #111827;
   transition: border-color 160ms ease, box-shadow 160ms ease;

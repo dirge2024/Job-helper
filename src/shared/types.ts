@@ -216,6 +216,7 @@ export interface InterviewReview {
 
 export interface ApplicationPageMetadata {
   companyName: string;
+  jobTitle?: string;
   sourceSite: string;
   sourceUrl: string;
   pageTitle?: string;

@@ -183,7 +183,7 @@ export function createApplicationRecordDraft(
 ): ApplicationRecordDraft {
   return {
     companyName: metadata.companyName,
-    jobTitle: '',
+    jobTitle: metadata.jobTitle ?? '',
     sourceSite: metadata.sourceSite,
     sourceUrl: metadata.sourceUrl,
     status: '已投递',

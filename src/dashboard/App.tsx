@@ -231,7 +231,6 @@ function SchedulePage() {
     return true;
   };
   const cancelSchedule = async (item: ScheduledInterview) => {
-    if (!window.confirm(`确定取消${item.record.companyName || '该公司'}的${item.schedule.stage}日程吗？`)) return;
     const saved = await updateRecord({ ...item.record, interviews: (item.record.interviews ?? []).filter(schedule => schedule.id !== item.schedule.id), updatedAt: new Date().toISOString() });
     if (saved) setEditing(null);
   };

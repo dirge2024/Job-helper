@@ -22,3 +22,13 @@ test('页面元数据提取返回 sourceSite/sourceUrl，并尽量提取公司�
   assert.match(result.companyName, /字节/);
   assert.equal(result.pageTitle, '字节跳动校园招聘');
 });
+
+test('页面有职位标题时同时提取岗位名', () => {
+  const doc = {
+    title: '字节跳动 · Java 后端开发工程师',
+    querySelector: () => null,
+    querySelectorAll: (selector: string) => selector.includes('h1') ? [{ textContent: 'Java 后端开发工程师' }] : [],
+  } as unknown as Document;
+  const result = extractApplicationPageMetadata(doc, 'https://jobs.bytedance.com/campus');
+  assert.equal(result.jobTitle, 'Java 后端开发工程师');
+});
