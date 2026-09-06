@@ -139,10 +139,26 @@ chrome.action?.onClicked.addListener(() => {
 chrome.commands?.onCommand.addListener(async command => {
   if (command !== 'open-job-helper-side-panel') return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id) {
-    await chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_FLOATING_PANEL' }).catch(() => undefined);
-  }
+  if (tab?.id) await toggleFloatingPanelInTab(tab.id);
 });
+
+async function toggleFloatingPanelInTab(tabId: number): Promise<void> {
+  const message = { type: 'TOGGLE_FLOATING_PANEL' as const };
+  try {
+    await chrome.tabs.sendMessage(tabId, message);
+    return;
+  } catch {
+    // 页面是在扩展更新前打开的时，先补注入最新 content script，再重试一次。
+  }
+
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+    await new Promise(resolve => setTimeout(resolve, 120));
+    await chrome.tabs.sendMessage(tabId, message);
+  } catch (error) {
+    console.warn('Unable to toggle floating assistant:', error);
+  }
+}
 
 // 处理消息
 export async function handleMessage(

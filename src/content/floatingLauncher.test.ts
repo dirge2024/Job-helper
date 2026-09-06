@@ -13,3 +13,9 @@ test('消息协议声明打开侧边栏类型', () => {
   const source = readFileSync(new URL('../shared/types.ts', import.meta.url), 'utf8');
   assert.match(source, /type: 'OPEN_SIDE_PANEL'/);
 });
+
+test('快捷键由 background 转发为悬浮面板切换消息', () => {
+  const source = readFileSync(new URL('../background/index.ts', import.meta.url), 'utf8');
+  assert.match(source, /TOGGLE_FLOATING_PANEL/);
+  assert.match(source, /executeScript\(\{ target: \{ tabId \}, files: \['content\.js'\] \}\)/);
+});

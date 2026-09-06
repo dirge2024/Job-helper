@@ -35,7 +35,7 @@
       "suggested_key": {
         "default": "Ctrl+Shift+F"
       },
-      "description": "打开求职助手侧边栏"
+      "description": "显示或隐藏网页上的求职助手"
     }
   },
   "background": {
