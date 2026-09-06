@@ -310,13 +310,22 @@ function App() {
     let response = await MessageService.sendMessageToTab<T>(tabId, message);
 
     if (!response.success && /Receiving end does not exist|Could not establish connection/i.test(response.error || '')) {
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['content.js'],
-      });
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['content.js'],
+        });
 
-      await new Promise(resolve => setTimeout(resolve, 300));
-      response = await MessageService.sendMessageToTab<T>(tabId, message);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        response = await MessageService.sendMessageToTab<T>(tabId, message);
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error
+            ? `当前页面无法注入助手，请刷新页面或检查扩展权限：${error.message}`
+            : '当前页面无法注入助手，请刷新页面或检查扩展权限',
+        };
+      }
     }
 
     return response;

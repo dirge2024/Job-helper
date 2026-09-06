@@ -20,6 +20,12 @@ test('快捷键由 background 转发为入口方框切换消息', () => {
   assert.match(source, /executeScript\(\{ target: \{ tabId \}, files: \['content\.js'\] \}\)/);
 });
 
+test('网页权限同时覆盖 http 与 https 页面', () => {
+  const source = readFileSync(new URL('../../manifest.json', import.meta.url), 'utf8');
+  assert.match(source, /"https:\/\/\*\/\*"/);
+  assert.match(source, /"http:\/\/\*\/\*"/);
+});
+
 test('入口方框和悬浮面板使用独立的切换逻辑', () => {
   const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
   assert.match(source, /message\.type === 'TOGGLE_FLOATING_LAUNCHER'/);
