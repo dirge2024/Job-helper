@@ -14,8 +14,15 @@ test('消息协议声明打开侧边栏类型', () => {
   assert.match(source, /type: 'OPEN_SIDE_PANEL'/);
 });
 
-test('快捷键由 background 转发为悬浮面板切换消息', () => {
+test('快捷键由 background 转发为入口方框切换消息', () => {
   const source = readFileSync(new URL('../background/index.ts', import.meta.url), 'utf8');
-  assert.match(source, /TOGGLE_FLOATING_PANEL/);
+  assert.match(source, /TOGGLE_FLOATING_LAUNCHER/);
   assert.match(source, /executeScript\(\{ target: \{ tabId \}, files: \['content\.js'\] \}\)/);
+});
+
+test('入口方框和悬浮面板使用独立的切换逻辑', () => {
+  const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+  assert.match(source, /message\.type === 'TOGGLE_FLOATING_LAUNCHER'/);
+  assert.match(source, /message\.type === 'TOGGLE_FLOATING_PANEL'/);
+  assert.match(source, /document\.getElementById\(FLOATING_PANEL_ID\)\?\.remove\(\)/);
 });

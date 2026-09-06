@@ -80,6 +80,17 @@ function injectFloatingLauncher(): void {
   document.documentElement.appendChild(button);
 }
 
+function toggleFloatingLauncher(): void {
+  const launcher = document.getElementById(FLOATING_LAUNCHER_ID);
+  if (launcher) {
+    launcher.remove();
+    document.getElementById(FLOATING_PANEL_ID)?.remove();
+    return;
+  }
+
+  injectFloatingLauncher();
+}
+
 function initializeFloatingLauncher(): void {
   setTimeout(injectFloatingLauncher, 500);
 }
@@ -690,6 +701,12 @@ function showSuccessMessage() {
 
 // 监听来自 popup 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'TOGGLE_FLOATING_LAUNCHER') {
+    toggleFloatingLauncher();
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (message.type === 'TOGGLE_FLOATING_PANEL') {
     toggleFloatingPanel();
     sendResponse({ success: true });

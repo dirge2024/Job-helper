@@ -143,7 +143,7 @@ chrome.commands?.onCommand.addListener(async command => {
 });
 
 async function toggleFloatingPanelInTab(tabId: number): Promise<void> {
-  const message = { type: 'TOGGLE_FLOATING_PANEL' as const };
+  const message = { type: 'TOGGLE_FLOATING_LAUNCHER' as const };
   try {
     await chrome.tabs.sendMessage(tabId, message);
     return;
